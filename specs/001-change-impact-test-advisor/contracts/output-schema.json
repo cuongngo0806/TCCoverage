@@ -1,0 +1,161 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TCAdvisorAnalysisRunReport",
+  "description": "Structured JSON output of one tcadvisor analyze run (FR-008). Mirrors data-model.md AnalysisRun, TestCaseCandidate, UncertaintyFlag, CMakeTargetMapping.",
+  "type": "object",
+  "required": [
+    "run_id",
+    "change_input",
+    "started_at",
+    "completed_at",
+    "cache_hit",
+    "llm_enabled",
+    "llm_degraded",
+    "target_scope",
+    "test_case_candidates",
+    "uncertainty_flags"
+  ],
+  "properties": {
+    "run_id": { "type": "string" },
+    "change_input": {
+      "type": "object",
+      "required": ["mode", "target_repo_path"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["git_diff", "explicit_symbols"] },
+        "commit_range": { "type": ["string", "null"] },
+        "working_tree": { "type": "boolean" },
+        "symbols": {
+          "type": ["array", "null"],
+          "items": { "$ref": "#/definitions/symbolRef" }
+        },
+        "target_repo_path": { "type": "string" }
+      }
+    },
+    "commit_hash": { "type": ["string", "null"] },
+    "started_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": "string", "format": "date-time" },
+    "cache_hit": { "type": "boolean" },
+    "split_into_modules": {
+      "type": ["array", "null"],
+      "items": { "type": "string" }
+    },
+    "llm_enabled": { "type": "boolean" },
+    "llm_degraded": { "type": "boolean" },
+    "llm_token_usage": {
+      "type": ["object", "null"],
+      "properties": {
+        "prompt_tokens": { "type": "integer", "minimum": 0 },
+        "completion_tokens": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "target_scope": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "test_case_candidates": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/testCaseCandidate" }
+    },
+    "uncertainty_flags": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/uncertaintyFlag" }
+    }
+  },
+  "definitions": {
+    "symbolRef": {
+      "type": "object",
+      "required": ["qualified_name", "kind", "file_path", "line"],
+      "properties": {
+        "qualified_name": { "type": "string" },
+        "kind": { "type": "string", "enum": ["function", "method", "class", "struct"] },
+        "file_path": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "impactEdge": {
+      "type": "object",
+      "required": ["relation", "from_symbol", "to_symbol", "source_location"],
+      "properties": {
+        "relation": {
+          "type": "string",
+          "enum": ["call", "inherit_override", "include", "instantiate", "link_to_target"]
+        },
+        "from_symbol": { "$ref": "#/definitions/symbolRef" },
+        "to_symbol": { "$ref": "#/definitions/symbolRef" },
+        "source_location": {
+          "type": "object",
+          "required": ["file_path", "line"],
+          "properties": {
+            "file_path": { "type": "string" },
+            "line": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    },
+    "evidenceItem": {
+      "description": "Either a SymbolRef or an ImpactEdge; at least one required per FR-006.",
+      "oneOf": [
+        { "$ref": "#/definitions/symbolRef" },
+        { "$ref": "#/definitions/impactEdge" }
+      ]
+    },
+    "testCaseCandidate": {
+      "type": "object",
+      "required": [
+        "id",
+        "description",
+        "activation_condition",
+        "evidence",
+        "priority",
+        "risk_group",
+        "related_cmake_targets"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "description": { "type": "string" },
+        "activation_condition": { "type": "string" },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/evidenceItem" }
+        },
+        "priority": { "type": "string", "enum": ["P1", "P2", "P3"] },
+        "risk_group": {
+          "type": "string",
+          "enum": [
+            "logic",
+            "abi_layout",
+            "ownership_lifetime",
+            "thread_safety",
+            "exception_safety",
+            "build_config"
+          ]
+        },
+        "related_cmake_targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "uncertaintyFlag": {
+      "type": "object",
+      "required": ["category", "reason"],
+      "properties": {
+        "category": {
+          "type": "string",
+          "enum": [
+            "uninstantiated_template",
+            "dynamic_runtime_dependency",
+            "di_config_routing",
+            "build_config_incomplete_macro"
+          ]
+        },
+        "reason": { "type": "string" },
+        "related_symbol": {
+          "oneOf": [{ "$ref": "#/definitions/symbolRef" }, { "type": "null" }]
+        }
+      }
+    }
+  }
+}
