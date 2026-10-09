@@ -103,7 +103,7 @@ def strip_anon(name: str) -> str:
     return name.replace("(anonymous)::", "").replace("(anonymous namespace)::", "")
 
 
-def test_label(repo: Path, ref: SymbolRef) -> str | None:
+def gtest_label(repo: Path, ref: SymbolRef) -> str | None:
     """`Suite.Name` for a GoogleTest-style test body (optional adapter; nothing is executed)."""
     if ref.qualified_name.split("::")[-1] not in _TEST_NAMES:
         return None

@@ -267,8 +267,8 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     def targets_of(node: ImpactNode) -> list[str]:
         return list(node.targets)
 
-    from tcadvisor.graph.providers.base import test_label
-    tests = {nid: lbl for nid, n in nodes.items() if n.hop_distance > 0 and (lbl := test_label(repo, n.symbol))}
+    from tcadvisor.graph.providers.base import gtest_label
+    tests = {nid: lbl for nid, n in nodes.items() if n.hop_distance > 0 and (lbl := gtest_label(repo, n.symbol))}
     cases = build_cases(nodes, root_risks, root_kind, flag_only, targets_of, tests)
     known = ({s["name"] for s in facts.symbols.values()} | {r.qualified_name for r in roots.values()}
              | {r.qualified_name for r in graph.refs.values()})

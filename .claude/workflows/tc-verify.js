@@ -44,6 +44,11 @@ const MANIFEST = {
   required: ['report', 'verify_dir', 'batches', 'summary'],
 }
 
+// Agent instructions live in .claude/agents/*.md. They are referenced by path instead of agentType so the
+// workflow also works in sessions started before those agent files existed.
+const AGENT_DOC = (name) => `Your role and rules: read .claude/agents/${name}.md in the TCCoverage repo ` +
+  `(${a.toolRepo || '/home/user/TCCoverage'}) and follow its body (ignore the frontmatter).`
+
 phase('Analyze')
 let analyzeCmd = ''
 if (!a.report) {
@@ -66,8 +71,8 @@ log(`${m.summary} — ${m.batches.length} batch(es) to verify`)
 
 // Each batch verifies independently; synthesis needs all of them (one barrier, by design).
 const results = await parallel(m.batches.map((b, i) => () =>
-  agent(`Verify the batch file ${b}. Return every case id in it.`,
-    { label: `verify:${i + 1}`, phase: 'Verify', schema: VERDICTS, agentType: 'tc-case-verifier', model: 'haiku' })))
+  agent(`${AGENT_DOC('tc-case-verifier')}\nVerify the batch file ${b}. Return every case id in it.`,
+    { label: `verify:${i + 1}`, phase: 'Verify', schema: VERDICTS, model: 'haiku', effort: 'low' })))
 const ok = results.filter(Boolean)
 if (ok.length < m.batches.length) log(`${m.batches.length - ok.length} batch(es) failed; their cases stay unverified`)
 const merged = {}
@@ -78,6 +83,7 @@ const synth = await agent(
   `Report: ${m.report}\nVerify dir: ${m.verify_dir}\nBatch verdicts (already merged, id -> verdict):\n` +
   JSON.stringify(merged) +
   `\nWrite ${m.verify_dir}/verdicts.json as {"cases": {<id>: {verdict, note, extra_corner_cases, recheck}}, ` +
-  `"summary", "additional_checks", "models": ["haiku (case verification)", "sonnet (synthesis)"]} and annotate.`,
-  { label: 'synthesize', phase: 'Synthesize', agentType: 'tc-verify-synthesizer', model: 'sonnet' })
+  `"summary", "additional_checks", "models": ["haiku (case verification)", "sonnet (synthesis)"]} and annotate.\n` +
+  AGENT_DOC('tc-verify-synthesizer'),
+  { label: 'synthesize', phase: 'Synthesize', model: 'sonnet' })
 return { summary: m.summary, batches: m.batches.length, verified: Object.keys(merged).length, annotate: synth }
