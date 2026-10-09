@@ -34,6 +34,7 @@ DEBUG_TOKENS = {"NDEBUG", "_DEBUG", "DEBUG", "assert", "static_assert"}
 LOGIC_TOKENS = {"if", "else", "switch", "case", "default", "return", "for", "while", "do", "break",
                 "continue", "goto", "==", "!=", "<", ">", "<=", ">=", "&&", "||", "!", "?", ":", "+", "-",
                 "*", "/", "%", "++", "--", "+=", "-=", "<<", ">>", "&", "|", "^", "~", "true", "false"}
+_SYNC_ID = re.compile(r"(?i)^\w*(mutex|locker|spinlock|semaphore|critical_?section|guard_?lock)\w*$|^\w*Lock$")
 _NUM = re.compile(r"^-?(0x[0-9a-fA-F]+|\d+(\.\d+)?)[uUlLfF]*$")
 _CMP = re.compile(r"([A-Za-z_][\w.\->\[\]()]*)\s*(<=|>=|==|!=|<|>)\s*(-?(?:0x[0-9a-fA-F]+|\d+(?:\.\d+)?))")
 _PP_LINE = re.compile(r"^\s*#\s*(if|ifdef|ifndef|elif|else|endif|define|undef|include|pragma)\b")
@@ -261,8 +262,11 @@ def classify(ch: SymbolChange, configurations: list[str]) -> list[RiskClassifica
         add("ownership_lifetime", "move_semantics", f"move semantics changed in {where}: {_fmt(move)}")
 
     # ---- thread_safety ---------------------------------------------------------------------------
-    if delta & THREAD_MUTEX:
-        add("thread_safety", "mutex", f"locking/threading primitives changed in {where}: {_fmt(delta & THREAD_MUTEX)}")
+    # project wrappers (leveldb `MutexLock`, `port::Mutex`, Qt `QMutexLocker`, `SpinLock`, ...) count as well
+    sync_ids = {t for t in delta if _SYNC_ID.search(t)} - THREAD_ATOMIC
+    if delta & THREAD_MUTEX or sync_ids:
+        add("thread_safety", "mutex", f"locking/threading primitives changed in {where}: "
+            f"{_fmt((delta & THREAD_MUTEX) | sync_ids)}")
     if delta & THREAD_ATOMIC:
         add("thread_safety", "atomic", f"atomic/volatile usage changed in {where}: {_fmt(delta & THREAD_ATOMIC)}")
     if o and n:

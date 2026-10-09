@@ -115,7 +115,27 @@ def to_markdown(r: dict[str, Any]) -> str:
                 if c.get("corner_cases"):
                     L.append("  - *Corner cases*: " + "; ".join(c["corner_cases"][:5]))
                 L.append(f"  - *Targets*: {', '.join(c['related_cmake_targets'])}")
+                v = c.get("verification")
+                if v:
+                    L.append(f"  - *AI verification*: **{v['verdict']}**{' — re-check' if v['recheck'] else ''}"
+                             f"{': ' + _md_cell(v['note']) if v['note'] else ''}")
+                    if v["extra_corner_cases"]:
+                        L.append("  - *AI corner cases*: " + "; ".join(_md_cell(x) for x in v["extra_corner_cases"]))
             L.append("")
+    av = r.get("ai_verification")
+    if av:
+        L += ["## AI verification (annotations only — cases are never removed)", "",
+              f"{_md_cell(av['summary'])}", "", f"- verified cases: {av['verified_cases']}; models: "
+              f"{', '.join(av.get('models') or []) or '-'}"]
+        for a in av["additional_checks"]:
+            L.append(f"- [ ] **Also check**: {_md_cell(a['title'])} — {_md_cell(a['why'])}"
+                     f"{' (' + a['evidence'] + ')' if a['evidence'] else ''}")
+        L.append("")
+    if r.get("existing_tests"):
+        L += ["## Existing tests to re-run", "",
+              "`--gtest_filter=" + ":".join(t["test"] for t in r["existing_tests"]) + "`", ""]
+        L += [f"- `{t['test']}` ({t['file_path']}:{t['line']}, hop {t['hop_distance']})" for t in r["existing_tests"]]
+        L.append("")
     if r["uncertainty_flags"]:
         L += ["## Uncertain — needs manual review", "", "| Category | Symbol | Reason |", "|---|---|---|"]
         for f in r["uncertainty_flags"]:
@@ -151,7 +171,9 @@ def to_brief(r: dict[str, Any], limit: int = 80) -> str:
                  f"[{','.join(sorted({x['risk_group'] for x in s['risks']}))}]")
     for c in r["test_case_candidates"][:limit]:
         ev = c["evidence"][0]
-        L.append(f"{c['id']} {c['priority']} {c['risk_group']} {ev['file_path']}:{ev['line']} :: {c['description']}")
+        v = c.get("verification")
+        tag = f" [AI:{v['verdict']}{'' if v['recheck'] else ',no-recheck'}]" if v else ""
+        L.append(f"{c['id']} {c['priority']} {c['risk_group']} {ev['file_path']}:{ev['line']}{tag} :: {c['description']}")
         if c.get("corner_cases"):
             L.append("   corner: " + " | ".join(c["corner_cases"][:3]))
     if len(r["test_case_candidates"]) > limit:
@@ -159,6 +181,10 @@ def to_brief(r: dict[str, Any], limit: int = 80) -> str:
     for f in r["uncertainty_flags"]:
         sym = f["related_symbol"]
         L.append(f"UNCERTAIN {f['category']} {sym['qualified_name'] if sym else '-'} :: {f['reason']}")
+    if r.get("existing_tests"):
+        L.append("RERUN --gtest_filter=" + ":".join(t["test"] for t in r["existing_tests"]))
+    for a in (r.get("ai_verification") or {}).get("additional_checks", []):
+        L.append(f"AI-ALSO {a['title']} :: {a['why']}")
     if r.get("affected_targets"):
         L.append("TARGETS " + ", ".join(t["name"] for t in r["affected_targets"]))
     for n in r.get("run_notes", []):

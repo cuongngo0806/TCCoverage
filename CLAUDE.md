@@ -13,7 +13,10 @@ analysed repo.
   `evidence/` (uncertainty flags, evidence gate) → `llm/` (optional, off by default) → `report/`.
 - `tests/` — pytest; `tests/conftest.py` builds a synthetic CMake project (needs cmake + clang).
 - `vscode-extension/` — VS Code front-end (TypeScript) calling the CLI.
-- `.claude/skills/tc-coverage` + `.claude/agents/tc-coverage-analyst.md` — Claude front-end.
+- `src/tcadvisor/graph/providers/` — codegraph / GitNexus adapters; `src/tcadvisor/verify/` — packets, annotate, headless Claude runner.
+- `.claude/skills/tc-coverage`, `.claude/agents/{tc-coverage-analyst,tc-case-verifier,tc-verify-synthesizer}.md`,
+  `.claude/workflows/{tc-verify,product-cycle}.js` — Claude front-end; see `docs/workflow.md` (models per step).
+- `scripts/eval_real_project.py` — leveldb ground-truth eval (run before release).
 - `specs/001-change-impact-test-advisor/` — speckit spec/plan/tasks; `.specify/memory/constitution.md` — rules.
 
 ## Commands
@@ -23,7 +26,8 @@ pip install -e '.[dev]'                       # libclang wheel + pytest/jsonsche
 python3 -m pytest -q                          # full suite (~20 s)
 python3 -m pytest -q tests/unit               # fast
 python3 -m tcadvisor analyze --repo R --build-dir B --working-tree --output-dir OUT --print brief
-cd vscode-extension && npm install && npm run compile
+python3 scripts/eval_real_project.py --quiet   # real-project acceptance (needs network + cmake)
+cd vscode-extension && npm install && npm run compile && npm test
 ```
 
 ## Spec-driven workflow with Claude (speckit)

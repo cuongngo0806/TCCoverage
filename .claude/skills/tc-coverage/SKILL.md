@@ -30,8 +30,12 @@ $ARGUMENTS
 
 ```bash
 <python> -m tcadvisor analyze --repo <repo> --build-dir <build> <mode> [--targets <targets>] \
-  --output-dir <repo>/../tcadvisor-report --print brief -q
+  --graph auto --output-dir <repo>/../tcadvisor-report --print brief -q
 ```
+
+Impact comes from the code graph (`--graph auto` = codegraph if installed, else the built-in libclang
+graph; `--graph gitnexus` only if the user opted in — PolyForm-Noncommercial license). **You never trace
+impact yourself; you only verify it** (step 3b).
 
 (If `tcadvisor` is not installed: `pip install -e <this TCCoverage repo>` first.)
 Exit codes: `1` prerequisite (compile db / File API missing or stale → explain the fix, stop),
@@ -43,6 +47,17 @@ Exit codes: `1` prerequisite (compile db / File API missing or stale → explain
 - Need details of one case? `python3 -c "import json;r=json.load(open('<out>/report.json'));print(json.dumps([c for c in r['test_case_candidates'] if c['id']=='TC-0003'],indent=1))"`
 - Need code? Read only the evidence window: `sed -n '<line-3>,<line+25>p' <file>` — for at most the P1 cases.
 - If the brief has > 40 cases, delegate the reading/summarising to the `tc-coverage-analyst` subagent and keep only its summary.
+
+## 3b. Verify (only when the user wants verification or there are P1 cases)
+
+Cheapest path — never read the code base, only packets:
+
+1. `python3 -m tcadvisor verify-pack <out>/report.json` → `<out>/verify/batch-NN.json` (≤8 packets each).
+2. For each batch launch the `tc-case-verifier` subagent (Haiku) **in parallel** with the batch path.
+3. Launch one `tc-verify-synthesizer` subagent (Sonnet) with the report path, verify dir and the batch
+   results; it writes `verdicts.json` and runs `tcadvisor annotate` (report/HTML/VS Code then show verdicts).
+
+Or run the saved workflow `tc-verify` (Workflow tool, name `tc-verify`) which does exactly this.
 
 ## 4. Answer
 

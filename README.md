@@ -6,7 +6,12 @@ config), every caller / subclass / user / includer up to N hops, corner cases to
 targets to rebuild/retest, and the blind spots that need manual review. Results come as Markdown,
 JSON, a token-lean brief, and an **interactive HTML impact-flow report**.
 
-![report](docs/report-example.png)
+![report](docs/report-leveldb-verified.png)
+
+**Impact comes from a code graph** (codegraph by default, GitNexus opt-in, or the built-in libclang graph);
+**AI only verifies** the deterministic cases and adds corner cases — see [docs/workflow.md](docs/workflow.md)
+for the agent/model workflow and the product-development cycle. Real-project evaluation on
+google/leveldb: [specs/002…/eval.md](specs/002-graph-providers-ai-verify/eval.md).
 
 Three front-ends share the same engine:
 
@@ -29,6 +34,26 @@ Three front-ends share the same engine:
 5. **Uncertainty flags**: uninstantiated templates, DI/virtual-only methods, callbacks/function pointers,
    macro branches not compiled in any configuration.
 6. Optional local LLM (Ollama) may only reword descriptions; off by default and degrades gracefully.
+
+## Graph providers
+
+```bash
+npm i -g @colbymchenry/codegraph     # MIT — default for --graph auto
+npm i -g gitnexus                    # optional; PolyForm-Noncommercial license, check before commercial use
+tcadvisor analyze ... --graph auto|codegraph|gitnexus|clang
+```
+
+With codegraph/GitNexus a compile database is optional (results are marked *reduced accuracy* without it);
+with it, change classification and CMake target mapping are exact.
+
+## AI verification (optional, explicit opt-in)
+
+```bash
+tcadvisor verify ../tcadvisor-report/report.json --ai-external-approved   # Haiku per batch + 1 Sonnet call
+```
+
+Sends only packed code windows (≤40 lines per impacted symbol) through the Claude Code CLI. Verdicts are
+annotations; no case is ever removed by a model.
 
 ## Install
 

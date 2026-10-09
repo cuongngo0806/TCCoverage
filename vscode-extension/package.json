@@ -1,55 +1,210 @@
 {
   "name": "tc-coverage",
-  "displayName": "TC Coverage — Change Impact & Test Cases",
+  "displayName": "TC Coverage \u2014 Change Impact & Test Cases",
   "description": "Shows the test cases, corner cases and impact flow a C++/CMake change must be checked against (powered by tcadvisor).",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "tccoverage",
   "license": "UNLICENSED",
-  "engines": { "vscode": "^1.80.0" },
-  "categories": ["Testing", "Visualization", "Other"],
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Testing",
+    "Visualization",
+    "Other"
+  ],
   "main": "./out/extension.js",
-  "activationEvents": ["workspaceContains:**/CMakeLists.txt"],
+  "activationEvents": [
+    "workspaceContains:**/CMakeLists.txt"
+  ],
   "contributes": {
     "commands": [
-      { "command": "tcCoverage.analyzeWorkingTree", "title": "Analyze Working Tree Changes", "category": "TC Coverage", "icon": "$(play)" },
-      { "command": "tcCoverage.analyzeLastCommit", "title": "Analyze Last Commit", "category": "TC Coverage" },
-      { "command": "tcCoverage.analyzeRange", "title": "Analyze Commit Range…", "category": "TC Coverage" },
-      { "command": "tcCoverage.analyzeSymbol", "title": "Analyze Symbol at Cursor", "category": "TC Coverage" },
-      { "command": "tcCoverage.showReport", "title": "Show Report (Impact Flow)", "category": "TC Coverage", "icon": "$(graph)" },
-      { "command": "tcCoverage.clearCache", "title": "Clear Index Cache", "category": "TC Coverage" },
-      { "command": "tcCoverage.openEvidence", "title": "Open Evidence", "category": "TC Coverage" }
+      {
+        "command": "tcCoverage.analyzeWorkingTree",
+        "title": "Analyze Working Tree Changes",
+        "category": "TC Coverage",
+        "icon": "$(play)"
+      },
+      {
+        "command": "tcCoverage.analyzeLastCommit",
+        "title": "Analyze Last Commit",
+        "category": "TC Coverage"
+      },
+      {
+        "command": "tcCoverage.analyzeRange",
+        "title": "Analyze Commit Range\u2026",
+        "category": "TC Coverage"
+      },
+      {
+        "command": "tcCoverage.analyzeSymbol",
+        "title": "Analyze Symbol at Cursor",
+        "category": "TC Coverage"
+      },
+      {
+        "command": "tcCoverage.showReport",
+        "title": "Show Report (Impact Flow)",
+        "category": "TC Coverage",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "tcCoverage.clearCache",
+        "title": "Clear Index Cache",
+        "category": "TC Coverage"
+      },
+      {
+        "command": "tcCoverage.openEvidence",
+        "title": "Open Evidence",
+        "category": "TC Coverage"
+      },
+      {
+        "command": "tcCoverage.verifyWithClaude",
+        "title": "Verify Cases with Claude (AI)",
+        "category": "TC Coverage",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "tcCoverage.copyTestFilter",
+        "title": "Copy gtest filter of tests to re-run",
+        "category": "TC Coverage"
+      }
     ],
     "menus": {
       "view/title": [
-        { "command": "tcCoverage.analyzeWorkingTree", "when": "view == tcCoverage.cases", "group": "navigation" },
-        { "command": "tcCoverage.showReport", "when": "view == tcCoverage.cases", "group": "navigation" }
+        {
+          "command": "tcCoverage.analyzeWorkingTree",
+          "when": "view == tcCoverage.cases",
+          "group": "navigation"
+        },
+        {
+          "command": "tcCoverage.verifyWithClaude",
+          "when": "view == tcCoverage.cases",
+          "group": "navigation"
+        },
+        {
+          "command": "tcCoverage.showReport",
+          "when": "view == tcCoverage.cases",
+          "group": "navigation"
+        }
       ],
       "editor/context": [
-        { "command": "tcCoverage.analyzeSymbol", "when": "editorLangId == cpp || editorLangId == c", "group": "navigation@90" }
+        {
+          "command": "tcCoverage.analyzeSymbol",
+          "when": "editorLangId == cpp || editorLangId == c",
+          "group": "navigation@90"
+        }
       ],
-      "commandPalette": [ { "command": "tcCoverage.openEvidence", "when": "false" } ]
+      "commandPalette": [
+        {
+          "command": "tcCoverage.openEvidence",
+          "when": "false"
+        }
+      ]
     },
     "views": {
-      "explorer": [ { "id": "tcCoverage.cases", "name": "TC Coverage" } ]
+      "explorer": [
+        {
+          "id": "tcCoverage.cases",
+          "name": "TC Coverage"
+        }
+      ]
     },
     "configuration": {
       "title": "TC Coverage",
       "properties": {
-        "tcCoverage.pythonPath": { "type": "string", "default": "python3", "description": "Python interpreter with tcadvisor installed (pip install -e <TCCoverage>)." },
-        "tcCoverage.repo": { "type": "string", "default": "", "description": "Analysed git repository root. Empty = first workspace folder." },
-        "tcCoverage.buildDir": { "type": "string", "default": "build", "description": "CMake build dir (relative to repo or absolute) with compile_commands.json and .cmake/api/v1/reply." },
-        "tcCoverage.outputDir": { "type": "string", "default": "", "description": "Report directory (must be outside the repo). Empty = <repo>/../tcadvisor-report/<repo-name>." },
-        "tcCoverage.targets": { "type": "string", "default": "", "description": "Comma-separated CMake targets to restrict the scope (e.g. RemoteDoorLock,RemoteDoorUnlock)." },
-        "tcCoverage.maxHopDepth": { "type": "number", "default": 2, "minimum": 1, "maximum": 6 },
-        "tcCoverage.showInlineHints": { "type": "boolean", "default": true, "description": "Show P1/P2 cases as hints on the evidence lines." },
-        "tcCoverage.extraArgs": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Extra arguments for 'tcadvisor analyze'." }
+        "tcCoverage.pythonPath": {
+          "type": "string",
+          "default": "python3",
+          "description": "Python interpreter with tcadvisor installed (pip install -e <TCCoverage>)."
+        },
+        "tcCoverage.repo": {
+          "type": "string",
+          "default": "",
+          "description": "Analysed git repository root. Empty = first workspace folder."
+        },
+        "tcCoverage.buildDir": {
+          "type": "string",
+          "default": "build",
+          "description": "CMake build dir (relative to repo or absolute) with compile_commands.json and .cmake/api/v1/reply."
+        },
+        "tcCoverage.outputDir": {
+          "type": "string",
+          "default": "",
+          "description": "Report directory (must be outside the repo). Empty = <repo>/../tcadvisor-report/<repo-name>."
+        },
+        "tcCoverage.targets": {
+          "type": "string",
+          "default": "",
+          "description": "Comma-separated CMake targets to restrict the scope (e.g. RemoteDoorLock,RemoteDoorUnlock)."
+        },
+        "tcCoverage.maxHopDepth": {
+          "type": "number",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 6
+        },
+        "tcCoverage.showInlineHints": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show P1/P2 cases as hints on the evidence lines."
+        },
+        "tcCoverage.extraArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Extra arguments for 'tcadvisor analyze'."
+        },
+        "tcCoverage.graphProvider": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "codegraph",
+            "gitnexus",
+            "clang"
+          ],
+          "default": "auto",
+          "markdownDescription": "Where impact comes from. `codegraph` (MIT) is used by `auto` when installed; `gitnexus` is PolyForm-Noncommercial \u2014 enable only if your organisation allows it; `clang` = built-in libclang graph (needs compile_commands.json)."
+        },
+        "tcCoverage.graphBin": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the codegraph/gitnexus executable (empty = PATH)."
+        },
+        "tcCoverage.ai.approved": {
+          "type": "boolean",
+          "default": false,
+          "scope": "resource",
+          "description": "Allow sending packed code windows (\u226440 lines per impacted symbol, never the repository) to Claude for verification."
+        },
+        "tcCoverage.ai.claudePath": {
+          "type": "string",
+          "default": "claude",
+          "description": "Claude Code CLI used in headless mode."
+        },
+        "tcCoverage.ai.verifyModel": {
+          "type": "string",
+          "default": "haiku",
+          "description": "Model for per-batch case verification (cheap, many calls)."
+        },
+        "tcCoverage.ai.synthModel": {
+          "type": "string",
+          "default": "sonnet",
+          "description": "Model for the single synthesis call."
+        },
+        "tcCoverage.ai.budgetUsd": {
+          "type": "number",
+          "default": 0.5,
+          "description": "Spending cap per model call (claude --max-budget-usd)."
+        }
       }
     }
   },
   "scripts": {
     "compile": "tsc -p .",
     "watch": "tsc -watch -p .",
-    "package": "vsce package"
+    "package": "vsce package",
+    "test": "node test/smoke.js"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

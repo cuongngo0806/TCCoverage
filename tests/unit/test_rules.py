@@ -85,3 +85,8 @@ def test_new_pure_virtual_hint_and_propagation():
     abi = [r for r in rs if r.risk_group == "abi_layout"][0]
     assert "pure virtual" in abi.detail and any("must now override" in h for h in abi.hints)
     assert ch.propagation() == {"inherit_override", "include"}
+
+
+def test_project_lock_wrappers_count_as_thread_safety():
+    rs = classify(_change(_fn(["x", "=", "1"]), _fn(["MutexLock", "l", "(", "&", "mutex_", ")", ";", "x", "=", "1"])), [])
+    assert ("thread_safety", "mutex") in groups(rs)

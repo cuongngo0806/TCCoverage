@@ -62,6 +62,29 @@ def build_parser() -> argparse.ArgumentParser:
     cc.add_argument("--repo", required=True, type=Path)
     cc.add_argument("--cache-dir", type=Path)
 
+    v = sub.add_parser("verify-pack", help="write token-lean verification packets for AI verifiers")
+    v.add_argument("report", type=Path)
+    v.add_argument("--out", type=Path, help="default: <report dir>/verify")
+    v.add_argument("--priorities", default="P1,P2")
+    v.add_argument("--max-cases", type=int, default=60)
+    v.add_argument("--batch", type=int, default=8, help="packets per verifier call")
+
+    vf = sub.add_parser("verify", help="AI-verify an existing report with the Claude Code CLI (headless)")
+    vf.add_argument("report", type=Path)
+    vf.add_argument("--ai-external-approved", action="store_true",
+                    help="confirm sending packed code windows to the model provider (required)")
+    vf.add_argument("--claude-bin")
+    vf.add_argument("--verify-model", default="haiku")
+    vf.add_argument("--synth-model", default="sonnet")
+    vf.add_argument("--parallel", type=int, default=4)
+    vf.add_argument("--priorities", default="P1,P2")
+    vf.add_argument("--max-cases", type=int, default=60)
+    vf.add_argument("--budget-usd", type=float, help="per-call spending cap passed to claude --max-budget-usd")
+
+    an = sub.add_parser("annotate", help="merge AI verdicts into report.json and re-render")
+    an.add_argument("report", type=Path)
+    an.add_argument("verdicts", type=Path)
+
     r = sub.add_parser("render", help="re-render md/html/brief from an existing report.json")
     r.add_argument("report", type=Path)
     r.add_argument("--output-dir", type=Path)
@@ -112,6 +135,35 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"cleared {d}")
             else:
                 print(f"no cache at {d}")
+            return 0
+        if ns.command == "verify-pack":
+            from tcadvisor.verify.pack import write_packets
+            m = write_packets(ns.report, ns.out or ns.report.parent / "verify",
+                              {p.strip() for p in ns.priorities.split(",")}, ns.max_cases, ns.batch)
+            print(json.dumps(m, indent=1))
+            return 0
+        if ns.command == "verify":
+            from tcadvisor.report.render import write_outputs
+            from tcadvisor.verify.runner import verify
+            res = verify(ns.report, approved=ns.ai_external_approved, claude=ns.claude_bin,
+                         verify_model=ns.verify_model, synth_model=ns.synth_model, parallel=ns.parallel,
+                         priorities={p.strip() for p in ns.priorities.split(",")}, max_cases=ns.max_cases,
+                         budget_usd=ns.budget_usd, progress=lambda m: print(f"[tcadvisor] {m}", file=sys.stderr))
+            write_outputs(json.loads(ns.report.read_text(encoding="utf-8")), ns.report.parent, "all")
+            u = res["usage"]
+            print(f"verified {res['verified']} case(s) with {u['calls']} model call(s); tokens in/out "
+                  f"{u['input_tokens']}/{u['output_tokens']}; cost ${u['cost_usd']:.4f}"
+                  + (f"; errors: {'; '.join(res['errors'])}" if res["errors"] else ""))
+            return 0
+        if ns.command == "annotate":
+            from tcadvisor.report.render import write_outputs
+            from tcadvisor.verify.annotate import annotate_file
+            for w in annotate_file(ns.report, ns.verdicts):
+                print(f"warning: {w}", file=sys.stderr)
+            rep = json.loads(ns.report.read_text(encoding="utf-8"))
+            write_outputs(rep, ns.report.parent, "all")
+            av = rep["ai_verification"]
+            print(f"annotated {av['verified_cases']} case(s); {len(av['additional_checks'])} additional check(s)")
             return 0
         if ns.command == "render":
             from tcadvisor.report.render import write_outputs

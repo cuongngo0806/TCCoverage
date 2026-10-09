@@ -42,6 +42,9 @@ input[type=search]{padding:6px 10px;border:1px solid var(--line);border-radius:6
 .grp{font-size:11.5px;border:1px solid var(--line);border-radius:4px;padding:0 5px;margin-left:4px;color:var(--muted)}
 .case ul{margin:4px 0 0 18px;padding:0}.case li{margin:1px 0}a.loc{color:var(--accent);text-decoration:none;cursor:pointer}
 table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid var(--line);padding:6px;text-align:left;vertical-align:top}
+.ai{margin-top:6px;padding:6px 8px;border-left:3px solid var(--accent);background:var(--bg)}
+.aib{font-size:11.5px;font-weight:700;padding:1px 6px;border-radius:4px;border:1px solid var(--accent);color:var(--accent)}
+.aib.weak{border-color:var(--muted);color:var(--muted)}.aib.needs_info{border-color:var(--warn);color:var(--warn)}
 .flag{color:var(--warn);font-weight:600}.tw{overflow-x:auto}td code{word-break:break-all}.node.unc rect{stroke:var(--warn)!important;stroke-dasharray:4 3}#detail{margin-top:8px}.empty{padding:24px;text-align:center;color:var(--muted)}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:6px}
 .sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px;border:1.5px solid}
@@ -63,7 +66,7 @@ table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid var(--li
 <div class="panel"><div class="chips" id="prioChips"></div><div class="chips" id="grpChips"></div>
 <input type="search" id="q" placeholder="Filter by symbol, file, text…"><span class="muted" id="count" style="margin-left:8px"></span>
 <div id="cases"></div></div>
-<section id="flagsSec"></section><section id="targetsSec"></section><section id="oosSec"></section><section id="notesSec"></section>
+<section id="aiSec"></section><section id="testsSec"></section><section id="flagsSec"></section><section id="targetsSec"></section><section id="oosSec"></section><section id="notesSec"></section>
 </main>
 <script id="data" type="application/json">__DATA__</script>
 <script>
@@ -108,8 +111,8 @@ const uniq={};E.forEach((e,i)=>{const k=e.a+'>'+e.b+'>'+e.rel;if(uniq[k])return;
 const P1=id=>C.filter(c=>c.node_id===id&&c.priority==='P1').length;
 const UNC=new Set(R.uncertainty_flags.filter(f=>f.related_symbol).map(f=>key(f.related_symbol)));
 Object.entries(pos).forEach(([id,p])=>{const n=p.n;const h=n?Math.min(n.hop_distance,2):3;const col=['h0','h1','h2','tg'][h];
- const label=n?n.symbol.qualified_name:p.t;const short=label.length>30?'…'+label.slice(-29):label;
- const p1=n?P1(id):0;
+ const label=n?(n.test?'test '+n.test:n.symbol.qualified_name):p.t;const p1=n?P1(id):0;const max=p1?26:31;
+ const short=label.length>max?'…'+label.slice(-(max-1)):label;
  s+=`<g class="node${n&&UNC.has(key(n.symbol))?' unc':''}" data-id="${esc(id)}" transform="translate(${p.x},${p.y})"><rect width="${W}" height="${H}" style="fill:var(--${col}bg);stroke:var(--${col})"></rect>`+
  `<text x="8" y="19">${esc(short)}</text>${p1?`<text x="${W-8}" y="19" text-anchor="end" style="fill:var(--p1);font-weight:700">${p1}●</text>`:''}`+
  `<title>${esc(label)}${n?'\n'+n.symbol.file_path+':'+n.symbol.line+'\nrisk: '+(n.risk_groups||[]).join(', '):''}</title></g>`});
@@ -144,8 +147,13 @@ function render(){const list=C.filter(c=>st.p.has(c.priority)&&st.g.has(c.risk_g
  <div>${esc(c.description)}</div><div class="muted">When: ${esc(c.activation_condition)}</div>
  <ul>${c.evidence.map(e=>`<li>${evHtml(e)}</li>`).join('')}</ul>
  ${(c.corner_cases||[]).length?`<div class="muted" style="margin-top:4px">Corner cases:</div><ul>${c.corner_cases.map(h=>`<li>${esc(h)}</li>`).join('')}</ul>`:''}
- <div class="muted">Targets: ${esc(c.related_cmake_targets.join(', '))}</div></div>`).join(''):'<div class="empty">No cases match.</div>'}
+ <div class="muted">Targets: ${esc(c.related_cmake_targets.join(', '))}</div>${c.verification?`<div class="ai"><span class="aib ${c.verification.verdict}">AI · ${esc(c.verification.verdict)}${c.verification.recheck?' · re-check':''}</span> ${esc(c.verification.note)}${c.verification.extra_corner_cases.length?'<ul>'+c.verification.extra_corner_cases.map(h=>`<li>${esc(h)}</li>`).join('')+'</ul>':''}</div>`:''}</div>`).join(''):'<div class="empty">No cases match.</div>'}
 render();
+const AV=R.ai_verification;
+if(AV)document.getElementById('aiSec').innerHTML=`<h2>AI verification <span class="muted" style="font-size:13px;font-weight:400">annotations only — no case is removed</span></h2><div class="panel"><div>${esc(AV.summary)}</div><div class="muted">verified cases: ${AV.verified_cases} · models: ${esc((AV.models||[]).join(', ')||'-')}</div>`+
+ (AV.additional_checks.length?'<ul>'+AV.additional_checks.map(a=>`<li><b>${esc(a.title)}</b> — ${esc(a.why)} <span class="mono muted">${esc(a.evidence)}</span></li>`).join('')+'</ul>':'')+'</div>';
+const XT=R.existing_tests||[];
+if(XT.length)document.getElementById('testsSec').innerHTML=`<h2>Existing tests to re-run (${XT.length})</h2><div class="panel"><code>--gtest_filter=${esc(XT.map(t=>t.test).join(':'))}</code><ul>`+XT.map(t=>`<li><code>${esc(t.test)}</code> ${loc(t.file_path,t.line)} · hop ${t.hop_distance}</li>`).join('')+'</ul></div>';
 const F=R.uncertainty_flags;
 if(F.length)document.getElementById('flagsSec').innerHTML=`<h2>Uncertain — needs manual review (${F.length})</h2><div class="panel tw"><table><tr><th>Category</th><th>Symbol</th><th>Reason</th></tr>`+
  F.map(f=>`<tr><td class="flag">${esc(f.category)}</td><td>${f.related_symbol?`<code>${esc(f.related_symbol.qualified_name)}</code><br>${loc(f.related_symbol.file_path,f.related_symbol.line)}`:'-'}</td><td>${esc(f.reason)}</td></tr>`).join('')+'</table></div>';

@@ -1,0 +1,48 @@
+{
+ "clang": {
+  "seconds": 23.1,
+  "cases": 23,
+  "P1": 7,
+  "flags": 2,
+  "impact_nodes": 17,
+  "existing_tests": [],
+  "expectations": {
+   "cache_vtable_change_is_P1": true,
+   "setcapacity_lock_is_thread_safety": true,
+   "no_include_guard_build_config": true,
+   "case_count_below_60": true
+  }
+ },
+ "codegraph": {
+  "seconds": 7.3,
+  "cases": 25,
+  "P1": 9,
+  "flags": 0,
+  "impact_nodes": 19,
+  "existing_tests": [
+   "CacheTest.SetCapacity"
+  ],
+  "expectations": {
+   "cache_vtable_change_is_P1": true,
+   "setcapacity_lock_is_thread_safety": true,
+   "no_include_guard_build_config": true,
+   "case_count_below_60": true,
+   "finds_existing_test_CacheTest.SetCapacity": true,
+   "sharded_cache_reached_via_inheritance": true
+  }
+ },
+ "gitnexus": {
+  "seconds": 36.5,
+  "cases": 15,
+  "P1": 6,
+  "flags": 6,
+  "impact_nodes": 13,
+  "existing_tests": [],
+  "expectations": {
+   "cache_vtable_change_is_P1": true,
+   "setcapacity_lock_is_thread_safety": true,
+   "no_include_guard_build_config": true,
+   "case_count_below_60": true
+  }
+ }
+}

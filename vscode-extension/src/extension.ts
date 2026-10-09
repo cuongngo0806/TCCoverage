@@ -10,12 +10,18 @@ interface Case {
   id: string; description: string; activation_condition: string; evidence: (SymbolRef | Edge)[];
   priority: string; risk_group: string; sub_reason?: string; hop_distance: number; corner_cases?: string[];
   related_cmake_targets: string[];
+  verification?: { verdict: "confirmed" | "weak" | "needs_info"; note: string; extra_corner_cases: string[]; recheck: boolean };
 }
 interface Flag { category: string; reason: string; related_symbol: SymbolRef | null }
 interface Report {
   test_case_candidates: Case[]; uncertainty_flags: Flag[]; affected_targets?: { name: string; relation: string }[];
   no_detected_impact?: boolean; change_input: { target_repo_path: string };
+  existing_tests?: { test: string; file_path: string; line: number; hop_distance: number }[];
+  ai_verification?: { summary: string; additional_checks: { title: string; why: string; evidence: string }[];
+    verified_cases: number; usage?: { cost_usd: number; calls: number } };
+  graph_provider?: string;
 }
+const VERDICT_ICON: Record<string, string> = { confirmed: "pass", weak: "circle-slash", needs_info: "question" };
 
 const isSym = (e: SymbolRef | Edge): e is SymbolRef => (e as SymbolRef).qualified_name !== undefined;
 const RISK: Record<string, string> = {
@@ -44,7 +50,7 @@ function outDir(repo: string): string {
 
 // ---------------------------------------------------------------------------------- tree view
 type Node = { label: string; kind: "group" | "case" | "evidence" | "flag" | "info"; children?: Node[];
-  file?: string; line?: number; tooltip?: string; prio?: string };
+  file?: string; line?: number; tooltip?: string; prio?: string; verdict?: string };
 
 class CasesProvider implements vscode.TreeDataProvider<Node> {
   private emitter = new vscode.EventEmitter<Node | undefined>();
@@ -62,6 +68,18 @@ class CasesProvider implements vscode.TreeDataProvider<Node> {
         children: cs.map(c => caseNode(c)),
       };
     }).filter(g => (g.children?.length ?? 0) > 0);
+    if (report.existing_tests?.length) {
+      groups.push({ label: `Existing tests to re-run (${report.existing_tests.length})`, kind: "group",
+        children: report.existing_tests.map(t => ({ label: t.test, kind: "evidence" as const, file: t.file_path, line: t.line })) });
+    }
+    if (report.ai_verification) {
+      const av = report.ai_verification;
+      groups.push({ label: `AI: also check (${av.additional_checks.length})`, kind: "group", tooltip: av.summary,
+        children: av.additional_checks.map(a => {
+          const m = /^(.*):(\d+)$/.exec(a.evidence || "");
+          return { label: a.title, kind: "flag" as const, tooltip: a.why, file: m?.[1], line: m ? +m[2] : undefined };
+        }) });
+    }
     if (report.uncertainty_flags.length) {
       groups.push({
         label: `Uncertain — manual review (${report.uncertainty_flags.length})`, kind: "group",
@@ -86,10 +104,13 @@ class CasesProvider implements vscode.TreeDataProvider<Node> {
     it.tooltip = n.tooltip ? new vscode.MarkdownString(n.tooltip) : undefined;
     const icons: Record<string, string> = { case: "beaker", evidence: "symbol-method", flag: "warning", info: "info" };
     if (icons[n.kind]) { it.iconPath = new vscode.ThemeIcon(icons[n.kind]); }
-    if (n.kind === "case") { it.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed; }
+    if (n.kind === "case") {
+      it.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+      if (n.verdict) { it.iconPath = new vscode.ThemeIcon(VERDICT_ICON[n.verdict] ?? "beaker"); }
+    }
     if (n.file) {
       it.command = { command: "tcCoverage.openEvidence", title: "Open", arguments: [n.file, n.line ?? 1] };
-      it.description = `${n.file}:${n.line}`;
+      it.description = (n.verdict ? `AI: ${n.verdict} · ` : "") + `${n.file}:${n.line}`;
     }
     return it;
   }
@@ -100,14 +121,17 @@ function caseNode(c: Case): Node {
   const tip = `**${c.id}** ${c.priority} · ${RISK[c.risk_group]}${c.sub_reason ? " · " + c.sub_reason : ""}\n\n` +
     `${c.description}\n\n*When*: ${c.activation_condition}\n\n` +
     (c.corner_cases?.length ? "*Corner cases*:\n" + c.corner_cases.map(h => `- ${h}`).join("\n") + "\n\n" : "") +
-    `*Targets*: ${c.related_cmake_targets.join(", ")}`;
+    `*Targets*: ${c.related_cmake_targets.join(", ")}` +
+    (c.verification ? `\n\n---\n**AI (${c.verification.verdict}${c.verification.recheck ? ", re-check" : ""})**: ${c.verification.note}` +
+      c.verification.extra_corner_cases.map(h => `\n- ${h}`).join("") : "");
   const children: Node[] = c.evidence.map(e => isSym(e)
     ? { label: e.qualified_name, kind: "evidence" as const, file: e.file_path, line: e.line }
     : { label: `${e.relation} → ${e.to_symbol.qualified_name}`, kind: "evidence" as const,
         file: e.source_location.file_path, line: e.source_location.line });
   for (const h of c.corner_cases ?? []) { children.push({ label: h, kind: "info" }); }
+  for (const h of c.verification?.extra_corner_cases ?? []) { children.push({ label: `AI: ${h}`, kind: "info" }); }
   return { label: `${c.id} [${RISK[c.risk_group]}] ${first?.qualified_name ?? ""}`, kind: "case", tooltip: tip,
-    children, file: first?.file_path, line: first?.line };
+    children, file: first?.file_path, line: first?.line, verdict: c.verification?.verdict };
 }
 
 // ---------------------------------------------------------------------------------- running
@@ -119,6 +143,9 @@ function runAnalyze(modeArgs: string[], tree: CasesProvider): Thenable<void> {
   const out = outDir(repo);
   const args = ["-m", "tcadvisor", "analyze", "--repo", repo, "--build-dir", buildDir, "--output-dir", out,
     "--max-hop-depth", String(cfg().get<number>("maxHopDepth") ?? 2), ...modeArgs, ...(cfg().get<string[]>("extraArgs") ?? [])];
+  args.push("--graph", cfg().get<string>("graphProvider") || "auto");
+  const gbin = cfg().get<string>("graphBin");
+  if (gbin) { args.push("--graph-bin", gbin); }
   const targets = cfg().get<string>("targets");
   if (targets) { args.push("--targets", targets); }
   const py = cfg().get<string>("pythonPath") || "python3";
@@ -145,6 +172,48 @@ function runAnalyze(modeArgs: string[], tree: CasesProvider): Thenable<void> {
     }));
 }
 
+function runPython(args: string[], title: string, cwd: string): Thenable<number> {
+  const py = cfg().get<string>("pythonPath") || "python3";
+  output.appendLine(`$ ${py} ${args.join(" ")}`);
+  return vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title }, () =>
+    new Promise<number>(resolve => {
+      const proc = cp.spawn(py, args, { cwd });
+      proc.stdout.on("data", d => output.append(String(d)));
+      proc.stderr.on("data", d => output.append(String(d)));
+      proc.on("error", err => { output.appendLine(String(err)); resolve(127); });
+      proc.on("close", code => resolve(code ?? 1));
+    }));
+}
+
+async function verifyWithClaude(tree: CasesProvider) {
+  if (!report || !reportDir) { vscode.window.showInformationMessage("TC Coverage: run an analysis first."); return; }
+  const c = cfg();
+  if (!c.get<boolean>("ai.approved")) {
+    const pick = await vscode.window.showWarningMessage(
+      "AI verification sends packed code windows (≤40 lines per impacted symbol, never the whole repository) " +
+      "to Anthropic through the Claude Code CLI. Is that allowed for this code base?", { modal: true },
+      "Allow for this workspace", "Allow once");
+    if (!pick) { return; }
+    if (pick === "Allow for this workspace") {
+      await c.update("ai.approved", true, vscode.ConfigurationTarget.Workspace);
+    }
+  }
+  const args = ["-m", "tcadvisor", "verify", path.join(reportDir, "report.json"), "--ai-external-approved",
+    "--claude-bin", c.get<string>("ai.claudePath") || "claude",
+    "--verify-model", c.get<string>("ai.verifyModel") || "haiku", "--synth-model", c.get<string>("ai.synthModel") || "sonnet"];
+  const budget = c.get<number>("ai.budgetUsd");
+  if (budget) { args.push("--budget-usd", String(budget)); }
+  const code = await runPython(args, "TC Coverage: verifying cases with Claude…", report.change_input.target_repo_path);
+  if (code !== 0) {
+    vscode.window.showErrorMessage("TC Coverage: AI verification failed (see output)", "Show Output").then(a => { if (a) { output.show(); } });
+    return;
+  }
+  loadReport(reportDir, tree);
+  const av = report?.ai_verification;
+  vscode.window.showInformationMessage(`TC Coverage: AI verified ${av?.verified_cases ?? 0} case(s)` +
+    (av?.usage ? ` · ${av.usage.calls} calls · $${av.usage.cost_usd.toFixed(3)}` : ""), "Show Report").then(a => { if (a) { showReport(); } });
+}
+
 function loadReport(dir: string, tree: CasesProvider) {
   const p = path.join(dir, "report.json");
   if (!fs.existsSync(p)) { return; }
@@ -153,6 +222,8 @@ function loadReport(dir: string, tree: CasesProvider) {
   tree.refresh();
   updateDiagnostics();
   if (panel) { panel.webview.html = reportHtml(); }
+  const verified = report.test_case_candidates.filter(c => c.verification).length;
+  status.tooltip = `graph: ${report.graph_provider ?? "clang"}${verified ? ` · AI-verified ${verified}` : ""}`;
   status.text = report.no_detected_impact ? "$(beaker) TC: no impact"
     : `$(beaker) TC: ${report.test_case_candidates.filter(c => c.priority === "P1").length} P1 / ${report.test_case_candidates.length}`;
   status.show();
@@ -248,6 +319,13 @@ export function activate(ctx: vscode.ExtensionContext) {
       if (s) { await runAnalyze(["--symbols", s], tree); }
     }),
     vscode.commands.registerCommand("tcCoverage.showReport", showReport),
+    vscode.commands.registerCommand("tcCoverage.verifyWithClaude", () => verifyWithClaude(tree)),
+    vscode.commands.registerCommand("tcCoverage.copyTestFilter", async () => {
+      const t = report?.existing_tests ?? [];
+      if (!t.length) { vscode.window.showInformationMessage("TC Coverage: no existing tests found in the impact."); return; }
+      await vscode.env.clipboard.writeText(`--gtest_filter=${t.map(x => x.test).join(":")}`);
+      vscode.window.showInformationMessage(`TC Coverage: copied filter for ${t.length} test(s)`);
+    }),
     vscode.commands.registerCommand("tcCoverage.openEvidence", openEvidence),
     vscode.commands.registerCommand("tcCoverage.clearCache", () => {
       const r = repoRoot();
