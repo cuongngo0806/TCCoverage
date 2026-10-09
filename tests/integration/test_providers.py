@@ -3,7 +3,7 @@ import shutil
 
 import pytest
 
-from tcadvisor.graph.providers.base import ProviderResult, Root, build_overlay, gtest_label
+from tcadvisor.graph.providers.base import Root, build_overlay, gtest_label
 from tcadvisor.graph.providers.codegraph import CodegraphProvider, _choose
 from tcadvisor.graph.providers.gitnexus import GitNexusProvider
 from tcadvisor.index.clang_index import IndexFacts
