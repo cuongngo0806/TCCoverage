@@ -161,11 +161,11 @@ def analyse(a, pair: dict, info: dict) -> dict:
     if not truth:
         row["verdict"] = "no-source-truth"
         return row
-    out = a.work / f"out-{pair['intro']}"
+    out = a.run_dir / f"out-{pair['intro']}"
     t0 = time.monotonic()
     cmd = [sys.executable, "-m", "tcadvisor", "analyze", "--repo", info["wt"], "--build-dir", info["build"],
            "--commit-range", f"{pair['intro']}^..{pair['intro']}", "--output-dir", str(out), "--cache-dir",
-           str(a.work / f"cache-{pair['intro']}"), "--graph", a.graph, "--no-run-cache",
+           str(a.run_dir / f"cache-{pair['intro']}"), "--graph", a.graph, "--no-run-cache",
            "--allow-stale-compile-db", "--max-hop-depth", str(a.max_hop_depth), "--jobs", "1", "-q"]
     res = subprocess.run(cmd, capture_output=True, text=True, env=ENV)
     row["seconds"] = round(time.monotonic() - t0, 1)
@@ -203,7 +203,7 @@ def summarise(results: list[dict], label: str) -> dict:
 
 
 def finish(a, results: list[dict]) -> int:
-    (a.work / "pilot.json").write_text(json.dumps(results, indent=1))
+    (a.run_dir / "pilot.json").write_text(json.dumps(results, indent=1))
     dev = [r for i, r in enumerate(results) if i % 2 == 0]
     hold = [r for i, r in enumerate(results) if i % 2 == 1]
     sums = [summarise(results, "all"), summarise(dev, "dev"), summarise(hold, "holdout")]
@@ -219,8 +219,8 @@ def finish(a, results: list[dict]) -> int:
         md.append(f"| {r['intro']} → {r['fix']} | {r['subject'][:55]} | {r.get('verdict')} | {r.get('via') or '-'} | "
                   f"{r.get('best_priority') or '-'} | {r.get('rank') or '-'} ({r.get('symbol_rank') or '-'}) / "
                   f"{r.get('cases', '-')} ({r.get('p1', '-')}) | {r.get('flags', '-')} | {r.get('seconds', '-')} |")
-    (a.work / "pilot.md").write_text("\n".join(md) + "\n")
-    (a.work / "summary.json").write_text(json.dumps(sums, indent=1))
+    (a.run_dir / "pilot.md").write_text("\n".join(md) + "\n")
+    (a.run_dir / "summary.json").write_text(json.dumps(sums, indent=1))
     for s in sums:
         print(json.dumps(s))
     return 0
@@ -237,16 +237,19 @@ def main() -> int:
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--prepare-only", action="store_true")
     ap.add_argument("--rescore", action="store_true", help="recompute metrics from the last run's reports")
+    ap.add_argument("--tag", default="current", help="results go to WORK/runs/TAG (prepared worktrees are shared)")
     a = ap.parse_args()
     a.work = a.work.resolve()
     a.work.mkdir(parents=True, exist_ok=True)
+    a.run_dir = a.work / "runs" / a.tag
+    a.run_dir.mkdir(parents=True, exist_ok=True)
     attrs = a.work / "gitattributes"
     attrs.write_text("".join(f"*{e} diff=cpp\n" for e in CPP))
     pairs = parse_pairs(a.pairs)
     if a.rescore:
-        results = json.loads((a.work / "pilot.json").read_text())
+        results = json.loads((a.run_dir / "pilot.json").read_text())
         for row in results:
-            rp = a.work / f"out-{row['intro']}" / "report.json"
+            rp = a.run_dir / f"out-{row['intro']}" / "report.json"
             if row.get("truth") and rp.exists() and row.get("verdict") != "error":
                 truth = {t.split(":", 1)[0]: set(filter(None, t.split(":", 1)[1].split(","))) for t in row["truth"]}
                 row.update(evaluate(json.loads(rp.read_text()), truth))
