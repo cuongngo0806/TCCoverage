@@ -26,9 +26,16 @@ REL_PHRASE = {
 FILE_GROUPS = {"abi_layout", "build_config"}
 
 
-def priority(hop: int, group: str) -> str:
+# Sub-reasons whose only consequence is "recompile" / log output: they rank like logic (pilot: on vsomeip,
+# `header_change` alone produced 787 P1 cases and buried the code later fixed for real regressions).
+LOW_SUBS = {"header_change", "inline_change", "logging"}
+
+
+def priority(hop: int, group: str, sub: str | None = None) -> str:
+    if sub == "logging":
+        return "P3"
     direct = hop <= 1
-    high = group in HIGH_SEVERITY
+    high = group in HIGH_SEVERITY and sub not in LOW_SUBS
     if direct and high:
         return "P1"
     if direct or high:
@@ -51,7 +58,7 @@ def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskCla
                 cases.append(TestCaseCandidate(
                     id="", description=desc, activation_condition=f"Changed directly: {r.detail}",
                     evidence=[node.symbol], risk_group=r.risk_group,
-                    priority="P3" if r.sub_reason == "logging" else priority(0, r.risk_group),
+                    priority=priority(0, r.risk_group, r.sub_reason),
                     related_cmake_targets=targets_of(node), node_id=nid, sub_reason=r.sub_reason,
                     hop_distance=0, hints=list(r.hints)))
             continue
@@ -93,9 +100,17 @@ def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskCla
             evidence: list[SymbolRef | ImpactEdge] = [node.symbol] + (edges or node.edges)[:3]
             cases.append(TestCaseCandidate(
                 id="", description=desc, activation_condition=act, evidence=evidence,
-                priority=priority(hop, grp), risk_group=grp, related_cmake_targets=targets_of(node),
+                priority=priority(hop, grp, next((x for x in subs if x not in LOW_SUBS), subs[0] if subs else None)),
+                risk_group=grp, related_cmake_targets=targets_of(node),
                 node_id=nid, sub_reason=subs[0] if subs else None, hop_distance=hop, hints=hints))
-    cases.sort(key=lambda c: (c.priority, c.hop_distance, RISK_GROUPS.index(c.risk_group),
+    # within a priority: closest first, then the most concentrated risk (several strong risk groups on one
+    # changed symbol, or one impacted symbol reached from many changed roots) — deterministic, no model
+    def score(c: TestCaseCandidate) -> int:
+        if c.hop_distance == 0:
+            return len({r.risk_group for r in root_risks.get(c.node_id, []) if r.sub_reason not in LOW_SUBS})
+        return len(nodes[c.node_id].root_ids) if c.node_id in nodes else 0
+
+    cases.sort(key=lambda c: (c.priority, c.hop_distance, -score(c), RISK_GROUPS.index(c.risk_group),
                               c.evidence[0].file_path if isinstance(c.evidence[0], SymbolRef) else "",
                               c.evidence[0].line if isinstance(c.evidence[0], SymbolRef) else 0,
                               c.description))

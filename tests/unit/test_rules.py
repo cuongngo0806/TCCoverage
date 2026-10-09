@@ -100,3 +100,10 @@ def test_log_only_change_is_low_priority_and_does_not_propagate():
     assert ch.propagation() == set()
     mixed = _change(_fn(["x"]), _fn(["y"]), added_lines=['    LOG(INFO) << "a";', "    x = y;"])
     assert not mixed.is_log_only
+
+
+def test_recompile_only_subreasons_rank_low():
+    assert priority(0, "abi_layout", "header_change") == "P2"
+    assert priority(2, "abi_layout", "inline_change") == "P3"
+    assert priority(0, "abi_layout", "member_change") == "P1"
+    assert priority(0, "logic", "logging") == "P3"

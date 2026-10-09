@@ -64,32 +64,48 @@ def short(name: str) -> str:
 
 
 def evaluate(report: dict, truth: dict[str, set[str]]) -> dict:
-    seen_sym: set[tuple[str, str]] = set()
+    """Where does the fixed code show up — and how prominently?
+
+    via: root (the introducing commit changed that function itself — expected for SZZ pairs) or
+    impacted (reached through the graph: the interesting case); best_priority / rank: position of the first
+    case on that symbol in the priority-ordered list (what a reviewer working top-down would reach).
+    """
+    hop: dict[tuple[str, str], int] = {}
     seen_file: set[str] = set()
 
-    def add(sym):
+    def add(sym, h):
         if sym:
-            seen_sym.add((sym["file_path"], short(sym["qualified_name"])))
+            k = (sym["file_path"], short(sym["qualified_name"]))
+            hop[k] = min(h, hop.get(k, h))
             seen_file.add(sym["file_path"])
     for s in report.get("changed_symbols", []):
-        add(s["symbol"])
+        add(s["symbol"], 0)
     for n in report.get("impact_nodes", []):
-        add(n["symbol"])
+        add(n["symbol"], n["hop_distance"])
     for f in report.get("uncertainty_flags", []):
-        add(f.get("related_symbol"))
+        add(f.get("related_symbol"), 99)
     for t in report.get("existing_tests", []):
         seen_file.add(t["file_path"])
+    cases = report.get("test_case_candidates", [])
     hits, file_hits, misses = [], [], []
     for file, fns in truth.items():
         for fn in sorted(fns) or ["<file>"]:
-            if (file, fn) in seen_sym:
-                hits.append(f"{file}:{fn}")
+            if (file, fn) in hop:
+                idx = next((i for i, c in enumerate(cases) if c["evidence"][0].get("file_path") == file
+                            and short(c["evidence"][0].get("qualified_name", "")) == fn), None)
+                hits.append({"symbol": f"{file}:{fn}", "hop": hop[(file, fn)],
+                             "via": "root" if hop[(file, fn)] == 0 else "flag" if hop[(file, fn)] == 99 else "impacted",
+                             "best_priority": cases[idx]["priority"] if idx is not None else None,
+                             "rank": idx + 1 if idx is not None else None})
             elif file in seen_file:
                 file_hits.append(f"{file}:{fn}")
             else:
                 misses.append(f"{file}:{fn}")
     verdict = "surfaced" if hits else "file-level" if file_hits else "missed"
-    return {"verdict": verdict, "hits": hits, "file_hits": file_hits, "misses": misses}
+    best = min(hits, key=lambda h: (h["rank"] or 10**9)) if hits else None
+    return {"verdict": verdict, "hits": hits, "file_hits": file_hits, "misses": misses,
+            "via": best["via"] if best else None, "best_priority": best["best_priority"] if best else None,
+            "rank": best["rank"] if best else None}
 
 
 def main() -> int:
@@ -100,7 +116,16 @@ def main() -> int:
     ap.add_argument("--graph", default="codegraph")
     ap.add_argument("--cmake-args", default="")
     ap.add_argument("--max-hop-depth", type=int, default=2)
+    ap.add_argument("--rescore", action="store_true", help="recompute metrics from an earlier run's reports")
     a = ap.parse_args()
+    if a.rescore:
+        results = json.loads((a.work / "pilot.json").read_text())
+        for row in results:
+            rp = a.work / f"out-{row['intro']}" / "report.json"
+            if row.get("truth") and rp.exists():
+                truth = {t.split(":", 1)[0]: set(filter(None, t.split(":", 1)[1].split(","))) for t in row["truth"]}
+                row.update(evaluate(json.loads(rp.read_text()), truth))
+        return finish(a, results)
     a.work.mkdir(parents=True, exist_ok=True)
     attrs = a.work / "gitattributes"
     attrs.write_text("".join(f"*{e} diff=cpp\n" for e in CPP))
@@ -157,21 +182,31 @@ def main() -> int:
             row["verdict"] = "error"
             row["error"] = (exc.stderr or str(exc))[-600:]
         results.append(row)
-        print(f"{intro}->{fix}: {row['verdict']} ({row.get('seconds', '-')}s, {row.get('cases', '-')} cases)",
+        print(f"{intro}->{fix}: {row['verdict']} via {row.get('via')} rank {row.get('rank')} "
+          f"({row.get('seconds', '-')}s, {row.get('cases', '-')} cases)",
               file=sys.stderr)
+    return finish(a, results)
+
+
+def finish(a, results) -> int:
     (a.work / "pilot.json").write_text(json.dumps(results, indent=1))
     scored = [r for r in results if r["verdict"] in ("surfaced", "file-level", "missed")]
-    md = ["| intro → fix | subject | verdict | cases (P1) | flags | s | missed functions |", "|---|---|---|---|---|---|---|"]
+    md = ["| intro → fix | subject | verdict | via | best case | rank / cases (P1) | flags | s |",
+          "|---|---|---|---|---|---|---|---|"]
     for r in results:
-        md.append(f"| {r['intro']} → {r['fix']} | {r['subject'][:60]} | {r['verdict']} | "
-                  f"{r.get('cases', '-')} ({r.get('p1', '-')}) | {r.get('flags', '-')} | {r.get('seconds', '-')} | "
-                  f"{', '.join(r.get('misses', [])[:3])} |")
+        md.append(f"| {r['intro']} → {r['fix']} | {r['subject'][:60]} | {r['verdict']} | {r.get('via') or '-'} | "
+                  f"{r.get('best_priority') or '-'} | {r.get('rank') or '-'} / {r.get('cases', '-')} ({r.get('p1', '-')}) | "
+                  f"{r.get('flags', '-')} | {r.get('seconds', '-')} |")
     n = len(scored)
     surf = sum(r["verdict"] == "surfaced" for r in scored)
     filel = sum(r["verdict"] == "file-level" for r in scored)
     summary = (f"SC-005 pilot ({a.graph}): {n} scored regressions — surfaced {surf}, file-level only {filel}, "
                f"missed {n - surf - filel}; missed-case rate {((n - surf) / n * 100 if n else 0):.0f}% "
                f"(symbol level), {((n - surf - filel) / n * 100 if n else 0):.0f}% (file level)")
+    in_top = sum(1 for r in scored if r.get("rank") and r["rank"] <= 20)
+    impacted = sum(1 for r in scored if r.get("via") == "impacted")
+    summary += (f"; fixed code in the first 20 cases for {in_top}/{n}; reached only through the graph (not a "
+                f"changed symbol) for {impacted}/{n}")
     (a.work / "pilot.md").write_text(summary + "\n\n" + "\n".join(md) + "\n")
     print(summary)
     return 0
