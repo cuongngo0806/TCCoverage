@@ -288,11 +288,43 @@ class _FileSymbols:
             cur = stack.pop()
             if cur.kind == K.CALL_EXPR:
                 ref = cur.referenced
-                if ref is not None and ref.kind in FUNC_KINDS and ref.location.file is not None and ref.get_usr():
+                ctor = self._factory_ctor(cur, ref)
+                if ctor is not None:
+                    out.append(ctor)
+                elif ref is not None and ref.kind in FUNC_KINDS and ref.location.file is not None and ref.get_usr():
                     out.append((ref.get_usr(), qualified_name(ref), symbol_kind(ref), ref.location.file.name,
                                 ref.location.line, cur.location.line))
+            elif cur.kind == K.CXX_NEW_EXPR:
+                ctor = self._ctor_of(cur.type.get_pointee(), cur.location.line)
+                if ctor is not None:
+                    out.append(ctor)
             stack.extend(cur.get_children())
         return out
+
+    _FACTORIES = ("make_unique", "make_shared", "allocate_shared", "construct_at", "emplace", "emplace_back",
+                  "emplace_front")
+
+    def _factory_ctor(self, call: ci.Cursor, ref: ci.Cursor | None):
+        """`std::make_unique<T>(args)` & co. construct a T: the callee that receives the arguments is T's ctor."""
+        if ref is None or ref.spelling not in self._FACTORIES:
+            return None
+        t = call.type
+        if ref.spelling in ("make_unique", "make_shared", "allocate_shared"):
+            if t.get_num_template_arguments() > 0:
+                return self._ctor_of(t.get_template_argument_type(0), call.location.line)
+        elif ref.spelling == "construct_at":
+            return self._ctor_of(t.get_pointee(), call.location.line)
+        return None
+
+    @staticmethod
+    def _ctor_of(t: ci.Type, line: int):
+        decl = t.get_canonical().get_declaration() if t is not None else None
+        if decl is None or decl.kind not in CLASS_KINDS or decl.location.file is None or not decl.get_usr():
+            return None
+        ctor = next((c for c in decl.get_children() if c.kind == K.CONSTRUCTOR), None)
+        if ctor is not None and ctor.get_usr():
+            return (ctor.get_usr(), qualified_name(ctor), "method", ctor.location.file.name, ctor.location.line, line)
+        return (decl.get_usr(), qualified_name(decl), "class", decl.location.file.name, decl.location.line, line)
 
     def covering(self, line: int) -> list[SymInfo]:
         return [s for s in self.syms.values() if s.start <= line <= s.end]

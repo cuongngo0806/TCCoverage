@@ -117,3 +117,20 @@ def test_changed_call_site_impacts_the_callee(project):
     assert callee[0]["edges"][0]["relation"] == "called_by_change"
     # terminal: the callee's own callees/callers are not expanded from there
     assert "RemoteDoorLock::processOrderResp" not in {n["symbol"]["qualified_name"] for n in r["impact_nodes"]}
+
+
+def test_make_unique_call_site_impacts_the_constructor(project):
+    project.write({"include/door/builder.h": "#pragma once\nclass Builder {\npublic:\n    Builder(int* sink);\n"
+                   "    int* sink_;\n};\n",
+                   "src/builder.cpp": '#include "door/builder.h"\nBuilder::Builder(int* sink) : sink_(sink) {}\n'})
+    project.edit("CMakeLists.txt", "src/handlers.cpp)", "src/handlers.cpp src/builder.cpp)")
+    project.edit("src/lock.cpp", '#include "door/util.h"', '#include "door/util.h"\n#include "door/builder.h"\n#include <memory>\n'
+                 'static int g_a, g_b;\nstd::unique_ptr<Builder> makeBuilder() { return std::make_unique<Builder>(&g_a); }')
+    project.commit()
+    project.configure()
+    project.edit("src/lock.cpp", "std::make_unique<Builder>(&g_a)", "std::make_unique<Builder>(&g_b)")
+    project.commit()
+    r = project.analyze("--commit-range", "HEAD~1..HEAD")
+    ctor = [n for n in r["impact_nodes"] if n["symbol"]["qualified_name"] == "Builder::Builder"]
+    assert ctor and ctor[0]["edges"][0]["relation"] == "called_by_change"
+    assert ctor[0]["symbol"]["file_path"] == "src/builder.cpp"  # definition, not the header declaration
