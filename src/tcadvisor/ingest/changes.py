@@ -8,6 +8,7 @@ when their comment-stripped content differs.
 """
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -20,6 +21,13 @@ from tcadvisor.index.clang_index import (CLASS_KINDS, FUNC_KINDS, K, SYMBOL_KIND
 from tcadvisor.index.compile_db import CPP_EXT, CPP_HEADER_EXT, CompileDatabase
 from tcadvisor.ingest.git import FileDiff
 
+# Logging statements (override with TCADVISOR_LOG_PATTERN). A change made only of such lines cannot alter
+# behaviour beyond log output, so it gets one low-priority case and no propagation (pilot finding: a
+# "Log clean-up" commit in vsomeip produced 1510 cases).
+_LOG_START = re.compile(os.environ.get("TCADVISOR_LOG_PATTERN", r"^\s*(VSOMEIP_(INFO|WARNING|ERROR|DEBUG|TRACE|FATAL)|"
+                        r"ROCKS_LOG_\w+|[A-Z_]*LOG[A-Z_]*\s*\(|D?V?LOG\b|ALOG\w*|SPDLOG_\w+|spdlog::\w+|"
+                        r"q(Debug|Info|Warning|Critical)\b|f?printf\s*\(|std::(cout|cerr|clog)\b|syslog\s*\()"))
+_LOG_CONT = re.compile(r'^\s*(<<|"[^"]*"\s*[,;)]*\s*$|[)};,]+\s*$|$)')
 _COMMENT_RE = re.compile(r"//.*?$|/\*.*?\*/", re.S | re.M)
 _PP_RE = re.compile(r"^\s*#\s*(\w+)\s*(.*)$")
 
@@ -67,12 +75,29 @@ class SymbolChange:
     def is_virtual(self) -> bool:
         return any(s.is_virtual for s in (self.old, self.new) if s)
 
+    @property
+    def is_log_only(self) -> bool:
+        lines = [strip_comments(ln) for ln in self.added_lines + self.removed_lines]
+        if self.kind not in ("function", "method") or not self.old or not self.new or not any(ln.strip() for ln in lines):
+            return False
+        in_log = False
+        for ln in lines:
+            if _LOG_START.search(ln):
+                in_log = not ln.rstrip().endswith(";")
+            elif _LOG_CONT.match(ln) or (in_log and not ln.rstrip().endswith("{")):
+                in_log = in_log and not ln.rstrip().endswith(";")
+            else:
+                return False
+        return self.old.decl_tokens == self.new.decl_tokens
+
     def propagation(self) -> set[str] | None:
         """Relations along which dependents are affected; None = all.
 
         A class whose data layout and bases are unchanged (e.g. a method declaration was added) does not
         affect every user of the type: only subclasses (inherit/override) and includers (recompile).
         """
+        if self.is_log_only:
+            return set()
         if self.kind in ("class", "struct") and self.old and self.new \
                 and self.old.fields == self.new.fields and self.old.bases == self.new.bases:
             return {"inherit_override", "include"}

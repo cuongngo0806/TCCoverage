@@ -170,6 +170,13 @@ def classify(ch: SymbolChange, configurations: list[str]) -> list[RiskClassifica
         out.append(RiskClassification(group, sub, detail, (extra_hints or []) + HINTS.get((group, sub), []),
                                       configs))
 
+    if ch.is_log_only:
+        return [RiskClassification("logic", "logging", f"only logging statements changed in `{ch.name}` "
+                                   f"({ch.rel_path}:{ch.line})",
+                                   ["Log text/format still matches what tests, monitoring or log parsers expect",
+                                    "No side effects or expensive calls inside the log arguments; "
+                                    "log level filtering still works"])]
+
     o, n = ch.old, ch.new
     old_tokens = o.tokens if o else []
     new_tokens = n.tokens if n else []

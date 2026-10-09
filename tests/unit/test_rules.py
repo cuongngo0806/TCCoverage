@@ -90,3 +90,13 @@ def test_new_pure_virtual_hint_and_propagation():
 def test_project_lock_wrappers_count_as_thread_safety():
     rs = classify(_change(_fn(["x", "=", "1"]), _fn(["MutexLock", "l", "(", "&", "mutex_", ")", ";", "x", "=", "1"])), [])
     assert ("thread_safety", "mutex") in groups(rs)
+
+
+def test_log_only_change_is_low_priority_and_does_not_propagate():
+    ch = _change(_fn(["VSOMEIP_INFO", "<<", "\"a\""]), _fn(["VSOMEIP_WARNING", "<<", "\"b\"", "<<", "x"]),
+                 added_lines=['    VSOMEIP_WARNING << "b: "', "        << x;"], removed_lines=['    VSOMEIP_INFO << "a";'])
+    rs = classify(ch, [])
+    assert [(r.risk_group, r.sub_reason) for r in rs] == [("logic", "logging")]
+    assert ch.propagation() == set()
+    mixed = _change(_fn(["x"]), _fn(["y"]), added_lines=['    LOG(INFO) << "a";', "    x = y;"])
+    assert not mixed.is_log_only

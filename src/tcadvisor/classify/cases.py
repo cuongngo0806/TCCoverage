@@ -50,7 +50,8 @@ def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskCla
                         + (f", {r.sub_reason.replace('_', ' ')}" if r.sub_reason else "") + ")")
                 cases.append(TestCaseCandidate(
                     id="", description=desc, activation_condition=f"Changed directly: {r.detail}",
-                    evidence=[node.symbol], priority=priority(0, r.risk_group), risk_group=r.risk_group,
+                    evidence=[node.symbol], risk_group=r.risk_group,
+                    priority="P3" if r.sub_reason == "logging" else priority(0, r.risk_group),
                     related_cmake_targets=targets_of(node), node_id=nid, sub_reason=r.sub_reason,
                     hop_distance=0, hints=list(r.hints)))
             continue
