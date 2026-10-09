@@ -169,7 +169,8 @@ def traverse(g: Graph, roots: dict[str, SymbolRef], root_groups: dict[str, set[s
                 prev = seen.get(dep.dependent)
                 if prev is None:
                     seen[dep.dependent] = hop + 1
-                    q.append((dep.dependent, ref, hop + 1))
+                    if dep.relation != "called_by_change":  # terminal: the callee's other callers are unaffected
+                        q.append((dep.dependent, ref, hop + 1))
                 if prev is None or prev == hop + 1:
                     node(dep.dependent, ref, hop + 1).add_reach(rid, hop + 1, groups, edge)
     for n in nodes.values():

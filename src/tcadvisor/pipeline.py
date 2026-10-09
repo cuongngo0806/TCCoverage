@@ -24,7 +24,7 @@ from tcadvisor.index.clang_index import build_index
 from tcadvisor.index.cmake_targets import load_target_model
 from tcadvisor.index.compile_db import CompileDatabase
 from tcadvisor.ingest import git as G
-from tcadvisor.ingest.changes import ChangeSet, explicit_changes, detect_changes
+from tcadvisor.ingest.changes import ChangeSet, explicit_changes, detect_changes, is_test_path
 from tcadvisor.ingest.symbols import resolve_symbols
 from tcadvisor.models import ChangeInput, ImpactNode, PrerequisiteError, SymbolRef, UncertaintyFlag, UsageError
 
@@ -263,6 +263,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         flows = pres.flows
     else:
         provider_flags = []
+    _add_changed_calls(repo, changes, roots, graph)
     flags, flag_only = uncertainty.detect(changes, roots, graph, cdb)
     flags.extend(provider_flags)
 
@@ -321,7 +322,8 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
 
     from tcadvisor.graph.providers.base import gtest_label
     tests = {nid: lbl for nid, n in nodes.items() if n.hop_distance > 0 and (lbl := gtest_label(repo, n.symbol))}
-    cases = build_cases(nodes, root_risks, root_kind, flag_only, targets_of, tests)
+    cases = build_cases(nodes, root_risks, root_kind, flag_only, targets_of, tests,
+                        {ch.node_id: len(ch.added_lines) + len(ch.removed_lines) for ch in changes})
     known = ({s["name"] for s in facts.symbols.values()} | {r.qualified_name for r in roots.values()}
              | {r.qualified_name for r in graph.refs.values()})
     cases = gate(cases, repo, known)
@@ -388,6 +390,53 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     return report
 
 
+def _add_changed_calls(repo: Path, changes: list, roots: dict[str, SymbolRef], graph: Graph,
+                       per_root: int = 8) -> None:
+    """Downstream impact: a function called *differently* on a changed line (new call / new arguments) may
+    now receive inputs it was never tested with (pilot: RocksDB #14227 changed what CompactionJob handed to
+    BlobFileBuilder; the fix landed in BlobFileBuilder). Edges are terminal: the callee's other callers are
+    not affected."""
+    from tcadvisor.graph.impact import Dep
+    for ch in changes:
+        if ch.node_id not in roots:
+            continue
+        n = 0
+        for usr, qn, kind, decl_file, decl_line, call_line in ch.changed_calls():
+            if usr in roots or n >= per_root:
+                continue
+            ref = graph.symbol_ref(usr)
+            if ref is None:
+                try:
+                    rel = Path(decl_file).resolve().relative_to(repo).as_posix()
+                except ValueError:
+                    continue  # standard library / third-party code
+                rel, decl_line = _definition_site(repo, rel, qn, decl_line)
+                ref = SymbolRef(qn, kind if kind in ("function", "method") else "function", rel, max(1, decl_line))
+                graph.refs[usr] = ref
+            if is_test_path(ref.file_path):
+                continue
+            graph.dependents[ch.node_id].append(Dep(usr, "called_by_change", ch.rel_path, call_line))
+            n += 1
+
+
+def _definition_site(repo: Path, rel: str, qn: str, line: int) -> tuple[str, int]:
+    """Header declaration -> out-of-line definition in the same-stem source file, when there is one."""
+    p = Path(rel)
+    if p.suffix.lower() not in (".h", ".hh", ".hpp", ".hxx"):
+        return rel, line
+    parts = qn.split("::")
+    needle = "::".join(parts[-2:]) + "(" if len(parts) >= 2 else parts[-1] + "("
+    for ext in (".cc", ".cpp", ".cxx", ".c"):
+        cand = p.with_suffix(ext)
+        for base in (cand, Path(str(cand).replace("/include/", "/src/"))):
+            f = repo / base
+            if f.is_file():
+                for i, text in enumerate(f.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+                    if needle in text.replace(" ", ""):
+                        return base.as_posix(), i
+    return rel, line
+
+
 def _code_digest() -> str:
     """Analyzer source hash: a run cached by an older analyzer build is never served as a hit."""
     h = hashlib.sha256()
@@ -404,7 +453,7 @@ def _fallback_args(repo: Path) -> tuple[str, ...]:
 
 def ch_dict(ch, ref: SymbolRef) -> dict[str, Any]:
     return {"id": ch.node_id, "symbol": ref.to_dict(), "change_kind": ch.change_kind,
-            "conditions": ch.conditions}
+            "conditions": ch.conditions, "changed_lines": len(ch.added_lines) + len(ch.removed_lines)}
 
 
 __all__ = ["Options", "run", "default_cache_dir", "Graph"]

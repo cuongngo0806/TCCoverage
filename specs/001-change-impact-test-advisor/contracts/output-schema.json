@@ -319,7 +319,8 @@
             "link_to_target",
             "uses_type",
             "macro_expand",
-            "contains"
+            "contains",
+            "called_by_change"
           ]
         },
         "from_symbol": {

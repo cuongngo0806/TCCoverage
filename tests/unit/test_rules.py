@@ -116,3 +116,13 @@ def test_test_code_changes_do_not_propagate():
     assert [(r.risk_group, r.sub_reason) for r in classify(ch, [])] == [("logic", "test_code")]
     assert not SymbolChange(node_id="u", rel_path="db/attest.cc", change_kind="modified", name="f", kind="function",
                             line=1).is_test_code
+
+
+def test_const_reference_and_const_char_pointer_are_not_lifetime_risks():
+    rs = classify(_change(_fn(["{", "}"], ["void", "f", "(", "int", "a", ")"]),
+                          _fn(["{", "}"], ["void", "f", "(", "int", "a", ",", "const", "std", "::", "string", "&", "s",
+                                           ",", "const", "char", "*", "p", ")"])), [])
+    assert not any(r.risk_group == "ownership_lifetime" for r in rs)
+    rs = classify(_change(_fn(["{", "}"], ["void", "f", "(", "Foo", "*", "p", ")"]),
+                          _fn(["{", "}"], ["void", "f", "(", "Foo", "&", "p", ")"])), [])
+    assert {("ownership_lifetime", "raw_pointer"), ("ownership_lifetime", "reference")} <= groups(rs)

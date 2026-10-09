@@ -59,6 +59,8 @@ class SymInfo:
     is_inline: bool = False
     is_def: bool = False
     noexcept: str = ""
+    # call sites in the body: (callee usr, callee qualified name, callee kind, decl file (abs), decl line, call line)
+    calls: list[tuple[str, str, str, str, int, int]] = field(default_factory=list)
 
 
 @dataclass
@@ -75,6 +77,7 @@ class SymbolChange:
     removed_lines: list[str] = field(default_factory=list)
     conditions: list[str] = field(default_factory=list)  # enclosing #if conditions of changed lines
     is_header: bool = False
+    added_line_numbers: list[int] = field(default_factory=list)
 
     @property
     def is_template(self) -> bool:
@@ -83,6 +86,18 @@ class SymbolChange:
     @property
     def is_virtual(self) -> bool:
         return any(s.is_virtual for s in (self.old, self.new) if s)
+
+    def changed_calls(self) -> list[tuple[str, str, str, str, int, int]]:
+        """Calls on changed lines: the caller now calls these functions differently (new call, new arguments)."""
+        if self.new is None or self.is_log_only or self.is_test_code:
+            return []
+        lines = set(self.added_line_numbers)
+        seen, out = set(), []
+        for call in self.new.calls:
+            if call[5] in lines and call[0] not in seen and call[0] != self.node_id:
+                seen.add(call[0])
+                out.append(call)
+        return out
 
     @property
     def is_test_code(self) -> bool:
@@ -229,6 +244,7 @@ class _FileSymbols:
                 elif ch.kind in CLASS_KINDS and ch.is_definition():
                     exclude.append((ch.extent.start.offset, ch.extent.end.offset))
         tokens = self._tokens(c, exclude)
+        calls: list[tuple[str, str, str, str, int, int]] = []
         is_inline = False
         noexcept = ""
         if k in FUNC_KINDS:
@@ -244,6 +260,8 @@ class _FileSymbols:
                 noexcept = str(c.exception_specification_kind).split(".")[-1]
             except Exception:
                 noexcept = ""
+            if body is not None:
+                calls = self._calls(body)
         usr = c.get_usr()
         info = SymInfo(
             usr=usr, name=qualified_name(c) if k != K.MACRO_DEFINITION else c.spelling,
@@ -252,6 +270,7 @@ class _FileSymbols:
             is_template=k in (K.FUNCTION_TEMPLATE, K.CLASS_TEMPLATE, K.CLASS_TEMPLATE_PARTIAL_SPECIALIZATION),
             is_virtual=k in (K.CXX_METHOD, K.DESTRUCTOR) and bool(c.is_virtual_method()),
             is_inline=is_inline, is_def=bool(c.is_definition()) or k == K.MACRO_DEFINITION, noexcept=noexcept,
+            calls=calls,
         )
         prev = self.syms.get(usr)
         if prev is None or (info.is_def and not prev.is_def):
@@ -260,6 +279,19 @@ class _FileSymbols:
             # keep the definition but remember the declaration's signature too
             prev.decl_tokens = prev.decl_tokens or info.decl_tokens
         self.extents.append((info.start, info.end))
+
+    def _calls(self, body: ci.Cursor) -> list[tuple[str, str, str, str, int, int]]:
+        out = []
+        stack = [body]
+        while stack:
+            cur = stack.pop()
+            if cur.kind == K.CALL_EXPR:
+                ref = cur.referenced
+                if ref is not None and ref.kind in FUNC_KINDS and ref.location.file is not None and ref.get_usr():
+                    out.append((ref.get_usr(), qualified_name(ref), symbol_kind(ref), ref.location.file.name,
+                                ref.location.line, cur.location.line))
+            stack.extend(cur.get_children())
+        return out
 
     def covering(self, line: int) -> list[SymInfo]:
         return [s for s in self.syms.values() if s.start <= line <= s.end]
@@ -359,7 +391,7 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
             cs.changes.append(SymbolChange(
                 node_id=usr, rel_path=fd.new_path or rel, change_kind=kind, name=ref.name, kind=ref.kind,
                 line=ref.start, old=o, new=n, added_lines=added, removed_lines=removed, conditions=conds,
-                is_header=is_header))
+                is_header=is_header, added_line_numbers=sorted(ln for ln in fd.new_lines if n and n.start <= ln <= n.end)))
 
         res_new = _residual(new_lines, fd.new_lines, new_syms.extents if new_syms else [])
         res_old = _residual(old_lines, fd.old_lines, old_syms.extents if old_syms else [])

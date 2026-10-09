@@ -106,3 +106,14 @@ def test_llm_unavailable_degrades_gracefully(project):
 
 def test_external_llm_requires_approval(project):
     project.analyze("--working-tree", "--llm", "--llm-endpoint", "https://api.example.com", expect=2)
+
+
+def test_changed_call_site_impacts_the_callee(project):
+    project.edit("src/lock.cpp", "    return handleResponse(l, code);", "    return handleResponse(l, code + 1);")
+    project.commit()
+    r = project.analyze("--commit-range", "HEAD~1..HEAD")
+    callee = [n for n in r["impact_nodes"] if n["symbol"]["qualified_name"] == "handleResponse"]
+    assert callee and callee[0]["hop_distance"] == 1
+    assert callee[0]["edges"][0]["relation"] == "called_by_change"
+    # terminal: the callee's own callees/callers are not expanded from there
+    assert "RemoteDoorLock::processOrderResp" not in {n["symbol"]["qualified_name"] for n in r["impact_nodes"]}

@@ -21,6 +21,7 @@ REL_PHRASE = {
     "include": "includes",
     "link_to_target": "links",
     "contains": "is a member of",
+    "called_by_change": "is now called differently by",
 }
 # include-only (file) nodes only carry compile-level risks
 FILE_GROUPS = {"abi_layout", "build_config"}
@@ -31,11 +32,15 @@ FILE_GROUPS = {"abi_layout", "build_config"}
 LOW_SUBS = {"header_change", "inline_change", "logging", "test_code"}
 
 
+# For *impacted* symbols, a changed signature is checked by the compiler at every call site.
+IMPACT_LOW_SUBS = {"signature_change"}
+
+
 def priority(hop: int, group: str, sub: str | None = None) -> str:
     if sub in ("logging", "test_code"):
         return "P3"
     direct = hop <= 1
-    high = group in HIGH_SEVERITY and sub not in LOW_SUBS
+    high = group in HIGH_SEVERITY and sub not in LOW_SUBS and not (hop > 0 and sub in IMPACT_LOW_SUBS)
     if direct and high:
         return "P1"
     if direct or high:
@@ -45,7 +50,9 @@ def priority(hop: int, group: str, sub: str | None = None) -> str:
 
 def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskClassification]],
                 root_kind: dict[str, str], flag_only: set[str], targets_of,
-                tests: dict[str, str] | None = None) -> list[TestCaseCandidate]:
+                tests: dict[str, str] | None = None, root_weight: dict[str, int] | None = None
+                ) -> list[TestCaseCandidate]:
+    weight = root_weight or {}
     cases: list[TestCaseCandidate] = []
     for nid, node in nodes.items():
         if node.hop_distance == 0:
@@ -100,19 +107,27 @@ def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskCla
             evidence: list[SymbolRef | ImpactEdge] = [node.symbol] + (edges or node.edges)[:3]
             cases.append(TestCaseCandidate(
                 id="", description=desc, activation_condition=act, evidence=evidence,
-                priority=priority(hop, grp, next((x for x in subs if x not in LOW_SUBS), subs[0] if subs else None)),
+                priority=priority(hop, grp, next((x for x in subs if x not in LOW_SUBS | IMPACT_LOW_SUBS),
+                                                 subs[0] if subs else None)),
                 risk_group=grp, related_cmake_targets=targets_of(node),
                 node_id=nid, sub_reason=subs[0] if subs else None, hop_distance=hop, hints=hints))
-    # within a priority: closest first, then the most concentrated risk (several strong risk groups on one
-    # changed symbol, or one impacted symbol reached from many changed roots) — deterministic, no model
-    def score(c: TestCaseCandidate) -> int:
+    # Order by *symbol*, then by case: a reviewer reads symbol after symbol. A symbol's position comes from
+    # its best case priority, its distance from the change, and how concentrated the risk is — several strong
+    # risk groups / many changed lines for a changed symbol, many changed roots reaching an impacted one.
+    # Deterministic, no model.
+    prank = {"P1": 0, "P2": 1, "P3": 2}
+    best: dict[str, tuple] = {}
+    for c in cases:
         if c.hop_distance == 0:
-            return len({r.risk_group for r in root_risks.get(c.node_id, []) if r.sub_reason not in LOW_SUBS})
-        return len(nodes[c.node_id].root_ids) if c.node_id in nodes else 0
-
-    cases.sort(key=lambda c: (c.priority, c.hop_distance, -score(c), RISK_GROUPS.index(c.risk_group),
-                              c.evidence[0].file_path if isinstance(c.evidence[0], SymbolRef) else "",
-                              c.evidence[0].line if isinstance(c.evidence[0], SymbolRef) else 0,
+            strong = len({r.risk_group for r in root_risks.get(c.node_id, []) if r.sub_reason not in LOW_SUBS})
+            conc = (strong, min(weight.get(c.node_id, 0), 200))
+        else:
+            rs = nodes[c.node_id].root_ids if c.node_id in nodes else set()
+            conc = (len(rs), sum(min(weight.get(r, 0), 200) for r in rs))
+        key = (prank[c.priority], c.hop_distance, -conc[0], -conc[1])
+        if c.node_id not in best or key < best[c.node_id]:
+            best[c.node_id] = key
+    cases.sort(key=lambda c: (best[c.node_id], c.node_id, prank[c.priority], RISK_GROUPS.index(c.risk_group),
                               c.description))
     for i, c in enumerate(cases, 1):
         c.id = f"TC-{i:04d}"

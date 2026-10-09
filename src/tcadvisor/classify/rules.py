@@ -15,7 +15,7 @@ from tcadvisor.ingest.changes import SymbolChange
 from tcadvisor.models import RiskClassification
 
 OWNERSHIP_RAW = {"new", "delete", "malloc", "calloc", "realloc", "free", "nullptr", "NULL", "unique_ptr",
-                 "shared_ptr", "weak_ptr", "make_unique", "make_shared", "release", "reset", "auto_ptr"}
+                 "shared_ptr", "weak_ptr", "make_unique", "make_shared", "release", "auto_ptr"}
 OWNERSHIP_MOVE = {"move", "forward", "&&"}
 THREAD_MUTEX = {"mutex", "recursive_mutex", "shared_mutex", "timed_mutex", "recursive_timed_mutex",
                 "shared_timed_mutex", "lock_guard", "unique_lock", "scoped_lock", "shared_lock",
@@ -138,6 +138,34 @@ def _lock_sequence(tokens: list[str]) -> list[str]:
                         seq.append(tokens[k])
                     break
     return seq
+
+
+def _signature(decl: list[str]) -> dict[str, list[str]]:
+    """Pointer / non-const reference parts of a declaration, by parameter (token based)."""
+    if "(" not in decl:
+        return {"ptr": [], "ref": []}
+    i = decl.index("(")
+    ret, depth, params, cur = decl[:i], 0, [], []
+    for t in decl[i + 1:]:
+        if t in "([{<":
+            depth += 1
+        elif t in ")]}>":
+            if depth == 0:
+                break
+            depth -= 1
+        if t == "," and depth == 0:
+            params.append(cur)
+            cur = []
+        else:
+            cur.append(t)
+    params.append(cur)
+    parts = [ret] + params
+
+    def kind_of(p: list[str]) -> list[str]:  # type tokens without the parameter name
+        return [t for t in p if t in ("*", "&", "&&", "const") or t[:1].isalpha()][:-1] if p else []
+    ptr = [" ".join(kind_of(p)) for p in parts if "*" in p and not ("char" in p and "const" in p)]
+    ref = [" ".join(kind_of(p)) for p in parts if "&" in p and "const" not in p]
+    return {"ptr": ptr, "ref": ref}
 
 
 def boundary_hints(lines: list[str], prefix: str = "Boundary") -> list[str]:
@@ -263,11 +291,16 @@ def classify(ch: SymbolChange, configurations: list[str]) -> list[RiskClassifica
     decl_delta = set(decl_added) | set(decl_removed)
     field_types = " ".join(t for f in ((o.fields if o else []) + (n.fields if n else [])) for t in f[1:])
     fields_changed = bool(o and n and o.fields != n.fields)
-    if delta & OWNERSHIP_RAW or "*" in decl_delta or (fields_changed and "*" in field_types):
+    od, nd = _signature(o.decl_tokens if o else []), _signature(n.decl_tokens if n else [])
+    ptr_sig_changed = bool(o and n) and (od["ptr"] != nd["ptr"])
+    if delta & OWNERSHIP_RAW or ptr_sig_changed or (fields_changed and "*" in field_types):
         add("ownership_lifetime", "raw_pointer",
-            f"pointer ownership tokens changed in {where}: {_fmt((delta & OWNERSHIP_RAW) | ({'*'} & decl_delta))}")
-    if "&" in decl_delta or (fields_changed and "&" in field_types.replace("&&", "")):
-        add("ownership_lifetime", "reference", f"reference parameter/return/member changed in {where}")
+            f"pointer ownership changed in {where}: {_fmt((delta & OWNERSHIP_RAW) or {'pointer parameter/return'})}")
+    # `const T&` parameters are a calling convention, not a lifetime contract: only non-const references,
+    # reference returns and reference members can dangle or alias (pilot: const& changes were top noise)
+    if (bool(o and n) and od["ref"] != nd["ref"]) or (fields_changed and "&" in field_types.replace("&&", "")):
+        add("ownership_lifetime", "reference", f"non-const reference parameter / reference return or member "
+            f"changed in {where}")
     move = (delta & (OWNERSHIP_MOVE - {"&&"})) | (decl_delta & {"&&"})  # `&&` in a body is usually logical AND
     if move:
         add("ownership_lifetime", "move_semantics", f"move semantics changed in {where}: {_fmt(move)}")
