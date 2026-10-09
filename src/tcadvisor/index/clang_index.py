@@ -299,9 +299,22 @@ class TUExtractor:
         }
 
 
+def _empty_facts(errors: int = 1) -> dict[str, Any]:
+    return {"deps": {}, "symbols": {}, "edges": [], "includes": [], "address_taken": {}, "macro_uses": [],
+            "errors": errors}
+
+
+def _safe_extract(extractor: "TUExtractor", file: Path, args: tuple[str, ...]) -> dict[str, Any]:
+    """A TU libclang cannot load at all (missing file, stale compile db) must not abort the run."""
+    try:
+        return extractor.extract(file, args)
+    except ci.TranslationUnitLoadError:
+        return _empty_facts()
+
+
 def _extract_worker(job: tuple[str, str, tuple[str, ...]]) -> tuple[str, dict[str, Any]]:
     repo, file, args = job
-    return file, TUExtractor(Path(repo)).extract(Path(file), args)
+    return file, _safe_extract(TUExtractor(Path(repo)), Path(file), args)
 
 
 def build_index(repo: Path, cdb: CompileDatabase, cache: Any, progress: Callable[[str], None] | None = None,
@@ -343,7 +356,7 @@ def build_index(repo: Path, cdb: CompileDatabase, cache: Any, progress: Callable
         for rel, _key, e in todo:
             if progress:
                 progress(f"indexing {rel}")
-            results.append((str(e.file), extractor.extract(e.file, e.args)))
+            results.append((str(e.file), _safe_extract(extractor, e.file, e.args)))
     else:
         from concurrent.futures import ProcessPoolExecutor
         if progress:
@@ -357,7 +370,7 @@ def build_index(repo: Path, cdb: CompileDatabase, cache: Any, progress: Callable
     for file, tu_facts in results:
         rel, key = by_file[file]
         stats["reparsed"] += 1
-        if cache:
+        if cache and tu_facts["deps"]:  # never cache a TU that failed to load
             cache.put_tu(rel, key, tu_facts)
         facts.merge(rel, tu_facts)
     return facts, stats

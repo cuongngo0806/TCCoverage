@@ -156,8 +156,10 @@ def traverse(g: Graph, roots: dict[str, SymbolRef], root_groups: dict[str, set[s
             for dep in g.dependents.get(cur, ()):  # deterministic order (edges were sorted)
                 if allowed is not None and dep.relation not in allowed:
                     continue
-                if dep.relation == "contains" and hop > 0:
-                    continue  # members are affected by their *changed* class only, not by every class on the path
+                if dep.relation in ("contains", "uses_type") and hop > 0:
+                    # type-level coupling is followed one hop from the change only: members of / users of the
+                    # *changed* type. Following it transitively reached 4,904 nodes on a RocksDB refactoring.
+                    continue
                 if dep.dependent in roots:
                     continue  # another changed root: it is traversed from itself, at hop 0
                 ref = g.symbol_ref(dep.dependent)

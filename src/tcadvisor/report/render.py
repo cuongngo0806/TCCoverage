@@ -30,6 +30,10 @@ def _md_cell(s: str) -> str:
     return s.replace("|", "\\|").replace("\n", " ")
 
 
+def _targets(ts: list[str], limit: int = 6) -> str:
+    return (", ".join(ts[:limit]) + (f" (+{len(ts) - limit} more)" if len(ts) > limit else "")) if ts else "-"
+
+
 def summary_line(r: dict[str, Any]) -> str:
     cases = r["test_case_candidates"]
     by = {p: sum(1 for c in cases if c["priority"] == p) for p in PRIO_ORDER}
@@ -39,7 +43,7 @@ def summary_line(r: dict[str, Any]) -> str:
     else:
         head = f"{len(cases)} test case(s) [P1 {by['P1']} / P2 {by['P2']} / P3 {by['P3']}]"
     return (f"{head}; {len(r['uncertainty_flags'])} uncertainty flag(s); "
-            f"{len(r.get('changed_files', []))} changed file(s); targets: {', '.join(r['target_scope']) or '-'}; "
+            f"{len(r.get('changed_files', []))} changed file(s); targets: {_targets(r['target_scope'])}; "
             f"cache_hit: {str(r['cache_hit']).lower()}; LLM: {llm}; "
             f"{r.get('metrics', {}).get('duration_seconds', 0)}s")
 

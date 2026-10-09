@@ -213,7 +213,10 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         from tcadvisor.graph.providers.base import ProviderResult, copy_subgraph
         say(f"impact via {provider.name}")
         proots = [Root(ch.node_id, roots[ch.node_id].qualified_name, roots[ch.node_id].qualified_name.split("::")[-1],
-                       roots[ch.node_id].kind, roots[ch.node_id].file_path, roots[ch.node_id].line) for ch in changes]
+                       roots[ch.node_id].kind, roots[ch.node_id].file_path, roots[ch.node_id].line) for ch in changes
+                  # a removed symbol no longer exists in the provider's index; its former callers changed in the
+                  # same commit (they are roots themselves), so there is nothing to look up
+                  if ch.change_kind != "removed"]
         try:
             ctx.notes.extend(provider.prepare())
             pres = provider.impact(proots)
@@ -229,8 +232,18 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         fallback = graph
         if pres.missed and lite and cdb.entries:
             # the lite index has no call graph: build the full libclang index only now that it is needed
-            say(f"{len(pres.missed)} root(s) unresolved by {provider.name}: building the libclang index as fallback")
-            full_facts, _st = build_index(repo, cdb, cache, progress=say, jobs=opts.jobs)
+            # ... restricted to the TUs that include a missed root's file (from the lite include graph)
+            missed_files = {roots[r].file_path for r in pres.missed}
+            # a definition in foo.cpp is used through its declaring header (foo.h): include same-stem headers
+            stems = {Path(f).stem for f in missed_files}
+            missed_files |= {inc for src, inc, _l in facts.includes if src in missed_files and Path(inc).stem in stems}
+            sub = [e for e in cdb.entries if missed_files & facts.tu_files.get(
+                e.file.relative_to(repo).as_posix() if e.file.is_relative_to(repo) else "", set())]
+            say(f"{len(pres.missed)} root(s) unresolved by {provider.name}: libclang fallback over {len(sub)} TU(s)")
+            ctx.notes.append(f"{len(pres.missed)} root(s) unresolved by {provider.name}; their dependents come from a "
+                             f"libclang index of the {len(sub)} translation unit(s) that include them")
+            full_facts, _st = build_index(repo, CompileDatabase(cdb.build_dir, sub, cdb.digest), cache, progress=say,
+                                          jobs=opts.jobs)
             fallback = build_graph(full_facts, tmodel, repo)
         for rid in pres.missed:  # provider could not resolve this root: use the libclang graph, else flag it
             if not copy_subgraph(fallback, overlay, rid, opts.max_hop_depth):
@@ -239,7 +252,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
                     f"{provider.name} could not resolve `{roots[rid].qualified_name}` and no compile-database graph is "
                     "available; its dependents are unknown — review manually", roots[rid]))
         graph = overlay
-        ctx.notes.extend(pres.notes)
+        ctx.notes.extend(dict.fromkeys(pres.notes))
         flows = pres.flows
     else:
         provider_flags = []
