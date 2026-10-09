@@ -148,7 +148,7 @@ function render(){const list=C.filter(c=>st.p.has(c.priority)&&st.g.has(c.risk_g
  (!st.q||JSON.stringify(c).toLowerCase().includes(st.q)));
  if(ordEl.value==='ai')list.sort((x,y)=>aiKey(x)-aiKey(y)); // stable: relevance order inside each verdict
  document.getElementById('count').textContent=`${list.length} / ${C.length}`;
- document.getElementById('cases').innerHTML=list.length?list.map(c=>`<div class="case"><span class="prio ${c.priority}">${c.priority}</span> <b class="mono">${c.id}</b><span class="grp">${GL[c.risk_group]}${c.sub_reason?' · '+esc(c.sub_reason):''}</span><span class="grp">hop ${c.hop_distance}</span>
+ document.getElementById('cases').innerHTML=list.length?list.map(c=>`<div class="case"><span class="prio ${c.priority}">${c.priority}</span> <b class="mono">${c.id}</b><span class="grp">${GL[c.risk_group]}${c.sub_reason?' · '+esc(c.sub_reason):''}</span><span class="grp">hop ${c.hop_distance}</span>${c.bug_history?`<span class="grp" title="bug-fix commits touching this file in the last 12 months">${c.bug_history} recent fixes</span>`:''}
  <div>${esc(c.description)}</div><div class="muted">When: ${esc(c.activation_condition)}</div>
  <ul>${c.evidence.map(e=>`<li>${evHtml(e)}</li>`).join('')}</ul>
  ${(c.corner_cases||[]).length?`<div class="muted" style="margin-top:4px">Corner cases:</div><ul>${c.corner_cases.map(h=>`<li>${esc(h)}</li>`).join('')}</ul>`:''}
