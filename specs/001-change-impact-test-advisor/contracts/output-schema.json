@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "TCAdvisorAnalysisRunReport",
-  "description": "Structured JSON output of one tcadvisor analyze run (FR-008). Mirrors data-model.md AnalysisRun, TestCaseCandidate, UncertaintyFlag, CMakeTargetMapping.",
+  "description": "Structured JSON output of one tcadvisor analyze run (FR-008). Mirrors data-model.md AnalysisRun, TestCaseCandidate, UncertaintyFlag, CMakeTargetMapping. Extended in tasks.md 'Design amendments' with impact_nodes, affected_targets, out_of_scope, run_notes, no_detected_impact and the uses_type/macro_expand relations.",
   "type": "object",
   "required": [
     "run_id",
@@ -16,78 +16,312 @@
     "uncertainty_flags"
   ],
   "properties": {
-    "run_id": { "type": "string" },
+    "run_id": {
+      "type": "string"
+    },
     "change_input": {
       "type": "object",
-      "required": ["mode", "target_repo_path"],
+      "required": [
+        "mode",
+        "target_repo_path"
+      ],
       "properties": {
-        "mode": { "type": "string", "enum": ["git_diff", "explicit_symbols"] },
-        "commit_range": { "type": ["string", "null"] },
-        "working_tree": { "type": "boolean" },
-        "symbols": {
-          "type": ["array", "null"],
-          "items": { "$ref": "#/definitions/symbolRef" }
+        "mode": {
+          "type": "string",
+          "enum": [
+            "git_diff",
+            "explicit_symbols"
+          ]
         },
-        "target_repo_path": { "type": "string" }
+        "commit_range": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "working_tree": {
+          "type": "boolean"
+        },
+        "symbols": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/symbolRef"
+          }
+        },
+        "target_repo_path": {
+          "type": "string"
+        }
       }
     },
-    "commit_hash": { "type": ["string", "null"] },
-    "started_at": { "type": "string", "format": "date-time" },
-    "completed_at": { "type": "string", "format": "date-time" },
-    "cache_hit": { "type": "boolean" },
-    "split_into_modules": {
-      "type": ["array", "null"],
-      "items": { "type": "string" }
+    "commit_hash": {
+      "type": [
+        "string",
+        "null"
+      ]
     },
-    "llm_enabled": { "type": "boolean" },
-    "llm_degraded": { "type": "boolean" },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "cache_hit": {
+      "type": "boolean"
+    },
+    "split_into_modules": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "llm_enabled": {
+      "type": "boolean"
+    },
+    "llm_degraded": {
+      "type": "boolean"
+    },
     "llm_token_usage": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "properties": {
-        "prompt_tokens": { "type": "integer", "minimum": 0 },
-        "completion_tokens": { "type": "integer", "minimum": 0 }
+        "prompt_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "completion_tokens": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "target_scope": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
     "test_case_candidates": {
       "type": "array",
-      "items": { "$ref": "#/definitions/testCaseCandidate" }
+      "items": {
+        "$ref": "#/definitions/testCaseCandidate"
+      }
     },
     "uncertainty_flags": {
       "type": "array",
-      "items": { "$ref": "#/definitions/uncertaintyFlag" }
+      "items": {
+        "$ref": "#/definitions/uncertaintyFlag"
+      }
+    },
+    "no_detected_impact": {
+      "type": "boolean",
+      "description": "True when the change has no semantic effect on any indexed symbol (explicit 'no detected impact' result)."
+    },
+    "changed_files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "changed_symbols": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "symbol",
+          "change_kind",
+          "risks"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "symbol": {
+            "$ref": "#/definitions/symbolRef"
+          },
+          "change_kind": {
+            "type": "string"
+          },
+          "risks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "risk_group",
+                "detail"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "impact_nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "symbol",
+          "hop_distance",
+          "edges"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "symbol": {
+            "$ref": "#/definitions/symbolRef"
+          },
+          "hop_distance": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/impactEdge"
+            }
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "affected_targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "relation"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "relation": {
+            "type": "string",
+            "enum": [
+              "compiles_affected_file",
+              "link_to_target"
+            ]
+          },
+          "via": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "out_of_scope": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "reason"
+        ]
+      }
+    },
+    "run_notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "metrics": {
+      "type": "object"
     }
   },
   "definitions": {
     "symbolRef": {
       "type": "object",
-      "required": ["qualified_name", "kind", "file_path", "line"],
+      "required": [
+        "qualified_name",
+        "kind",
+        "file_path",
+        "line"
+      ],
       "properties": {
-        "qualified_name": { "type": "string" },
-        "kind": { "type": "string", "enum": ["function", "method", "class", "struct"] },
-        "file_path": { "type": "string" },
-        "line": { "type": "integer", "minimum": 1 }
+        "qualified_name": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "function",
+            "method",
+            "class",
+            "struct",
+            "enum",
+            "macro",
+            "variable",
+            "file"
+          ]
+        },
+        "file_path": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        }
       }
     },
     "impactEdge": {
       "type": "object",
-      "required": ["relation", "from_symbol", "to_symbol", "source_location"],
+      "required": [
+        "relation",
+        "from_symbol",
+        "to_symbol",
+        "source_location"
+      ],
       "properties": {
         "relation": {
           "type": "string",
-          "enum": ["call", "inherit_override", "include", "instantiate", "link_to_target"]
+          "enum": [
+            "call",
+            "inherit_override",
+            "include",
+            "instantiate",
+            "link_to_target",
+            "uses_type",
+            "macro_expand"
+          ]
         },
-        "from_symbol": { "$ref": "#/definitions/symbolRef" },
-        "to_symbol": { "$ref": "#/definitions/symbolRef" },
+        "from_symbol": {
+          "$ref": "#/definitions/symbolRef"
+        },
+        "to_symbol": {
+          "$ref": "#/definitions/symbolRef"
+        },
         "source_location": {
           "type": "object",
-          "required": ["file_path", "line"],
+          "required": [
+            "file_path",
+            "line"
+          ],
           "properties": {
-            "file_path": { "type": "string" },
-            "line": { "type": "integer", "minimum": 1 }
+            "file_path": {
+              "type": "string"
+            },
+            "line": {
+              "type": "integer",
+              "minimum": 1
+            }
           }
         }
       }
@@ -95,8 +329,12 @@
     "evidenceItem": {
       "description": "Either a SymbolRef or an ImpactEdge; at least one required per FR-006.",
       "oneOf": [
-        { "$ref": "#/definitions/symbolRef" },
-        { "$ref": "#/definitions/impactEdge" }
+        {
+          "$ref": "#/definitions/symbolRef"
+        },
+        {
+          "$ref": "#/definitions/impactEdge"
+        }
       ]
     },
     "testCaseCandidate": {
@@ -111,15 +349,30 @@
         "related_cmake_targets"
       ],
       "properties": {
-        "id": { "type": "string" },
-        "description": { "type": "string" },
-        "activation_condition": { "type": "string" },
+        "id": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "activation_condition": {
+          "type": "string"
+        },
         "evidence": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/definitions/evidenceItem" }
+          "items": {
+            "$ref": "#/definitions/evidenceItem"
+          }
         },
-        "priority": { "type": "string", "enum": ["P1", "P2", "P3"] },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "P1",
+            "P2",
+            "P3"
+          ]
+        },
         "risk_group": {
           "type": "string",
           "enum": [
@@ -134,13 +387,37 @@
         "related_cmake_targets": {
           "type": "array",
           "minItems": 1,
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
+        },
+        "sub_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hop_distance": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "node_id": {
+          "type": "string"
+        },
+        "corner_cases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
     "uncertaintyFlag": {
       "type": "object",
-      "required": ["category", "reason"],
+      "required": [
+        "category",
+        "reason"
+      ],
       "properties": {
         "category": {
           "type": "string",
@@ -151,9 +428,18 @@
             "build_config_incomplete_macro"
           ]
         },
-        "reason": { "type": "string" },
+        "reason": {
+          "type": "string"
+        },
         "related_symbol": {
-          "oneOf": [{ "$ref": "#/definitions/symbolRef" }, { "type": "null" }]
+          "oneOf": [
+            {
+              "$ref": "#/definitions/symbolRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     }
