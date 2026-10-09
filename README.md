@@ -14,7 +14,8 @@ for the agent/model workflow and the product-development cycle. Real-project eva
 google/leveldb: [specs/002…/eval.md](specs/002-graph-providers-ai-verify/eval.md). **Pilot on large projects**
 (COVESA vsomeip 133k LOC, RocksDB 898k LOC; 23 real regressions, 0 missed, 87 % at the fixed function):
 [specs/003…/pilot.md](specs/003-pilot-large-projects/pilot.md). **Cycle 4** (55 regressions, dev/holdout):
-0 missed, the later-fixed function in the first 10 cases for 26/55 (29/55 with the optional AI-triaged view) —
+0 missed, 51/55 at the fixed function, MRR ~0.12 → ~0.35, the later-fixed function in the first 10 cases for 26/55
+(29/55 with the optional AI-triaged view) —
 [specs/004…/results.md](specs/004-ranking-and-recall/results.md).
 
 Three front-ends share the same engine:
