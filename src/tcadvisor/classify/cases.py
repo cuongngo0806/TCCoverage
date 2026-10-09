@@ -1,6 +1,8 @@
 """Test-case candidates with deterministic priority (FR-004, FR-004a) and stable ids."""
 from __future__ import annotations
 
+import math
+
 from tcadvisor.models import HIGH_SEVERITY, RISK_GROUPS, ImpactEdge, ImpactNode, RiskClassification, \
     SymbolRef, TestCaseCandidate
 
@@ -32,6 +34,8 @@ FILE_GROUPS = {"abi_layout", "build_config"}
 LOW_SUBS = {"header_change", "inline_change", "logging", "test_code"}
 
 
+SEVERITY = {"thread_safety": 3, "ownership_lifetime": 3, "exception_safety": 3, "abi_layout": 2, "logic": 2,
+            "build_config": 1}
 # For *impacted* symbols, a changed signature is checked by the compiler at every call site.
 IMPACT_LOW_SUBS = {"signature_change"}
 
@@ -111,24 +115,24 @@ def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskCla
                                                  subs[0] if subs else None)),
                 risk_group=grp, related_cmake_targets=targets_of(node),
                 node_id=nid, sub_reason=subs[0] if subs else None, hop_distance=hop, hints=hints))
-    # Order by *symbol*, then by case: a reviewer reads symbol after symbol. A symbol's position comes from
-    # its best case priority, its distance from the change, and how concentrated the risk is — several strong
-    # risk groups / many changed lines for a changed symbol, many changed roots reaching an impacted one.
-    # Deterministic, no model.
-    prank = {"P1": 0, "P2": 1, "P3": 2}
-    best: dict[str, tuple] = {}
-    for c in cases:
+    # Relevance order (tuned on 55 real regressions in vsomeip + RocksDB, dev/holdout split — see
+    # specs/004-ranking): closest to the change first; substantive risks before recompile-only / log / test
+    # ones; bigger changes first (log2 of changed lines of the root, or of all roots reaching an impacted
+    # symbol); then risk-group severity and fan-in. Deterministic, no model. The P1/P2/P3 label keeps the
+    # FR-004a meaning (hop distance x severity); the list order adds change size.
+    def key(c: TestCaseCandidate):
         if c.hop_distance == 0:
-            strong = len({r.risk_group for r in root_risks.get(c.node_id, []) if r.sub_reason not in LOW_SUBS})
-            conc = (strong, min(weight.get(c.node_id, 0), 200))
+            lines, fan_in = weight.get(c.node_id, 0), 1
         else:
             rs = nodes[c.node_id].root_ids if c.node_id in nodes else set()
-            conc = (len(rs), sum(min(weight.get(r, 0), 200) for r in rs))
-        key = (prank[c.priority], c.hop_distance, -conc[0], -conc[1])
-        if c.node_id not in best or key < best[c.node_id]:
-            best[c.node_id] = key
-    cases.sort(key=lambda c: (best[c.node_id], c.node_id, prank[c.priority], RISK_GROUPS.index(c.risk_group),
-                              c.description))
+            lines, fan_in = sum(weight.get(r, 0) for r in rs), len(rs)
+        low = c.sub_reason in LOW_SUBS or (c.hop_distance > 0 and c.sub_reason in IMPACT_LOW_SUBS)
+        ev = c.evidence[0]
+        return (c.hop_distance, low, -int(math.log2(1 + lines)), -SEVERITY[c.risk_group], -fan_in,
+                RISK_GROUPS.index(c.risk_group), ev.file_path if isinstance(ev, SymbolRef) else "",
+                ev.line if isinstance(ev, SymbolRef) else 0, c.description)
+
+    cases.sort(key=key)
     for i, c in enumerate(cases, 1):
         c.id = f"TC-{i:04d}"
     return cases

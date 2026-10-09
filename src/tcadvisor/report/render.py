@@ -106,14 +106,19 @@ def to_markdown(r: dict[str, Any]) -> str:
               "(red = changed, orange = direct, blue = indirect).", "", "```mermaid", mermaid(r), "```", ""]
     cases = r["test_case_candidates"]
     if cases:
-        L += ["## Test cases to check", ""]
-        for p in PRIO_ORDER:
-            group = [c for c in cases if c["priority"] == p]
+        L += ["## Test cases to check", "",
+              "Listed in relevance order (closest to the change, substantive before recompile-only, larger changes "
+              "first); the P1/P2/P3 label is the deterministic priority.", ""]
+        for title, sel in (("Changed code", lambda c: c["hop_distance"] == 0),
+                           ("Direct impact (1 hop)", lambda c: c["hop_distance"] == 1),
+                           ("Indirect impact", lambda c: c["hop_distance"] > 1)):
+            group = [c for c in cases if sel(c)]
             if not group:
                 continue
-            L += [f"### {p} ({len(group)})", ""]
+            L += [f"### {title} ({len(group)})", ""]
             for c in group:
-                L.append(f"- [ ] **{c['id']}** [{GROUP_LABEL[c['risk_group']]}] {_md_cell(c['description'])}")
+                L.append(f"- [ ] **{c['id']}** {c['priority']} [{GROUP_LABEL[c['risk_group']]}] "
+                         f"{_md_cell(c['description'])}")
                 L.append(f"  - *When*: {_md_cell(c['activation_condition'])}")
                 L.append("  - *Evidence*: " + "; ".join(_ev_label(e) for e in c["evidence"]))
                 if c.get("corner_cases"):

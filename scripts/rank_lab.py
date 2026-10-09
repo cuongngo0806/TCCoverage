@@ -86,7 +86,27 @@ def metrics(data, keyfn, group_by_symbol=False):
             "sym_mrr": round(sum(1 / r for r in sranks) / n, 3)}
 
 
+import math
+SEV = {"thread_safety": 3, "ownership_lifetime": 3, "exception_safety": 3, "abi_layout": 2, "logic": 2, "build_config": 1}
+
+
+def lowsub(f):
+    return f["sub"] in LOW_SUBS or (f["hop"] > 0 and f["sub"] == "signature_change")
+
+
 CANDIDATES = {
+    "hop,lowsub,prio,-loglines": lambda f: (f["hop"], lowsub(f), f["prio"], -int(math.log2(1 + f["rootlines"]))),
+    "hop,lowsub,-loglines,prio": lambda f: (f["hop"], lowsub(f), -int(math.log2(1 + f["rootlines"])), f["prio"]),
+    "hop,lowsub,-loglines,-sev,-nroots": lambda f: (f["hop"], lowsub(f), -int(math.log2(1 + f["rootlines"])),
+                                                    -SEV[f["group"]], -f["nroots"]),
+    "hop,-lines": lambda f: (f["hop"], -f["rootlines"]),
+    "hop,-lines,prio": lambda f: (f["hop"], -f["rootlines"], f["prio"]),
+    "hop,lowsub,-lines,prio": lambda f: (f["hop"], lowsub(f), -f["rootlines"], f["prio"]),
+    "hop,prio,-loglines": lambda f: (f["hop"], f["prio"], -int(math.log2(1 + f["rootlines"]))),
+    "hop,-loglines,prio": lambda f: (f["hop"], -int(math.log2(1 + f["rootlines"])), f["prio"]),
+    "hop,-loglines,-sev": lambda f: (f["hop"], -int(math.log2(1 + f["rootlines"])), -SEV[f["group"]], f["prio"]),
+    "hop,lowsub,-loglines,-sev": lambda f: (f["hop"], lowsub(f), -int(math.log2(1 + f["rootlines"])), -SEV[f["group"]]),
+    "hop,prio,-lines,-sev": lambda f: (f["hop"], f["prio"], -f["rootlines"], -SEV[f["group"]]),
     "current-order(prio,hop,group)": lambda f: (f["prio"], f["hop"], RISK.index(f["group"])),
     "prio,hop,-strong": lambda f: (f["prio"], f["hop"], -f["strong"], RISK.index(f["group"])),
     "prio,hop,-lines": lambda f: (f["prio"], f["hop"], -f["rootlines"]),
