@@ -47,6 +47,7 @@ def features(rep):
             f["ngroups"] = len({x["risk_group"] for x in r["risks"]})
             f["nroots"] = 1
             f["rootlines"] = f["lines"]
+            f["ckind"] = r.get("change_kind")
         else:
             rs = nodes.get(nid, {}).get("roots", [])
             f["lines"] = 0
@@ -54,6 +55,7 @@ def features(rep):
             f["ngroups"] = len(nodes.get(nid, {}).get("risk_groups", []))
             f["nroots"] = len(rs)
             f["rootlines"] = sum(roots.get(r, {}).get("changed_lines", 0) for r in rs)
+            f["ckind"] = "impacted"
         feats.append(f)
     return feats
 
@@ -95,6 +97,15 @@ def lowsub(f):
 
 
 CANDIDATES = {
+    "BEST": lambda f: (f["hop"], lowsub(f), -int(math.log2(1 + f["rootlines"])), -SEV[f["group"]], -f["nroots"]),
+    "BEST+removed-last": lambda f: (f["hop"], lowsub(f), f["ckind"] == "removed",
+                                    -int(math.log2(1 + f["rootlines"])), -SEV[f["group"]], -f["nroots"]),
+    "BEST+modified-first": lambda f: (f["hop"], lowsub(f), f["ckind"] not in ("modified", "impacted"),
+                                      -int(math.log2(1 + f["rootlines"])), -SEV[f["group"]], -f["nroots"]),
+    "BEST+added-first": lambda f: (f["hop"], lowsub(f), f["ckind"] != "added",
+                                   -int(math.log2(1 + f["rootlines"])), -SEV[f["group"]], -f["nroots"]),
+    "BEST-lines-bucket3": lambda f: (f["hop"], lowsub(f), -min(3, int(math.log2(1 + f["rootlines"])) // 2),
+                                     -SEV[f["group"]], -f["rootlines"]),
     "hop,lowsub,prio,-loglines": lambda f: (f["hop"], lowsub(f), f["prio"], -int(math.log2(1 + f["rootlines"]))),
     "hop,lowsub,-loglines,prio": lambda f: (f["hop"], lowsub(f), -int(math.log2(1 + f["rootlines"])), f["prio"]),
     "hop,lowsub,-loglines,-sev,-nroots": lambda f: (f["hop"], lowsub(f), -int(math.log2(1 + f["rootlines"])),
