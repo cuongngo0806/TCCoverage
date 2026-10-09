@@ -23,7 +23,9 @@ def short(q):
 
 def load(run_dir: Path):
     out = []
+    repo_guess = run_dir.parent.parent.parent / run_dir.parent.parent.name.replace("bench-", "")
     for row in json.loads((run_dir / "pilot.json").read_text()):
+        row["_repo"] = str(repo_guess) if (repo_guess / ".git").exists() else None
         rp = run_dir / f"out-{row['intro']}" / "report.json"
         if row.get("verdict") not in ("surfaced", "file-level", "missed") or not rp.exists():
             continue
@@ -32,7 +34,29 @@ def load(run_dir: Path):
     return out
 
 
-def features(rep):
+_HIST: dict = {}
+
+
+def fix_history(repo, intro, path, months=int(__import__("os").environ.get("HIST_MONTHS", "12"))):
+    """Number of fix commits touching `path` in the `months` before the introducing commit (bug-proneness)."""
+    import subprocess
+    key = (repo, intro, path)
+    if key not in _HIST:
+        if not repo or not path:
+            _HIST[key] = 0
+        else:
+            date = subprocess.run(["git", "-C", repo, "log", "-1", "--format=%cI", intro], capture_output=True,
+                                  text=True).stdout.strip()
+            import datetime
+            since = (datetime.datetime.fromisoformat(date) - datetime.timedelta(days=30 * months)).isoformat()
+            out = subprocess.run(["git", "-C", repo, "log", f"--before={date}", f"--since={since}",
+                                  "-i", "-E", "--grep=^(fix|bug)|\\bfix(es|ed)?\\b", "--format=%h", "--", path],
+                                 capture_output=True, text=True).stdout
+            _HIST[key] = len(out.split())
+    return _HIST[key]
+
+
+def features(rep, repo=None, intro=None):
     roots = {s["id"]: s for s in rep.get("changed_symbols", [])}
     nodes = {n["id"]: n for n in rep.get("impact_nodes", [])}
     feats = []
@@ -56,14 +80,15 @@ def features(rep):
             f["nroots"] = len(rs)
             f["rootlines"] = sum(roots.get(r, {}).get("changed_lines", 0) for r in rs)
             f["ckind"] = "impacted"
+        f["hist"] = fix_history(repo, intro, f["ev"][0]) if repo else 0
         feats.append(f)
     return feats
 
 
 def metrics(data, keyfn, group_by_symbol=False):
     ranks, sranks = [], []
-    for _row, rep, truth in data:
-        fs = features(rep)
+    for row, rep, truth in data:
+        fs = features(rep, row.get("_repo"), row.get("intro"))
         order = sorted(range(len(fs)), key=lambda i: keyfn(fs[i]))
         if group_by_symbol:
             best = {}
@@ -97,6 +122,12 @@ def lowsub(f):
 
 
 CANDIDATES = {
+    "BEST+hist": lambda f: (f["hop"], lowsub(f), -int(math.log2(1 + f["rootlines"])), -int(math.log2(1 + f["hist"])),
+                            -SEV[f["group"]], -f["nroots"]),
+    "BEST(hist first)": lambda f: (f["hop"], lowsub(f), -int(math.log2(1 + f["hist"])),
+                                   -int(math.log2(1 + f["rootlines"])), -SEV[f["group"]], -f["nroots"]),
+    "BEST+hist-tiebreak": lambda f: (f["hop"], lowsub(f), -int(math.log2(1 + f["rootlines"])), -SEV[f["group"]],
+                                     -f["hist"], -f["nroots"]),
     "BEST": lambda f: (f["hop"], lowsub(f), -int(math.log2(1 + f["rootlines"])), -SEV[f["group"]], -f["nroots"]),
     "BEST+removed-last": lambda f: (f["hop"], lowsub(f), f["ckind"] == "removed",
                                     -int(math.log2(1 + f["rootlines"])), -SEV[f["group"]], -f["nroots"]),

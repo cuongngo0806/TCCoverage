@@ -144,6 +144,7 @@ class TestCaseCandidate:
     sub_reason: str | None = None
     hop_distance: int = 0
     hints: list[str] = field(default_factory=list)
+    bug_history: int = 0  # fix commits touching the evidence file in the last 12 months (ranking signal)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -157,6 +158,7 @@ class TestCaseCandidate:
             "hop_distance": self.hop_distance,
             "node_id": self.node_id,
             "corner_cases": self.hints,
+            "bug_history": self.bug_history,
             "related_cmake_targets": self.related_cmake_targets,
         }
 

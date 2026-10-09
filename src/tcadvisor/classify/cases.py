@@ -54,9 +54,10 @@ def priority(hop: int, group: str, sub: str | None = None) -> str:
 
 def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskClassification]],
                 root_kind: dict[str, str], flag_only: set[str], targets_of,
-                tests: dict[str, str] | None = None, root_weight: dict[str, int] | None = None
-                ) -> list[TestCaseCandidate]:
+                tests: dict[str, str] | None = None, root_weight: dict[str, int] | None = None,
+                file_history: dict[str, int] | None = None) -> list[TestCaseCandidate]:
     weight = root_weight or {}
+    history = file_history or {}
     cases: list[TestCaseCandidate] = []
     for nid, node in nodes.items():
         if node.hop_distance == 0:
@@ -118,7 +119,8 @@ def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskCla
     # Relevance order (tuned on 55 real regressions in vsomeip + RocksDB, dev/holdout split — see
     # specs/004-ranking): closest to the change first; substantive risks before recompile-only / log / test
     # ones; bigger changes first (log2 of changed lines of the root, or of all roots reaching an impacted
-    # symbol); then risk-group severity and fan-in. Deterministic, no model. The P1/P2/P3 label keeps the
+    # symbol); then how bug-prone the file was (fix commits in the last 12 months); then risk-group severity
+    # and fan-in. Deterministic, no model. The P1/P2/P3 label keeps the
     # FR-004a meaning (hop distance x severity); the list order adds change size.
     def key(c: TestCaseCandidate):
         if c.hop_distance == 0:
@@ -128,7 +130,10 @@ def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskCla
             lines, fan_in = sum(weight.get(r, 0) for r in rs), len(rs)
         low = c.sub_reason in LOW_SUBS or (c.hop_distance > 0 and c.sub_reason in IMPACT_LOW_SUBS)
         ev = c.evidence[0]
-        return (c.hop_distance, low, -int(math.log2(1 + lines)), -SEVERITY[c.risk_group], -fan_in,
+        hist = history.get(ev.file_path, 0) if isinstance(ev, SymbolRef) else 0
+        c.bug_history = hist
+        return (c.hop_distance, low, -int(math.log2(1 + lines)), -int(math.log2(1 + hist)), -SEVERITY[c.risk_group],
+                -fan_in,
                 RISK_GROUPS.index(c.risk_group), ev.file_path if isinstance(ev, SymbolRef) else "",
                 ev.line if isinstance(ev, SymbolRef) else 0, c.description)
 

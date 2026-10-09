@@ -49,6 +49,7 @@ class Options:
     graph: str = "clang"  # auto|codegraph|gitnexus|clang (spec 002)
     index: str = "auto"  # auto|full|lite: lite (include scan only) is the default with a graph provider
     fallback_max_tus: int = 200
+    history: bool = True  # rank by bug-fix history of files (git log, local)
     jobs: int | None = None
     graph_bin: str | None = None
     progress: Callable[[str], None] | None = None
@@ -322,8 +323,9 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
 
     from tcadvisor.graph.providers.base import gtest_label
     tests = {nid: lbl for nid, n in nodes.items() if n.hop_distance > 0 and (lbl := gtest_label(repo, n.symbol))}
+    history = G.fix_history(repo, ctx.new_rev or ctx.old_rev) if opts.history else {}
     cases = build_cases(nodes, root_risks, root_kind, flag_only, targets_of, tests,
-                        {ch.node_id: len(ch.added_lines) + len(ch.removed_lines) for ch in changes})
+                        {ch.node_id: len(ch.added_lines) + len(ch.removed_lines) for ch in changes}, history)
     known = ({s["name"] for s in facts.symbols.values()} | {r.qualified_name for r in roots.values()}
              | {r.qualified_name for r in graph.refs.values()})
     cases = gate(cases, repo, known)
