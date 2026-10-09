@@ -27,8 +27,11 @@ class Graph:
     by_name: dict[str, list[str]] = field(default_factory=lambda: defaultdict(list))
     override_group: dict[str, set[str]] = field(default_factory=lambda: defaultdict(set))
     file_targets: dict[str, set[str]] = field(default_factory=lambda: defaultdict(set))
+    refs: dict[str, SymbolRef] = field(default_factory=dict)  # nodes contributed by an external graph provider
 
     def symbol_ref(self, node_id: str) -> SymbolRef | None:
+        if node_id in self.refs:
+            return self.refs[node_id]
         if node_id.startswith("file:"):
             rel = node_id[5:]
             return SymbolRef(rel, "file", rel, 1)
@@ -112,7 +115,8 @@ def build_graph(facts: IndexFacts, targets: TargetModel | None, repo: Path) -> G
 
 
 def traverse(g: Graph, roots: dict[str, SymbolRef], root_groups: dict[str, set[str]], max_hop: int,
-             file_roots: dict[str, str]) -> dict[str, ImpactNode]:
+             file_roots: dict[str, str], root_relations: dict[str, set[str] | None] | None = None
+             ) -> dict[str, ImpactNode]:
     """Breadth-first walk over *dependents*, run per root so every node knows its hop distance to
     each root that reaches it (priority must not be inflated by an unrelated, closer root).
 
@@ -148,7 +152,12 @@ def traverse(g: Graph, roots: dict[str, SymbolRef], root_groups: dict[str, set[s
             cur, cref, hop = q.popleft()
             if hop >= max_hop:
                 continue
+            allowed = (root_relations or {}).get(rid) if hop == 0 else None
             for dep in g.dependents.get(cur, ()):  # deterministic order (edges were sorted)
+                if allowed is not None and dep.relation not in allowed:
+                    continue
+                if dep.relation == "contains" and hop > 0:
+                    continue  # members are affected by their *changed* class only, not by every class on the path
                 if dep.dependent in roots:
                     continue  # another changed root: it is traversed from itself, at hop 0
                 ref = g.symbol_ref(dep.dependent)

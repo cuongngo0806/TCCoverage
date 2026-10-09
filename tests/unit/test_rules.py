@@ -62,3 +62,26 @@ def test_helpers():
     cs = conditional_stack(["#ifdef A", "x", "#else", "y", "#endif", "z"])
     assert cs[2] == ["#ifdef A"] and "#else" in cs[4][0] and 6 not in cs
     assert boundary_hints(["if (len <= 0x10)"])[0].endswith("15, 16, 17")
+
+
+def test_include_guard_is_not_a_condition():
+    lines = ["// c", "#ifndef A_H_", "#define A_H_", "int f();", "#ifdef X", "int g();", "#endif", "#endif"]
+    cs = conditional_stack(lines)
+    assert 4 not in cs and cs[6] == ["#ifdef X"]
+
+
+def test_logical_and_is_not_move_semantics():
+    rs = classify(_change(_fn(["if", "(", "a", ")"]), _fn(["if", "(", "a", "&&", "b", ")"])), [])
+    assert not any(r.risk_group == "ownership_lifetime" for r in rs)
+
+
+def test_new_pure_virtual_hint_and_propagation():
+    def cls(virtuals):
+        return SymInfo(usr="c", name="C", kind="class", display="C", start=1, end=9, tokens=["class", "C"] + virtuals,
+                       decl_tokens=[], virtuals=virtuals)
+    ch = SymbolChange(node_id="c", rel_path="c.h", change_kind="modified", name="C", kind="class", line=1,
+                      old=cls(["f()"]), new=cls(["f()", "g(int) = 0"]), is_header=True)
+    rs = classify(ch, [])
+    abi = [r for r in rs if r.risk_group == "abi_layout"][0]
+    assert "pure virtual" in abi.detail and any("must now override" in h for h in abi.hints)
+    assert ch.propagation() == {"inherit_override", "include"}

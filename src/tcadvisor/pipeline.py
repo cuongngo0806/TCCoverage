@@ -26,7 +26,7 @@ from tcadvisor.index.compile_db import CompileDatabase
 from tcadvisor.ingest import git as G
 from tcadvisor.ingest.changes import ChangeSet, explicit_changes, detect_changes
 from tcadvisor.ingest.symbols import resolve_symbols
-from tcadvisor.models import ChangeInput, ImpactNode, SymbolRef, UsageError
+from tcadvisor.models import ChangeInput, ImpactNode, PrerequisiteError, SymbolRef, UsageError
 
 
 @dataclass
@@ -46,6 +46,8 @@ class Options:
     llm_model: str = "qwen2.5-coder:7b"
     allow_stale: bool = False
     use_run_cache: bool = True
+    graph: str = "clang"  # auto|codegraph|gitnexus|clang (spec 002)
+    graph_bin: str | None = None
     progress: Callable[[str], None] | None = None
 
 
@@ -88,12 +90,29 @@ def run(opts: Options) -> dict[str, Any]:
 
 def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: float) -> dict[str, Any]:
     say = opts.progress or (lambda _m: None)
-    cdb = CompileDatabase.load(opts.build_dir.resolve(), repo, allow_stale=opts.allow_stale)
-    tmodel = load_target_model(opts.build_dir.resolve())
+    from tcadvisor.graph.providers.base import get_provider
+    provider = get_provider(opts.graph, repo, opts.max_hop_depth, opts.graph_bin)
+    early_notes: list[str] = []
+    try:
+        cdb = CompileDatabase.load(opts.build_dir.resolve(), repo, allow_stale=opts.allow_stale)
+    except PrerequisiteError as exc:
+        if provider is None:
+            raise
+        cdb = CompileDatabase(opts.build_dir, [], "none")
+        early_notes.append(f"reduced accuracy: {exc} Change classification uses fallback compiler flags; "
+                           f"impact comes from {provider.name}")
+    try:
+        tmodel = load_target_model(opts.build_dir.resolve())
+    except PrerequisiteError as exc:
+        if provider is None:
+            raise
+        tmodel = None
+        early_notes.append(f"no CMake target mapping: {exc}")
 
     ci_ = ChangeInput(mode="explicit_symbols" if opts.symbols else "git_diff", target_repo_path=str(repo),
                       commit_range=opts.commit_range, working_tree=opts.working_tree, symbols=opts.symbols)
     ctx = _Ctx()
+    ctx.notes.extend(early_notes)
     diffs: list[G.FileDiff] = []
     if opts.commit_range:
         if ".." not in opts.commit_range:
@@ -117,10 +136,11 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         + "".join(sorted(f"{s['file']}:{s['line']}:{u}" for u, s in facts.symbols.items())).encode()).hexdigest()
 
     run_key = hashlib.sha256(json.dumps({
-        "v": __version__, "mode": ci_.mode, "old": ctx.old_rev, "new": ctx.new_rev, "wt": ctx.fingerprint,
+        "v": __version__, "code": _code_digest(), "mode": ci_.mode, "old": ctx.old_rev, "new": ctx.new_rev, "wt": ctx.fingerprint,
         "symbols": opts.symbols, "hop": opts.max_hop_depth, "split": opts.split_threshold,
         "targets": sorted(opts.targets or []), "cdb": cdb.digest, "index": index_state,
-        "llm": opts.llm, "llm_model": opts.llm_model if opts.llm else None}).encode()).hexdigest()
+        "llm": opts.llm, "llm_model": opts.llm_model if opts.llm else None,
+        "graph": provider.name if provider else "clang"}).encode()).hexdigest()
     if opts.use_run_cache:
         cached = cache.get_run(run_key)
         if cached is not None:
@@ -148,7 +168,8 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
             return p.read_text(encoding="utf-8", errors="replace") if p.is_file() else None
 
         say(f"analysing {len(diffs)} changed file(s)")
-        cs = detect_changes(repo, diffs, old_text, new_text, cdb, facts.tu_files)
+        cs = detect_changes(repo, diffs, old_text, new_text, cdb, facts.tu_files,
+                            fallback_args=_fallback_args(repo) if provider is not None else None)
         ci_dict_symbols = None
     ctx.notes.extend(cs.notes)
 
@@ -172,7 +193,26 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         root_kind[ch.node_id] = ch.change_kind
         changes.append(ch)
 
+    flows: dict[str, list[str]] = {}
+    if provider is not None:
+        from tcadvisor.graph.providers.base import Root, build_overlay
+        say(f"impact via {provider.name}")
+        ctx.notes.extend(provider.prepare())
+        pres = provider.impact([Root(ch.node_id, roots[ch.node_id].qualified_name,
+                                     roots[ch.node_id].qualified_name.split("::")[-1], roots[ch.node_id].kind,
+                                     roots[ch.node_id].file_path, roots[ch.node_id].line) for ch in changes])
+        overlay = build_overlay(graph, facts, pres)
+        for fid, deps in graph.dependents.items():  # header include propagation still comes from the compile db
+            if fid.startswith("file:"):
+                overlay.dependents[fid].extend(d for d in deps if d.relation == "include")
+        graph = overlay
+        ctx.notes.extend(pres.notes)
+        flows = pres.flows
+        provider_flags = pres.flags
+    else:
+        provider_flags = []
     flags, flag_only = uncertainty.detect(changes, roots, graph, cdb)
+    flags.extend(provider_flags)
 
     # -- traversal (split per CMake target above the threshold, FR-010a) ---------------------------
     groups: dict[str, list[str]] = {"*": list(roots)}
@@ -195,7 +235,8 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
             if (not r.startswith("file:") and ref.file_path.lower().endswith((".h", ".hh", ".hpp", ".hxx", ".inl"))
                     and sub_groups[r] & {"abi_layout", "build_config"}):
                 file_roots.setdefault(f"file:{ref.file_path}", r)
-        for nid, n in traverse(graph, sub_roots, sub_groups, opts.max_hop_depth, file_roots).items():
+        rel_limits = {ch.node_id: ch.propagation() for ch in changes if ch.node_id in sub_roots}
+        for nid, n in traverse(graph, sub_roots, sub_groups, opts.max_hop_depth, file_roots, rel_limits).items():
             cur = nodes.get(nid)
             if cur is None:
                 nodes[nid] = n
@@ -209,7 +250,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     out_of_scope = list(cs.out_of_scope)
     if opts.targets:
         scope = set(opts.targets)
-        unknown = scope - set(tmodel.targets)
+        unknown = scope - set(tmodel.targets if tmodel else ())
         if unknown:
             raise UsageError(f"unknown CMake target(s): {', '.join(sorted(unknown))}")
         for nid in list(nodes):
@@ -226,15 +267,18 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     def targets_of(node: ImpactNode) -> list[str]:
         return list(node.targets)
 
-    cases = build_cases(nodes, root_risks, root_kind, flag_only, targets_of)
-    known = {s["name"] for s in facts.symbols.values()} | {r.qualified_name for r in roots.values()}
+    from tcadvisor.graph.providers.base import test_label
+    tests = {nid: lbl for nid, n in nodes.items() if n.hop_distance > 0 and (lbl := test_label(repo, n.symbol))}
+    cases = build_cases(nodes, root_risks, root_kind, flag_only, targets_of, tests)
+    known = ({s["name"] for s in facts.symbols.values()} | {r.qualified_name for r in roots.values()}
+             | {r.qualified_name for r in graph.refs.values()})
     cases = gate(cases, repo, known)
 
     # -- affected targets (FR-005) ---------------------------------------------------------------
     direct_targets = sorted({t for n in nodes.values() for t in n.targets})
     affected = [{"name": t, "relation": "compiles_affected_file"} for t in direct_targets]
     for t in direct_targets:
-        for d in sorted(tmodel.dependents_of(t)):
+        for d in sorted(tmodel.dependents_of(t) if tmodel else ()):
             if d not in direct_targets and all(a["name"] != d for a in affected):
                 affected.append({"name": d, "relation": "link_to_target", "via": t})
     target_scope = sorted(opts.targets) if opts.targets else direct_targets
@@ -267,8 +311,13 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         "changed_files": sorted(set(cs.changed_files)),
         "changed_symbols": [{**ch_dict(ch, roots[ch.node_id]), "risks": [r.to_dict() for r in root_risks[ch.node_id]]}
                             for ch in changes if ch.node_id in roots],
-        "impact_nodes": [n.to_dict() for n in sorted(nodes.values(), key=lambda n: (n.hop_distance, n.symbol.file_path,
-                                                                                   n.symbol.line))],
+        "graph_provider": provider.name if provider else "clang",
+        "impact_nodes": [{**n.to_dict(), **({"flows": flows[nid]} if nid in flows else {}),
+                          **({"test": tests[nid]} if nid in tests else {})}
+                         for nid, n in sorted(nodes.items(), key=lambda kv: (kv[1].hop_distance, kv[1].symbol.file_path,
+                                                                             kv[1].symbol.line))],
+        "existing_tests": [{"test": lbl, "file_path": nodes[nid].symbol.file_path, "line": nodes[nid].symbol.line,
+                            "hop_distance": nodes[nid].hop_distance} for nid, lbl in sorted(tests.items(), key=lambda kv: kv[1])],
         "affected_targets": affected,
         "test_case_candidates": [c.to_dict() for c in cases],
         "uncertainty_flags": [f.to_dict() for f in flags],
@@ -285,6 +334,20 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     if opts.use_run_cache and not llm_degraded:
         cache.put_run(run_key, report["commit_hash"], report)
     return report
+
+
+def _code_digest() -> str:
+    """Analyzer source hash: a run cached by an older analyzer build is never served as a hit."""
+    h = hashlib.sha256()
+    for p in sorted(Path(__file__).parent.rglob("*.py")):
+        h.update(p.read_bytes())
+    return h.hexdigest()[:16]
+
+
+def _fallback_args(repo: Path) -> tuple[str, ...]:
+    """Flags used to tokenise changed files when there is no compile database (graph-provider mode)."""
+    inc = [repo, repo / "include", repo / "src"]
+    return ("-x", "c++", "-std=c++17", *[f"-I{p}" for p in inc if p.is_dir()])
 
 
 def ch_dict(ch, ref: SymbolRef) -> dict[str, Any]:

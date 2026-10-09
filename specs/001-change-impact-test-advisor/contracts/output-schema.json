@@ -244,6 +244,25 @@
     },
     "metrics": {
       "type": "object"
+    },
+    "graph_provider": {
+      "type": "string",
+      "enum": [
+        "clang",
+        "codegraph",
+        "gitnexus"
+      ]
+    },
+    "existing_tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "test",
+          "file_path",
+          "line"
+        ]
+      }
     }
   },
   "definitions": {
@@ -299,7 +318,8 @@
             "instantiate",
             "link_to_target",
             "uses_type",
-            "macro_expand"
+            "macro_expand",
+            "contains"
           ]
         },
         "from_symbol": {

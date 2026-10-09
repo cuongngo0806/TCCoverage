@@ -67,6 +67,17 @@ class SymbolChange:
     def is_virtual(self) -> bool:
         return any(s.is_virtual for s in (self.old, self.new) if s)
 
+    def propagation(self) -> set[str] | None:
+        """Relations along which dependents are affected; None = all.
+
+        A class whose data layout and bases are unchanged (e.g. a method declaration was added) does not
+        affect every user of the type: only subclasses (inherit/override) and includers (recompile).
+        """
+        if self.kind in ("class", "struct") and self.old and self.new \
+                and self.old.fields == self.new.fields and self.old.bases == self.new.bases:
+            return {"inherit_override", "include"}
+        return None
+
 
 @dataclass
 class ChangeSet:
@@ -85,25 +96,39 @@ def conditional_stack(lines: list[str]) -> dict[int, list[str]]:
     """Map 1-based line -> enclosing preprocessor conditions (outermost first)."""
     out: dict[int, list[str]] = {}
     stack: list[str] = []
+    guard = _include_guard(lines)
     for i, raw in enumerate(lines, 1):
         m = _PP_RE.match(raw)
         if m:
             d, rest = m.group(1), strip_comments(m.group(2)).strip()
             if d in ("if", "ifdef", "ifndef"):
-                out[i] = list(stack) + [f"#{d} {rest}"]
-                stack.append(f"#{d} {rest}")
+                cond = "" if guard and i == guard else f"#{d} {rest}"  # include guard: not a build condition
+                out[i] = [c for c in list(stack) + [cond] if c]
+                stack.append(cond)
                 continue
             if d in ("elif", "else") and stack:
                 stack[-1] = f"{stack[-1]} / #{d} {rest}".strip()
-                out[i] = list(stack)
+                out[i] = [c for c in stack if c]
                 continue
             if d == "endif" and stack:
-                out[i] = list(stack)
+                out[i] = [c for c in stack if c]
                 stack.pop()
                 continue
-        if stack:
-            out[i] = list(stack)
+        if any(stack):
+            out[i] = [c for c in stack if c]
     return out
+
+
+def _include_guard(lines: list[str]) -> int | None:
+    """Line number of a classic ``#ifndef X / #define X`` include guard, if the file starts with one."""
+    code = [(i, strip_comments(ln).strip()) for i, ln in enumerate(lines, 1)]
+    code = [(i, ln) for i, ln in code if ln]
+    if len(code) >= 2:
+        m1 = re.match(r"#\s*(?:ifndef\s+(\w+)|if\s+!\s*defined\s*\(?\s*(\w+))", code[0][1])
+        m2 = re.match(r"#\s*define\s+(\w+)\s*$", code[1][1])
+        if m1 and m2 and (m1.group(1) or m1.group(2)) == m2.group(1):
+            return code[0][0]
+    return None
 
 
 class _FileSymbols:
@@ -157,7 +182,8 @@ class _FileSymbols:
                     bases.append(ch.type.spelling)
                 elif ch.kind in FUNC_KINDS:
                     if ch.kind in (K.CXX_METHOD, K.DESTRUCTOR) and ch.is_virtual_method():
-                        virtuals.append(ch.displayname)
+                        pure = ch.kind == K.CXX_METHOD and ch.is_pure_virtual_method()
+                        virtuals.append(ch.displayname + (" = 0" if pure else ""))
                     body = next((g for g in ch.get_children() if g.kind == K.COMPOUND_STMT), None)
                     if body is not None:  # inline body: tracked on the method itself
                         exclude.append((body.extent.start.offset, body.extent.end.offset))
@@ -234,7 +260,7 @@ def _args_for_file(abs_path: Path, rel: str, cdb: CompileDatabase, tu_files: dic
 
 
 def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: Any, cdb: CompileDatabase,
-                   tu_files: dict[str, set[str]]) -> ChangeSet:
+                   tu_files: dict[str, set[str]], fallback_args: tuple[str, ...] | None = None) -> ChangeSet:
     """``old_text(rel)`` / ``new_text(rel)`` return file content on each side (None if absent)."""
     repo = repo.resolve()
     extractor = TUExtractor(repo)
@@ -256,7 +282,7 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
         abs_new = (repo / (fd.new_path or rel)).resolve()
         abs_old = (repo / (fd.old_path or rel)).resolve()
         args = _args_for_file(abs_new, fd.new_path or rel, cdb, tu_files, repo) or (
-            _args_for_file(abs_old, fd.old_path or rel, cdb, tu_files, repo))
+            _args_for_file(abs_old, fd.old_path or rel, cdb, tu_files, repo)) or fallback_args
         if args is None:
             cs.out_of_scope.append({"path": rel, "reason": "file is not compiled by any target in the "
                                     "compile database (not part of the analysed module)"})

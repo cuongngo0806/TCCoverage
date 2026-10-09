@@ -217,7 +217,12 @@ def classify(ch: SymbolChange, configurations: list[str]) -> list[RiskClassifica
                 what = "members " + ", ".join(parts)
             add("abi_layout", "member_change", f"data layout of {where} changed ({what})")
         if o.virtuals != n.virtuals:
-            add("abi_layout", "member_change", f"virtual function table of {where} changed")
+            new_pure = [v[:-4] for v in n.virtuals if v.endswith(" = 0") and v not in o.virtuals]
+            add("abi_layout", "member_change", f"virtual function table of {where} changed"
+                + (f"; new pure virtual {_fmt(new_pure)}" if new_pure else ""),
+                ([f"Every implementation of `{ch.name}` (also outside this repo, e.g. mocks, plugins, downstream "
+                  f"projects) must now override {_fmt(new_pure)} or it fails to compile"] if new_pure else [])
+                + ["Objects created by old binaries / plugins used with the new vtable layout"])
         if o.bases != n.bases:
             add("abi_layout", "member_change", f"base classes of {where} changed")
     if ch.kind == "enum" and o and n and o.tokens != n.tokens:
@@ -251,8 +256,9 @@ def classify(ch: SymbolChange, configurations: list[str]) -> list[RiskClassifica
             f"pointer ownership tokens changed in {where}: {_fmt((delta & OWNERSHIP_RAW) | ({'*'} & decl_delta))}")
     if "&" in decl_delta or (fields_changed and "&" in field_types.replace("&&", "")):
         add("ownership_lifetime", "reference", f"reference parameter/return/member changed in {where}")
-    if delta & OWNERSHIP_MOVE:
-        add("ownership_lifetime", "move_semantics", f"move semantics changed in {where}: {_fmt(delta & OWNERSHIP_MOVE)}")
+    move = (delta & (OWNERSHIP_MOVE - {"&&"})) | (decl_delta & {"&&"})  # `&&` in a body is usually logical AND
+    if move:
+        add("ownership_lifetime", "move_semantics", f"move semantics changed in {where}: {_fmt(move)}")
 
     # ---- thread_safety ---------------------------------------------------------------------------
     if delta & THREAD_MUTEX:

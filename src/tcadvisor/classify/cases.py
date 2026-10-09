@@ -20,6 +20,7 @@ REL_PHRASE = {
     "macro_expand": "expands macro",
     "include": "includes",
     "link_to_target": "links",
+    "contains": "is a member of",
 }
 # include-only (file) nodes only carry compile-level risks
 FILE_GROUPS = {"abi_layout", "build_config"}
@@ -36,7 +37,8 @@ def priority(hop: int, group: str) -> str:
 
 
 def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskClassification]],
-                root_kind: dict[str, str], flag_only: set[str], targets_of) -> list[TestCaseCandidate]:
+                root_kind: dict[str, str], flag_only: set[str], targets_of,
+                tests: dict[str, str] | None = None) -> list[TestCaseCandidate]:
     cases: list[TestCaseCandidate] = []
     for nid, node in nodes.items():
         if node.hop_distance == 0:
@@ -71,7 +73,10 @@ def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskCla
             hints = list(dict.fromkeys(h for r in reasons for h in r.hints))[:6]
             subs = sorted({r.sub_reason for r in reasons if r.sub_reason})
             hop_word = "direct" if hop == 1 else f"indirect, {hop} hops"
-            if node.symbol.kind == "file":
+            if tests and nid in tests:
+                desc = (f"Re-run existing test `{tests[nid]}` and check it still covers the "
+                        f"{GROUP_TITLE[grp]} of the change (it {via}; {hop_word})")
+            elif node.symbol.kind == "file":
                 path = node.symbol.file_path
                 if path.lower().endswith((".h", ".hh", ".hpp", ".hxx", ".inl", ".ipp", ".tpp")):
                     desc = f"Recompile and re-test all code including header `{path}` ({hop_word}; it {via})"
