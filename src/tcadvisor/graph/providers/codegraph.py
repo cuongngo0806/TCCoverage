@@ -32,17 +32,22 @@ class CodegraphProvider(Provider):
                 data = self.run_json("impact", root.spelling, "-f", root.file, "-d", str(self.depth), "-j")
             except Exception as exc:  # noqa: BLE001
                 res.notes.append(f"codegraph impact failed for `{root.name}`: {exc}")
+                res.missed.append(root.node_id)
                 continue
             defs = data.get("definitions") or []
             chosen = _choose(defs, root)
             if not chosen:
-                res.notes.append(f"codegraph has no definition matching `{root.name}` ({root.file}:{root.line}); "
-                                 "its dependents are not in the report")
+                res.notes.append(f"codegraph has no definition matching `{root.name}` ({root.file}:{root.line})")
+                res.missed.append(root.node_id)
                 continue
             if len(chosen) > 1:
                 res.notes.append(f"codegraph: `{root.name}` matched {len(chosen)} definitions; their impact is merged")
-            for d in chosen:
-                self._add(res, d, root)
+            try:
+                for d in chosen:
+                    self._add(res, d, root)
+            except (KeyError, TypeError, ValueError) as exc:
+                res.notes.append(f"codegraph returned unexpected data for `{root.name}`: {exc}")
+                res.missed.append(root.node_id)
         return res
 
     def _add(self, res: ProviderResult, d: dict, root: Root) -> None:

@@ -37,6 +37,12 @@ Ways to run it — all produce the same annotated report:
 | Synthesis | `tc-verify-synthesizer` | Sonnet | 1 | |
 | **Total AI** | | | **4** | **40.6k in / 19.4k out tokens, $0.065, 63 s** |
 
+Same verification run as a Claude Code **workflow** (`tc-verify`: 1 Haiku analyze agent + 3 Haiku verifiers +
+1 Sonnet synthesizer): 25/25 cases verified, **~231k subagent tokens** in 69 s. Each workflow agent carries the
+full Claude Code system prompt, CLAUDE.md and tool schemas, so it is ~4× the headless CLI path
+(`tcadvisor verify`, ~60k tokens). **Use `tcadvisor verify` (or the VS Code button, which calls it) for
+day-to-day runs; use the workflow when you want the verification inside a Claude Code session.**
+
 Why it is cheap: the model never explores the repository. Code reaches it once per impacted symbol in a
 bounded window. Haiku does the many small checks; Sonnet makes the one judgement call. Opus is not used
 at runtime.

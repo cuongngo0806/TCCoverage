@@ -48,14 +48,20 @@ class GitNexusProvider(Provider):
                     data = self.run_json("impact", "-u", cands[0]["uid"], "--depth", str(self.depth))
             except Exception as exc:  # noqa: BLE001
                 res.notes.append(f"gitnexus impact failed for `{root.name}`: {exc}")
+                res.missed.append(root.node_id)
                 continue
-            self._add(res, data, root)
+            try:
+                self._add(res, data, root)
+            except (KeyError, TypeError, ValueError, RuntimeError) as exc:
+                res.notes.append(f"gitnexus returned unexpected data for `{root.name}`: {exc}")
+                res.missed.append(root.node_id)
         return res
 
     def _add(self, res: ProviderResult, data: dict, root: Root) -> None:
         rid = (data.get("target") or {}).get("id")
         if not rid:
             res.notes.append(f"gitnexus: no node for `{root.name}`")
+            res.missed.append(root.node_id)
             return
         nodes = {rid: {}}
         for _depth, items in (data.get("byDepth") or {}).items():

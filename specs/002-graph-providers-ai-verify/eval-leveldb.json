@@ -1,6 +1,6 @@
 {
  "clang": {
-  "seconds": 23.1,
+  "seconds": 1.7,
   "cases": 23,
   "P1": 7,
   "flags": 2,
@@ -14,7 +14,7 @@
   }
  },
  "codegraph": {
-  "seconds": 7.3,
+  "seconds": 5.1,
   "cases": 25,
   "P1": 9,
   "flags": 0,
@@ -32,7 +32,7 @@
   }
  },
  "gitnexus": {
-  "seconds": 36.5,
+  "seconds": 16.2,
   "cases": 15,
   "P1": 6,
   "flags": 6,

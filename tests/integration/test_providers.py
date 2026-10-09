@@ -85,3 +85,15 @@ def test_compile_db_optional_with_provider(project, monkeypatch):
     r = project.analyze("--commit-range", "HEAD~1..HEAD", "--graph", "codegraph")
     assert any("reduced accuracy" in n for n in r["run_notes"])
     assert [s["symbol"]["qualified_name"] for s in r["changed_symbols"]] == ["clampRetries"]
+
+
+def test_provider_failure_falls_back_to_clang_graph(project, tmp_path):
+    fake = tmp_path / "codegraph"
+    fake.write_text("#!/bin/sh\necho boom >&2\nexit 2\n")
+    fake.chmod(0o755)
+    project.edit("src/util.cpp", "if (n > 3) return 3;", "if (n > 4) return 4;")
+    project.commit()
+    r = project.analyze("--commit-range", "HEAD~1..HEAD", "--graph", "codegraph", "--graph-bin", str(fake))
+    assert any("falling back" in n for n in r["run_notes"])
+    names = {n["symbol"]["qualified_name"] for n in r["impact_nodes"]}
+    assert "RemoteDoorLock::processOrderResp" in names  # impact not silently lost

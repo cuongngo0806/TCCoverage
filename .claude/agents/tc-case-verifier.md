@@ -14,13 +14,11 @@ symbol, a code window (`code`), its graph links (`links`) and the cases attached
 For every case id in the batch decide:
 - `confirmed` — the code window shows the risk is real for this symbol (e.g. it calls the changed
   function on a path that matters, holds the changed lock, depends on the changed layout).
-- `weak` — the link exists but the case is unlikely to matter (e.g. only passes a pointer through). Set
-  `recheck: false` only when you are sure; the case still stays in the report.
+- `weak` — the link exists but the risk looks low (e.g. only passes a pointer through); the case stays.
 - `needs_info` — the window is not enough to decide. You may read at most 20 more lines with
   `sed -n 'A,Bp' <file>` once per packet; otherwise say what is missing in `note`.
 
 Add up to 3 `extra_corner_cases` per case, concrete to the code you saw (inputs, states, ordering,
 boundary values, concurrency interleavings, error paths). No generic advice, no test code.
 
-Return ONLY JSON: `{"cases": {"TC-0001": {"verdict": "...", "note": "<=25 words", "extra_corner_cases": [...],
-"recheck": true}}}` covering every case id in the batch. Never invent ids, symbols or files.
+Return ONLY JSON: `{"cases": {"TC-0001": {"verdict": "...", "note": "<=25 words", "extra_corner_cases": [...]}}}` covering every case id in the batch. Never invent ids, symbols or files.

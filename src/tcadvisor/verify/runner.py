@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from importlib import resources
 from pathlib import Path
@@ -33,10 +34,13 @@ def _json_from(text: str) -> dict[str, Any]:
 
 def call_claude(claude: str, model: str, prompt: str, budget_usd: float | None, timeout: int = 600
                 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    cmd = [claude, "-p", "--model", model, "--tools", "", "--output-format", "json"]
+    # temp cwd + user-only settings: the analysed repo's .claude/ hooks and CLAUDE.md are never loaded
+    cmd = [claude, "-p", "--model", model, "--tools", "", "--output-format", "json", "--setting-sources", "user"]
     if budget_usd:
         cmd += ["--max-budget-usd", str(budget_usd)]
-    res = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout, encoding="utf-8")
+    with tempfile.TemporaryDirectory(prefix="tcadvisor-claude-") as cwd:
+        res = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout, encoding="utf-8",
+                             cwd=cwd)
     if res.returncode != 0:
         raise RuntimeError(f"claude exited {res.returncode}: {res.stderr.strip()[-400:]}")
     outer = json.loads(res.stdout)

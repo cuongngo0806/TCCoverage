@@ -47,6 +47,7 @@ class ProviderResult:
     flags: list[UncertaintyFlag] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     flows: dict[str, list[str]] = field(default_factory=dict)  # node id -> execution flows (GitNexus processes)
+    missed: list[str] = field(default_factory=list)  # root ids the provider failed to resolve
 
 
 class Provider:
@@ -122,11 +123,16 @@ def build_overlay(base: Graph | None, facts: IndexFacts, results: ProviderResult
     g = Graph(facts)
     if base is not None:
         g.file_targets = base.file_targets
-    g.refs = dict(results.refs)
+    g.refs = {k: v for k, v in results.refs.items() if v.file_path}
+    dropped = len(results.refs) - len(g.refs)
+    if dropped:  # e.g. external/library nodes: no checkable evidence (constitution II)
+        results.notes.append(f"{dropped} provider node(s) without a source file were ignored")
     seen = set()
     for e in results.edges:
         key = (e.dependent, e.dependency, e.relation)
         if key in seen or e.dependent == e.dependency:
+            continue
+        if e.dependent in results.refs and e.dependent not in g.refs:
             continue
         seen.add(key)
         g.dependents[e.dependency].append(Dep(e.dependent, e.relation, e.file, max(1, e.line)))
@@ -134,6 +140,25 @@ def build_overlay(base: Graph | None, facts: IndexFacts, results: ProviderResult
             g.override_group[e.dependent].add(e.dependency)
             g.override_group[e.dependency].add(e.dependent)
     return g
+
+
+def copy_subgraph(src: Graph, dst: Graph, root: str, depth: int) -> bool:
+    """Copy the compile-database dependents of ``root`` (up to ``depth``) into the provider overlay."""
+    frontier, seen, copied = [root], {root}, False
+    for _ in range(depth):
+        nxt = []
+        for n in frontier:
+            for d in src.dependents.get(n, ()):
+                dst.dependents[n].append(d)
+                copied = True
+                if d.dependent not in seen:
+                    seen.add(d.dependent)
+                    nxt.append(d.dependent)
+                    ref = src.symbol_ref(d.dependent)
+                    if ref is not None:
+                        dst.refs.setdefault(d.dependent, ref)
+        frontier = nxt
+    return copied
 
 
 def get_provider(name: str, repo: Path, depth: int, bin_path: str | None = None) -> Provider | None:

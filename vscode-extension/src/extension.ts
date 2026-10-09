@@ -21,7 +21,7 @@ interface Report {
     verified_cases: number; usage?: { cost_usd: number; calls: number } };
   graph_provider?: string;
 }
-const VERDICT_ICON: Record<string, string> = { confirmed: "pass", weak: "circle-slash", needs_info: "question" };
+const VERDICT_ICON: Record<string, string> = { confirmed: "pass", weak: "info", needs_info: "question" };
 
 const isSym = (e: SymbolRef | Edge): e is SymbolRef => (e as SymbolRef).qualified_name !== undefined;
 const RISK: Record<string, string> = {
@@ -192,10 +192,10 @@ async function verifyWithClaude(tree: CasesProvider) {
     const pick = await vscode.window.showWarningMessage(
       "AI verification sends packed code windows (≤40 lines per impacted symbol, never the whole repository) " +
       "to Anthropic through the Claude Code CLI. Is that allowed for this code base?", { modal: true },
-      "Allow for this workspace", "Allow once");
+      "Always allow on this machine", "Allow once");
     if (!pick) { return; }
-    if (pick === "Allow for this workspace") {
-      await c.update("ai.approved", true, vscode.ConfigurationTarget.Workspace);
+    if (pick === "Always allow on this machine") {
+      await c.update("ai.approved", true, vscode.ConfigurationTarget.Global);
     }
   }
   const args = ["-m", "tcadvisor", "verify", path.join(reportDir, "report.json"), "--ai-external-approved",
@@ -269,7 +269,12 @@ function showReport() {
 async function openEvidence(file: string, line: number) {
   const repo = report?.change_input.target_repo_path ?? repoRoot();
   if (!repo) { return; }
-  const doc = await vscode.workspace.openTextDocument(path.join(repo, file));
+  const target = path.resolve(repo, file);
+  if (path.relative(path.resolve(repo), target).startsWith("..") || path.isAbsolute(path.relative(path.resolve(repo), target))) {
+    vscode.window.showWarningMessage(`TC Coverage: refusing to open ${file} (outside the repository)`);
+    return;
+  }
+  const doc = await vscode.workspace.openTextDocument(target);
   const pos = new vscode.Position(Math.max(0, line - 1), 0);
   await vscode.window.showTextDocument(doc, { selection: new vscode.Range(pos, pos), viewColumn: vscode.ViewColumn.One });
 }

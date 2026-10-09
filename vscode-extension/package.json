@@ -114,7 +114,8 @@
         "tcCoverage.pythonPath": {
           "type": "string",
           "default": "python3",
-          "description": "Python interpreter with tcadvisor installed (pip install -e <TCCoverage>)."
+          "description": "Python interpreter with tcadvisor installed (pip install -e <TCCoverage>).",
+          "scope": "machine"
         },
         "tcCoverage.repo": {
           "type": "string",
@@ -169,18 +170,20 @@
         "tcCoverage.graphBin": {
           "type": "string",
           "default": "",
-          "description": "Path to the codegraph/gitnexus executable (empty = PATH)."
+          "description": "Path to the codegraph/gitnexus executable (empty = PATH).",
+          "scope": "machine"
         },
         "tcCoverage.ai.approved": {
           "type": "boolean",
           "default": false,
-          "scope": "resource",
-          "description": "Allow sending packed code windows (\u226440 lines per impacted symbol, never the repository) to Claude for verification."
+          "scope": "machine",
+          "description": "Allow sending packed code windows (\u226440 lines per impacted symbol, never the repository) to Claude for verification. Machine-scoped: a repository's .vscode/settings.json cannot turn this on."
         },
         "tcCoverage.ai.claudePath": {
           "type": "string",
           "default": "claude",
-          "description": "Claude Code CLI used in headless mode."
+          "description": "Claude Code CLI used in headless mode.",
+          "scope": "machine"
         },
         "tcCoverage.ai.verifyModel": {
           "type": "string",

@@ -27,5 +27,5 @@
 
 ## Phase 6: Evaluate & release
 - [x] T216 Run on leveldb with each provider; record `eval.md`
-- [ ] T217 Run tc-verify workflow on the leveldb report
-- [ ] T218 Code review pass, fix findings, full test suite, package, retro → next-cycle backlog
+- [x] T217 Run tc-verify workflow on the leveldb report
+- [x] T218 Code review pass, fix findings, full test suite, package, retro → next-cycle backlog

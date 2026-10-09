@@ -128,8 +128,8 @@ def to_markdown(r: dict[str, Any]) -> str:
               f"{_md_cell(av['summary'])}", "", f"- verified cases: {av['verified_cases']}; models: "
               f"{', '.join(av.get('models') or []) or '-'}"]
         for a in av["additional_checks"]:
-            L.append(f"- [ ] **Also check**: {_md_cell(a['title'])} — {_md_cell(a['why'])}"
-                     f"{' (' + a['evidence'] + ')' if a['evidence'] else ''}")
+            L.append(f"- [ ] **Also check** (AI): {_md_cell(a['title'])} — {_md_cell(a['why'])}"
+                     f"{' (' + a['evidence'] + ')' if a['evidence'] else ' (unverified AI suggestion: no resolvable file:line)'}")
         L.append("")
     if r.get("existing_tests"):
         L += ["## Existing tests to re-run", "",
@@ -172,7 +172,7 @@ def to_brief(r: dict[str, Any], limit: int = 80) -> str:
     for c in r["test_case_candidates"][:limit]:
         ev = c["evidence"][0]
         v = c.get("verification")
-        tag = f" [AI:{v['verdict']}{'' if v['recheck'] else ',no-recheck'}]" if v else ""
+        tag = f" [AI:{v['verdict']}]" if v else ""
         L.append(f"{c['id']} {c['priority']} {c['risk_group']} {ev['file_path']}:{ev['line']}{tag} :: {c['description']}")
         if c.get("corner_cases"):
             L.append("   corner: " + " | ".join(c["corner_cases"][:3]))

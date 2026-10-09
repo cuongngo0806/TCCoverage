@@ -63,3 +63,13 @@ def test_verify_runner_with_fake_claude(tmp_path):
     assert res["verified"] == 1 and res["usage"]["calls"] == 2
     assert r["test_case_candidates"][0]["verification"]["extra_corner_cases"] == ["a=1"]
     assert r["ai_verification"]["additional_checks"][0]["evidence"] == "a.cpp:2"
+
+
+def test_ai_evidence_must_resolve_inside_repo(tmp_path):
+    r = _report(tmp_path)
+    merge(r, {"cases": {}, "additional_checks": [{"title": "ok", "why": "w", "evidence": "a.cpp:2"},
+                                                 {"title": "escape", "why": "w", "evidence": "../../etc/passwd:1"},
+                                                 {"title": "bad line", "why": "w", "evidence": "a.cpp:999"}]})
+    st = [(c["title"], c["evidence"], c["evidence_status"]) for c in r["ai_verification"]["additional_checks"]]
+    assert st[0] == ("ok", "a.cpp:2", "resolved")
+    assert st[1][1] == "" and st[2][1] == "" and st[1][2] == "unverified AI suggestion"

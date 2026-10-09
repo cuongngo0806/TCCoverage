@@ -151,6 +151,9 @@ def main(argv: list[str] | None = None) -> int:
                          budget_usd=ns.budget_usd, progress=lambda m: print(f"[tcadvisor] {m}", file=sys.stderr))
             write_outputs(json.loads(ns.report.read_text(encoding="utf-8")), ns.report.parent, "all")
             u = res["usage"]
+            if res["errors"] and not res["verified"]:
+                print("error: AI verification failed: " + "; ".join(res["errors"]), file=sys.stderr)
+                return 3
             print(f"verified {res['verified']} case(s) with {u['calls']} model call(s); tokens in/out "
                   f"{u['input_tokens']}/{u['output_tokens']}; cost ${u['cost_usd']:.4f}"
                   + (f"; errors: {'; '.join(res['errors'])}" if res["errors"] else ""))

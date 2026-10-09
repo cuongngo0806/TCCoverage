@@ -26,7 +26,7 @@ from tcadvisor.index.compile_db import CompileDatabase
 from tcadvisor.ingest import git as G
 from tcadvisor.ingest.changes import ChangeSet, explicit_changes, detect_changes
 from tcadvisor.ingest.symbols import resolve_symbols
-from tcadvisor.models import ChangeInput, ImpactNode, PrerequisiteError, SymbolRef, UsageError
+from tcadvisor.models import ChangeInput, ImpactNode, PrerequisiteError, SymbolRef, UncertaintyFlag, UsageError
 
 
 @dataclass
@@ -121,6 +121,12 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         ctx.old_rev, ctx.new_rev = G.resolve_rev(repo, a or "HEAD"), G.resolve_rev(repo, b or "HEAD")
         diffs = G.diff_range(repo, ctx.old_rev, ctx.new_rev)
         head = G.head_or_none(repo)
+        dirty = bool(G.git(repo, "status", "--porcelain", "--untracked-files=no").strip())
+        if provider is not None and (head != ctx.new_rev or dirty):
+            # the provider indexes the working tree: results depend on it, so never serve them from the run cache
+            opts.use_run_cache = False
+            ctx.notes.append(f"{provider.name} indexes the working tree, which is not identical to {ctx.new_rev[:10]}; "
+                             "check out the range end for exact provider impact")
         if head != ctx.new_rev:
             ctx.notes.append(f"range end {ctx.new_rev[:10]} is not the checked-out HEAD; the dependency index reflects "
                              "the working tree, so unchanged-file line numbers may differ")
@@ -196,19 +202,31 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     flows: dict[str, list[str]] = {}
     if provider is not None:
         from tcadvisor.graph.providers.base import Root, build_overlay
+        from tcadvisor.graph.providers.base import ProviderResult, copy_subgraph
         say(f"impact via {provider.name}")
-        ctx.notes.extend(provider.prepare())
-        pres = provider.impact([Root(ch.node_id, roots[ch.node_id].qualified_name,
-                                     roots[ch.node_id].qualified_name.split("::")[-1], roots[ch.node_id].kind,
-                                     roots[ch.node_id].file_path, roots[ch.node_id].line) for ch in changes])
+        proots = [Root(ch.node_id, roots[ch.node_id].qualified_name, roots[ch.node_id].qualified_name.split("::")[-1],
+                       roots[ch.node_id].kind, roots[ch.node_id].file_path, roots[ch.node_id].line) for ch in changes]
+        try:
+            ctx.notes.extend(provider.prepare())
+            pres = provider.impact(proots)
+        except Exception as exc:  # noqa: BLE001 - a broken provider must not hide impact
+            pres = ProviderResult(missed=[r.node_id for r in proots if r.kind != "file"],
+                                  notes=[f"{provider.name} failed ({type(exc).__name__}: {str(exc)[:300]}); "
+                                         "falling back to the compile-database graph"])
         overlay = build_overlay(graph, facts, pres)
         for fid, deps in graph.dependents.items():  # header include propagation still comes from the compile db
             if fid.startswith("file:"):
                 overlay.dependents[fid].extend(d for d in deps if d.relation == "include")
+        provider_flags = list(pres.flags)
+        for rid in pres.missed:  # provider could not resolve this root: use the libclang graph, else flag it
+            if not copy_subgraph(graph, overlay, rid, opts.max_hop_depth):
+                provider_flags.append(UncertaintyFlag(
+                    "dynamic_runtime_dependency",
+                    f"{provider.name} could not resolve `{roots[rid].qualified_name}` and no compile-database graph is "
+                    "available; its dependents are unknown — review manually", roots[rid]))
         graph = overlay
         ctx.notes.extend(pres.notes)
         flows = pres.flows
-        provider_flags = pres.flags
     else:
         provider_flags = []
     flags, flag_only = uncertainty.detect(changes, roots, graph, cdb)
