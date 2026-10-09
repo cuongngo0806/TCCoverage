@@ -63,6 +63,10 @@ class CasesProvider implements vscode.TreeDataProvider<Node> {
     if (report.no_detected_impact) { return [{ label: "No detected impact (comments/format/non-C++ only)", kind: "info" }]; }
     const groups: Node[] = ["P1", "P2", "P3"].map(p => {
       const cs = report!.test_case_candidates.filter(c => c.priority === p);
+      if (cfg().get<string>("ai.order") === "ai") {  // stable: relevance order inside each verdict
+        const k = (c: Case) => c.verification ? ({ confirmed: 0, needs_info: 1, weak: 3 } as Record<string, number>)[c.verification.verdict] : 2;
+        cs.sort((x, y) => k(x) - k(y));
+      }
       return {
         label: `${p} (${cs.length})`, kind: "group" as const, prio: p,
         children: cs.map(c => caseNode(c)),
@@ -338,7 +342,8 @@ export function activate(ctx: vscode.ExtensionContext) {
       cp.execFile(cfg().get<string>("pythonPath") || "python3", ["-m", "tcadvisor", "cache", "clear", "--repo", r],
         (err, out) => vscode.window.showInformationMessage(err ? `TC Coverage: ${err.message}` : `TC Coverage: ${out.trim()}`));
     }),
-    vscode.workspace.onDidChangeConfiguration(e => { if (e.affectsConfiguration("tcCoverage.showInlineHints")) { updateDiagnostics(); } }),
+    vscode.workspace.onDidChangeConfiguration(e => { if (e.affectsConfiguration("tcCoverage.showInlineHints")) { updateDiagnostics(); }
+      if (e.affectsConfiguration("tcCoverage.ai.order")) { tree.refresh(); } }),
   );
 }
 

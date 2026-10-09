@@ -1,0 +1,40 @@
+d1e228130 -> eec6f1ae | Fix duplicate registration warn to match major/minor
+30f8553c9 -> a4c3a42d | Fix queue_size not counting pending_trains
+30f8553c9 -> bf9647cb | fix lock order inversion
+4062d4c97 -> c631be64 | Fix network-tests using same ranges for client-ids
+710a8613e -> a9f20026 | fix SIGSEGV in add_remote_service_info
+7a30a430d -> ff17ad40 | Fix integer overflow in `ASSIGN_CLIENT` payload deserializer
+38e9f99a1 -> 723b4820 | fix daemon build
+1a749b7e8 -> 8b7e2502 | Fix Android build issues
+da754567d -> af781c9e | Fix double connect
+2a4f05aa2 -> 23a8282d | Fix subscribe triggered by stale ON_AVAILABLE
+8c97ab91b -> bcc74a90 | Fix and test atomic stop offers
+30f8553c9 -> 70598bba | fix availability loop on `send_cbk`
+6ef7b4e12 -> 4d9f4661 | fix 'Target replaced' warnings after STR
+91d3a2198 -> 2a4f05aa | fix deliver_notification/register_event race
+46bd8bf17 -> 51faf636 | fix wrap around to VSOMEIP_SEC_PORT_UNSET on UDS
+1695955b0 -> 823a7640 | fix payload not being printed on android
+9933ad2c1 -> 1fd7314d | fix log to file
+11447b294 -> da754567 | Fix UDP connection availability loop
+269e98393 -> d87c412c | Fix missing lock in udp_client_endpoint
+cc8c5a943 -> 67a94651 | Fix missing clean-up of pinged clients
+7c3f82cde -> 2f2f2dbc | fix drop of udp errors
+46bd8bf17 -> 30f3498e | Fix availability, host state, tcp address race in rmc
+05f8f469b -> 1bdf66fb | Fix logger include
+07b13fa64 -> 1898c18b | Fix detached dispatcher thread
+11447b294 -> bd7eadf9 | fix routingmanagerd deadlock
+11447b294 -> 04911817 | Fix selective event subscription race
+03f8ed529 -> 7104c72e | fix logger_ext.hpp include path
+30f8553c9 -> dc21ddbe | fix test flakiness
+1e7a7b044 -> da2bc0e4 | Fix get_connected_clients after rearch
+1e7a7b044 -> 3d262d8c | fix for a "never cleaned up" local_endpoint (routing)
+a5fb6b28f -> 4cb092ca | fix missing find on resume
+710a8613e -> 3e3d9c64 | fix delayed availability
+200815b21 -> 35732ef1 | Fix plugin_manager_impl singleton free-after-use on dtor bug
+7f40d9c53 -> 17ee63e7 | fix logging prefix in flush function
+60c83e0b4 -> c69e067f | Fix double stop race condition
+b1e7bab5d -> 88d868f8 | Fix availability inconsistency
+200815b21 -> da1fdec2 | Fix broken android build when ANDROID_CI_BUILD is not set
+d42407e7d -> 7797081f | Fix network_tests/someip_tp_tests
+e772e621e -> 31b94d3e | fix send_queued error handling
+b40e1e894 -> 7b0f0103 | Fix remote subscription expiration

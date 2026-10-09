@@ -64,7 +64,8 @@ table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid var(--li
 <div id="graphWrap"><svg id="graph" role="img" aria-label="impact graph"></svg></div><div id="detail" class="muted"></div></div>
 <h2>Test cases to check</h2>
 <div class="panel"><div class="chips" id="prioChips"></div><div class="chips" id="grpChips"></div>
-<input type="search" id="q" placeholder="Filter by symbol, file, text…"><span class="muted" id="count" style="margin-left:8px"></span>
+<input type="search" id="q" placeholder="Filter by symbol, file, text…">
+<select id="ord" title="List order" style="margin-left:8px;padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg)"><option value="rel">Order: relevance</option><option value="ai">Order: AI-triaged</option></select><span class="muted" id="count" style="margin-left:8px"></span>
 <div id="cases"></div></div>
 <section id="aiSec"></section><section id="testsSec"></section><section id="flagsSec"></section><section id="targetsSec"></section><section id="oosSec"></section><section id="notesSec"></section>
 </main>
@@ -140,8 +141,12 @@ chips(document.getElementById('grpChips'),Object.keys(GL).filter(g=>C.some(c=>c.
 document.getElementById('q').oninput=e=>{st.q=e.target.value.toLowerCase();render()};
 function evHtml(e){return e.qualified_name!==undefined?`<code>${esc(e.qualified_name)}</code> ${loc(e.file_path,e.line)}`:
  `<code>${esc(e.from_symbol.qualified_name)}</code> —${esc(e.relation)}→ <code>${esc(e.to_symbol.qualified_name)}</code> ${loc(e.source_location.file_path,e.source_location.line)}`}
+const AIO={confirmed:0,needs_info:1,weak:3};const aiKey=c=>c.verification?AIO[c.verification.verdict]:2;
+const ordEl=document.getElementById('ord');if(!C.some(c=>c.verification))ordEl.style.display='none';
+ordEl.onchange=()=>render();
 function render(){const list=C.filter(c=>st.p.has(c.priority)&&st.g.has(c.risk_group)&&(!selNode||c.node_id===selNode)&&
  (!st.q||JSON.stringify(c).toLowerCase().includes(st.q)));
+ if(ordEl.value==='ai')list.sort((x,y)=>aiKey(x)-aiKey(y)); // stable: relevance order inside each verdict
  document.getElementById('count').textContent=`${list.length} / ${C.length}`;
  document.getElementById('cases').innerHTML=list.length?list.map(c=>`<div class="case"><span class="prio ${c.priority}">${c.priority}</span> <b class="mono">${c.id}</b><span class="grp">${GL[c.risk_group]}${c.sub_reason?' · '+esc(c.sub_reason):''}</span><span class="grp">hop ${c.hop_distance}</span>
  <div>${esc(c.description)}</div><div class="muted">When: ${esc(c.activation_condition)}</div>

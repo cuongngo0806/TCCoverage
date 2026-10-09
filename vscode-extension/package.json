@@ -2,7 +2,7 @@
   "name": "tc-coverage",
   "displayName": "TC Coverage \u2014 Change Impact & Test Cases",
   "description": "Shows the test cases, corner cases and impact flow a C++/CMake change must be checked against (powered by tcadvisor).",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "tccoverage",
   "license": "UNLICENSED",
   "engines": {
@@ -199,6 +199,15 @@
           "type": "number",
           "default": 0.5,
           "description": "Spending cap per model call (claude --max-budget-usd)."
+        },
+        "tcCoverage.ai.order": {
+          "type": "string",
+          "enum": [
+            "relevance",
+            "ai"
+          ],
+          "default": "relevance",
+          "markdownDescription": "Order of cases inside each priority group. `relevance` = deterministic order (default). `ai` = AI-triaged view: confirmed > needs_info > unverified > weak (pilot: fixed function in the top 10 for 29/55 regressions vs 26/55). AI never removes cases."
         }
       }
     }
