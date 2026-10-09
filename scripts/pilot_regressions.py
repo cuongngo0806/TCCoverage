@@ -45,8 +45,52 @@ def short(name: str) -> str:
     return name.split("::")[-1]
 
 
+def _show(repo: Path, rev: str, path: str) -> list[str]:
+    res = subprocess.run(["git", "-C", str(repo), "show", f"{rev}:{path}"], capture_output=True, text=True,
+                         errors="replace")
+    return res.stdout.splitlines() if res.returncode == 0 else []
+
+
 def changed_functions(repo: Path, fix: str, attrs: Path) -> dict[str, set[str]]:
-    """file -> short function names touched by the fix (from git's C++ hunk headers)."""
+    """file -> short names of the functions whose lines the fix changes.
+
+    Each changed line is attributed to its enclosing function by a brace-aware scan of the file before
+    (removed lines) / after (added lines) the fix; git's hunk header is only a fallback (it names the
+    function *preceding* the hunk when the hunk starts at a new function).
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+    from tcadvisor.ingest.changes import textual_functions
+    out = sh(["git", "diff", "-U0", "--no-color", f"{fix}^", fix], cwd=repo).stdout
+    res: dict[str, set[str]] = {}
+    old_path = new_path = None
+    old_fns = new_fns = []
+    for line in out.splitlines():
+        if line.startswith("--- "):
+            old_path = line[6:] if line.startswith("--- a/") else None
+            continue
+        if line.startswith("+++ "):
+            new_path = line[6:] if line.startswith("+++ b/") else None
+            ok = new_path and new_path.endswith(CPP) and not is_test(new_path)
+            old_fns = textual_functions(_show(repo, f"{fix}^", old_path)) if ok and old_path else []
+            new_fns = textual_functions(_show(repo, fix, new_path)) if ok else []
+            if ok:
+                res.setdefault(new_path, set())
+            else:
+                new_path = None
+            continue
+        m = re.match(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", line)
+        if m and new_path:
+            o, on, n, nn = int(m.group(1)), int(m.group(2) or 1), int(m.group(3)), int(m.group(4) or 1)
+            hit = {f[0] for f in old_fns for ln in range(o, o + on) if f[1] <= ln <= f[2]} if on else set()
+            hit |= {f[0] for f in new_fns for ln in range(n, n + nn) if f[1] <= ln <= f[2]} if nn else set()
+            res[new_path] |= {short(h) for h in hit}
+    if any(res.values()):
+        return res
+    return _changed_functions_hunk_headers(repo, fix, attrs)
+
+
+def _changed_functions_hunk_headers(repo: Path, fix: str, attrs: Path) -> dict[str, set[str]]:
+    """Fallback: git's C++ hunk headers."""
     out = sh(["git", "-c", f"core.attributesFile={attrs}", "diff", "-U0", "--no-color", f"{fix}^", fix],
              cwd=repo).stdout
     res: dict[str, set[str]] = {}
@@ -237,6 +281,7 @@ def main() -> int:
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--prepare-only", action="store_true")
     ap.add_argument("--rescore", action="store_true", help="recompute metrics from the last run's reports")
+    ap.add_argument("--retruth", action="store_true", help="with --rescore: recompute the ground truth")
     ap.add_argument("--tag", default="current", help="results go to WORK/runs/TAG (prepared worktrees are shared)")
     a = ap.parse_args()
     a.work = a.work.resolve()
@@ -250,6 +295,14 @@ def main() -> int:
         results = json.loads((a.run_dir / "pilot.json").read_text())
         for row in results:
             rp = a.run_dir / f"out-{row['intro']}" / "report.json"
+            if a.retruth:
+                truth = changed_functions(a.repo, row["fix"], attrs)
+                truth = {f: {fn for fn in fns if re.search(rf"\b{re.escape(fn)}\b", "\n".join(_show(a.repo, row["intro"], f)))}
+                         for f, fns in truth.items() if _show(a.repo, row["intro"], f)}
+                row["truth"] = sorted(f"{f}:{','.join(sorted(v))}" for f, v in truth.items())
+                if not truth:
+                    row["verdict"] = "no-source-truth"
+                    continue
             if row.get("truth") and rp.exists() and row.get("verdict") != "error":
                 truth = {t.split(":", 1)[0]: set(filter(None, t.split(":", 1)[1].split(","))) for t in row["truth"]}
                 row.update(evaluate(json.loads(rp.read_text()), truth))
