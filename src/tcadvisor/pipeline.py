@@ -47,6 +47,8 @@ class Options:
     allow_stale: bool = False
     use_run_cache: bool = True
     graph: str = "clang"  # auto|codegraph|gitnexus|clang (spec 002)
+    index: str = "auto"  # auto|full|lite: lite (include scan only) is the default with a graph provider
+    jobs: int | None = None
     graph_bin: str | None = None
     progress: Callable[[str], None] | None = None
 
@@ -135,8 +137,14 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         diffs = G.diff_working_tree(repo, ctx.old_rev)
         ctx.fingerprint = hashlib.sha256(G.working_tree_fingerprint(repo, ctx.old_rev).encode()).hexdigest()
 
-    say("building dependency index")
-    facts, index_stats = build_index(repo, cdb, cache, progress=say)
+    lite = opts.index == "lite" or (opts.index == "auto" and provider is not None)
+    if lite:
+        from tcadvisor.index.include_scan import scan
+        say("scanning includes (lite index: impact comes from the graph provider)")
+        facts, index_stats = scan(repo, cdb)
+    else:
+        say("building dependency index")
+        facts, index_stats = build_index(repo, cdb, cache, progress=say, jobs=opts.jobs)
     index_state = hashlib.sha256(json.dumps(
         sorted((k, sorted(v)) for k, v in facts.tu_files.items())).encode()
         + "".join(sorted(f"{s['file']}:{s['line']}:{u}" for u, s in facts.symbols.items())).encode()).hexdigest()
@@ -218,8 +226,14 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
             if fid.startswith("file:"):
                 overlay.dependents[fid].extend(d for d in deps if d.relation == "include")
         provider_flags = list(pres.flags)
+        fallback = graph
+        if pres.missed and lite and cdb.entries:
+            # the lite index has no call graph: build the full libclang index only now that it is needed
+            say(f"{len(pres.missed)} root(s) unresolved by {provider.name}: building the libclang index as fallback")
+            full_facts, _st = build_index(repo, cdb, cache, progress=say, jobs=opts.jobs)
+            fallback = build_graph(full_facts, tmodel, repo)
         for rid in pres.missed:  # provider could not resolve this root: use the libclang graph, else flag it
-            if not copy_subgraph(graph, overlay, rid, opts.max_hop_depth):
+            if not copy_subgraph(fallback, overlay, rid, opts.max_hop_depth):
                 provider_flags.append(UncertaintyFlag(
                     "dynamic_runtime_dependency",
                     f"{provider.name} could not resolve `{roots[rid].qualified_name}` and no compile-database graph is "

@@ -299,13 +299,29 @@ class TUExtractor:
         }
 
 
-def build_index(repo: Path, cdb: CompileDatabase, cache: Any, progress: Callable[[str], None] | None = None
-                ) -> tuple[IndexFacts, dict[str, int]]:
-    """Index every repo-local TU in the compile database, reusing cached facts when still valid."""
+def _extract_worker(job: tuple[str, str, tuple[str, ...]]) -> tuple[str, dict[str, Any]]:
+    repo, file, args = job
+    return file, TUExtractor(Path(repo)).extract(Path(file), args)
+
+
+def build_index(repo: Path, cdb: CompileDatabase, cache: Any, progress: Callable[[str], None] | None = None,
+                jobs: int | None = None) -> tuple[IndexFacts, dict[str, int]]:
+    """Index every repo-local TU in the compile database, reusing cached facts when still valid.
+
+    Stale TUs are parsed in parallel worker processes (libclang is CPU bound and not thread-safe).
+    """
     repo = repo.resolve()
     extractor = TUExtractor(repo)
     facts = IndexFacts(repo)
     stats = {"tus": 0, "reparsed": 0, "reused": 0}
+    todo: list[tuple[str, str, Any]] = []
+    sha_cache: dict[str, str] = {}
+
+    def sha(rel: str) -> str:
+        if rel not in sha_cache:
+            sha_cache[rel] = file_sha(repo / rel)
+        return sha_cache[rel]
+
     for entry in cdb.entries:
         rel = extractor.rel(str(entry.file))
         if rel is None:
@@ -313,15 +329,35 @@ def build_index(repo: Path, cdb: CompileDatabase, cache: Any, progress: Callable
         stats["tus"] += 1
         args_key = hashlib.sha256("\0".join(entry.args).encode()).hexdigest()
         cached = cache.get_tu(rel, args_key) if cache else None
-        if cached is not None and all(file_sha(repo / d) == h for d, h in cached["deps"].items()):
+        if cached is not None and all(sha(d) == h for d, h in cached["deps"].items()):
             stats["reused"] += 1
             facts.merge(rel, cached)
             continue
+        todo.append((rel, args_key, entry))
+    if not todo:
+        return facts, stats
+    workers = max(1, min(jobs or (os.cpu_count() or 1), len(todo)))
+    by_file = {str(e.file): (rel, key) for rel, key, e in todo}
+    results: list[tuple[str, dict[str, Any]]] = []
+    if workers == 1:
+        for rel, _key, e in todo:
+            if progress:
+                progress(f"indexing {rel}")
+            results.append((str(e.file), extractor.extract(e.file, e.args)))
+    else:
+        from concurrent.futures import ProcessPoolExecutor
         if progress:
-            progress(f"indexing {rel}")
-        tu_facts = extractor.extract(entry.file, entry.args)
+            progress(f"indexing {len(todo)} translation unit(s) with {workers} worker(s)")
+        with ProcessPoolExecutor(max_workers=workers) as pool:
+            for i, res in enumerate(pool.map(_extract_worker, [(str(repo), str(e.file), e.args) for _r, _k, e in todo],
+                                             chunksize=4), 1):
+                results.append(res)
+                if progress and i % 50 == 0:
+                    progress(f"indexed {i}/{len(todo)}")
+    for file, tu_facts in results:
+        rel, key = by_file[file]
         stats["reparsed"] += 1
         if cache:
-            cache.put_tu(rel, args_key, tu_facts)
+            cache.put_tu(rel, key, tu_facts)
         facts.merge(rel, tu_facts)
     return facts, stats

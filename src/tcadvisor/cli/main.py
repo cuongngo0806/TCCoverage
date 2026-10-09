@@ -51,6 +51,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="impact source: codegraph (MIT), gitnexus (PolyForm-Noncommercial, opt-in), clang (built-in "
                         "libclang graph); auto = codegraph if installed else clang")
     a.add_argument("--graph-bin", help="path to the codegraph/gitnexus executable")
+    a.add_argument("--index", choices=["auto", "full", "lite"], default="auto",
+                   help="libclang index of every TU (full) or include scan only (lite); auto = lite with a graph provider")
+    a.add_argument("--jobs", type=int, help="parallel libclang workers for the full index (default: CPU count)")
     a.add_argument("--allow-stale-compile-db", action="store_true")
     a.add_argument("--no-run-cache", action="store_true", help="always recompute the result (index cache still used)")
     a.add_argument("--print", choices=["summary", "brief", "json"], default="summary", help="what to print on stdout")
@@ -108,7 +111,8 @@ def _analyze(ns: argparse.Namespace) -> int:
         symbols=symbols, max_hop_depth=ns.max_hop_depth, split_threshold=ns.split_threshold, cache_dir=ns.cache_dir,
         output_dir=ns.output_dir, targets=[t.strip() for t in ns.targets.split(",")] if ns.targets else None,
         llm=ns.llm, llm_endpoint=ns.llm_endpoint, llm_model=ns.llm_model, allow_stale=ns.allow_stale_compile_db,
-        use_run_cache=not ns.no_run_cache, progress=say, graph=ns.graph, graph_bin=ns.graph_bin)
+        use_run_cache=not ns.no_run_cache, progress=say, graph=ns.graph, graph_bin=ns.graph_bin,
+        index=ns.index, jobs=ns.jobs)
     report = run(opts)
     files = write_outputs(report, ns.output_dir, ns.format)
     if ns.print == "json":
