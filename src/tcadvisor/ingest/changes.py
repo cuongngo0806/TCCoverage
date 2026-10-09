@@ -78,6 +78,7 @@ class SymbolChange:
     conditions: list[str] = field(default_factory=list)  # enclosing #if conditions of changed lines
     is_header: bool = False
     added_line_numbers: list[int] = field(default_factory=list)
+    textual: bool = False  # located by a text scan: the parser did not see it (inactive #if branch, no flags)
 
     @property
     def is_template(self) -> bool:
@@ -401,6 +402,40 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
             cs.notes.append(f"{fd.new_path or rel}: only #include directives changed (no semantic root; dependencies "
                             "are re-indexed)")
         elif sorted(res_new) != sorted(res_old):
+            # changed lines the parser never saw (inactive #if branch, missing flags): attribute them to the
+            # enclosing function found by a text scan, so impact can still be traced by name
+            cov_new, cov_old = (new_syms.extents if new_syms else []), (old_syms.extents if old_syms else [])
+            tf_new, tf_old = textual_functions(new_lines), textual_functions(old_lines)
+            by_fn: dict[str, dict] = {}
+            rest_new = {ln for ln in fd.new_lines if not _covered(cov_new, ln)}
+            rest_old = {ln for ln in fd.old_lines if not _covered(cov_old, ln)}
+            for side, lines_, cand, rest in (("+", new_lines, tf_new, rest_new), ("-", old_lines, tf_old, rest_old)):
+                for ln in sorted(rest):
+                    fn = next((f for f in cand if f[1] <= ln <= f[2]), None)
+                    text = strip_comments(lines_[ln - 1]).strip() if 0 < ln <= len(lines_) else ""
+                    if fn is None or not text:
+                        continue
+                    e = by_fn.setdefault(fn[0], {"start": fn[1], "add": [], "rem": [], "lines": set(), "old": set()})
+                    (e["add"] if side == "+" else e["rem"]).append(text)
+                    (e["lines"] if side == "+" else e["old"]).add(ln)
+                    if side == "+":
+                        e["start"] = fn[1]
+            for name, e in sorted(by_fn.items()):
+                if sorted(e["add"]) == sorted(e["rem"]):
+                    continue
+                conds = sorted({c for ln in e["lines"] for c in new_conds.get(ln, [])}
+                               | {c for ln in e["old"] for c in old_conds.get(ln, [])})
+                cs.changes.append(SymbolChange(
+                    node_id=f"text:{fd.new_path or rel}:{name}", rel_path=fd.new_path or rel, change_kind="modified",
+                    name=name, kind="method" if "::" in name else "function", line=e["start"],
+                    added_lines=e["add"], removed_lines=e["rem"], conditions=conds, is_header=is_header,
+                    added_line_numbers=sorted(e["lines"]), textual=True))
+                rest_new -= e["lines"]
+                rest_old -= e["old"]
+            res_new = _residual(new_lines, rest_new, cov_new)
+            res_old = _residual(old_lines, rest_old, cov_old)
+            if sorted(res_new) == sorted(res_old):
+                continue
             conds = sorted({c for ln in fd.new_lines if not _covered(new_syms.extents if new_syms else [], ln)
                             for c in new_conds.get(ln, [])}
                            | {c for ln in fd.old_lines if not _covered(old_syms.extents if old_syms else [], ln)
@@ -411,6 +446,47 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
                 change_kind="file" if fd.new_path else "removed", name=fd.new_path or rel, kind="file",
                 line=first, added_lines=res_new, removed_lines=res_old, conditions=conds, is_header=is_header))
     return cs
+
+
+_FN_HEAD = re.compile(r"^[A-Za-z_][\w:<>,\s\*&~]*?\b((?:[A-Za-z_]\w*::)*~?[A-Za-z_]\w*)\s*\([^;]*$")
+_NOT_FN = {"if", "for", "while", "switch", "return", "sizeof", "catch", "do", "else"}
+
+
+def textual_functions(lines: list[str]) -> list[tuple[str, int, int]]:
+    """Function definitions found by a brace-aware text scan: (name, first line, last line).
+
+    Used only for code the parser did not see. Namespaces / extern "C" / classes are transparent scopes.
+    """
+    out: list[tuple[str, int, int]] = []
+    stack: list[tuple[str, str, int]] = []  # (kind, name, start)
+    pending: tuple[str, int] | None = None
+    for i, raw in enumerate(lines, 1):
+        line = strip_comments(raw)
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        in_fn = any(k == "fn" for k, _n, _s in stack)
+        if not in_fn:
+            m = _FN_HEAD.match(s)
+            if m and m.group(1).split("::")[-1] not in _NOT_FN:
+                pending = (m.group(1), i)
+            elif s.endswith(";"):
+                pending = None
+        for ch in line:
+            if ch == "{":
+                if in_fn:
+                    stack.append(("blk", "", i))
+                elif pending is not None:
+                    stack.append(("fn", pending[0], pending[1]))
+                    in_fn = True
+                    pending = None
+                else:
+                    stack.append(("scope", "", i))
+            elif ch == "}" and stack:
+                kind, name, start = stack.pop()
+                if kind == "fn":
+                    out.append((name, start, i))
+    return out
 
 
 def _parse_symbols(extractor: TUExtractor, path: Path, args: tuple[str, ...], content: str) -> _FileSymbols:

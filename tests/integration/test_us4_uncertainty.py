@@ -51,3 +51,16 @@ def test_callback_is_dynamic_dependency(project):
     assert ("dynamic_runtime_dependency", "onTimer") in _flags(r)
     # still a concrete case: the function itself is real evidence
     assert [c for c in r["test_case_candidates"] if c["evidence"][0]["qualified_name"] == "onTimer"]
+
+
+def test_change_in_inactive_ifdef_becomes_a_named_root(project):
+    project.edit("src/util.cpp", "int clampRetries(int n) {",
+                 "#ifdef DOOR_EXTRA\nint extraCheck(int v) {\n    return v;\n}\n#endif\nint clampRetries(int n) {")
+    project.commit()
+    project.edit("src/util.cpp", "    return v;\n}\n#endif", "    return v > 1 ? 1 : v;\n}\n#endif")
+    project.commit()
+    r = project.analyze("--commit-range", "HEAD~1..HEAD")
+    roots = {s["symbol"]["qualified_name"]: s for s in r["changed_symbols"]}
+    assert "extraCheck" in roots  # named although the parser never saw it
+    assert any(f["category"] == "build_config_incomplete_macro" and f["related_symbol"]
+               and f["related_symbol"]["qualified_name"] == "extraCheck" for f in r["uncertainty_flags"])

@@ -212,7 +212,7 @@ def classify(ch: SymbolChange, configurations: list[str]) -> list[RiskClassifica
     o, n = ch.old, ch.new
     old_tokens = o.tokens if o else []
     new_tokens = n.tokens if n else []
-    if ch.kind == "file":
+    if ch.kind == "file" or ch.textual:
         old_tokens = " ".join(ch.removed_lines).split()
         new_tokens = " ".join(ch.added_lines).split()
     added, removed = token_delta(old_tokens, new_tokens)
