@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tcadvisor.models import ImpactEdge, SymbolRef, TestCaseCandidate
+from tcadvisor.models import SymbolRef, TestCaseCandidate
 
 
 class EvidenceError(RuntimeError):

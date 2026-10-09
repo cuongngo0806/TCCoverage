@@ -1,0 +1,87 @@
+# TCCoverage — Change Impact & Test Case Advisor
+
+For a C++/CMake change, `tcadvisor` tells you **which test cases to check**: the changed symbols,
+their risk category (logic, ABI/layout, ownership/lifetime, thread safety, exception safety, build
+config), every caller / subclass / user / includer up to N hops, corner cases to exercise, the CMake
+targets to rebuild/retest, and the blind spots that need manual review. Results come as Markdown,
+JSON, a token-lean brief, and an **interactive HTML impact-flow report**.
+
+![report](docs/report-example.png)
+
+Three front-ends share the same engine:
+
+| Front-end | Where | Use |
+|---|---|---|
+| CLI | `tcadvisor analyze …` | CI / pre-submit, scripting |
+| Claude Code | `/tc-coverage HEAD~1..HEAD` (skill) + `tc-coverage-analyst` subagent | conversational review with concrete test scenarios |
+| VS Code | `vscode-extension/` (`.vsix`) | tree of cases, inline hints, report webview |
+
+## How it works (deterministic first)
+
+1. **Index** every translation unit of `compile_commands.json` with libclang: functions, classes, macros and
+   their `call`, `inherit_override`, `uses_type`, `instantiate`, `macro_expand`, `include` edges. Cached per TU in
+   SQLite keyed by content hashes → only changed TUs are re-parsed.
+2. **Diff → changed symbols**: each changed file is parsed old/new; symbols are compared on comment-free
+   token streams, so comment/format-only edits yield *no detected impact*.
+3. **Risk rules** (additive) classify each change; **traversal** walks dependents up to `--max-hop-depth` (2).
+4. **Cases** per (impacted node × risk group) with deterministic priority: direct + high-severity = P1,
+   direct or high-severity = P2, else P3. Every case carries file:line evidence (evidence gate).
+5. **Uncertainty flags**: uninstantiated templates, DI/virtual-only methods, callbacks/function pointers,
+   macro branches not compiled in any configuration.
+6. Optional local LLM (Ollama) may only reword descriptions; off by default and degrades gracefully.
+
+## Install
+
+```bash
+pip install -e .            # Python ≥ 3.11, pulls the libclang wheel
+```
+
+Prepare the analysed project once (the advisor only reads these artifacts, it never configures your build):
+
+```bash
+mkdir -p build/.cmake/api/v1/query && touch build/.cmake/api/v1/query/codemodel-v2
+cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+```
+
+## CLI
+
+```bash
+tcadvisor analyze --repo /path/repo --build-dir /path/repo/build --commit-range HEAD~1..HEAD \
+                  --output-dir ../tcadvisor-report [--targets RemoteDoorLock,RemoteDoorUnlock]
+tcadvisor analyze ... --working-tree                 # uncommitted changes
+tcadvisor analyze ... --symbols rca::RemoteDoorLock::processOrderResp
+tcadvisor analyze ... --print brief                  # compact output for AI assistants / PR comments
+tcadvisor render ../tcadvisor-report/report.json     # re-render md/html
+tcadvisor cache clear --repo /path/repo
+```
+
+Exit codes: 0 ok · 1 prerequisite (compile db / File API missing or stale) · 2 usage · 3 internal.
+Outputs: `report.md` (with Mermaid flow), `report.json` (schema: `specs/001-change-impact-test-advisor/contracts/output-schema.json`),
+`report.html`, `report.brief.txt`.
+
+## Claude Code
+
+Open this repo (or copy `.claude/skills/tc-coverage` and `.claude/agents/tc-coverage-analyst.md` into your
+project's `.claude/`) and run `/tc-coverage HEAD~1..HEAD`. Claude runs the CLI with `--print brief`, reads
+only evidence windows for P1 cases, and answers with concrete test scenarios — the expensive dependency
+tracing is never done by the model, which keeps token usage small. Speckit commands for Claude:
+`/speckit-specify`, `/speckit-plan`, `/speckit-tasks`, `/speckit-implement`, …
+
+## VS Code
+
+```bash
+cd vscode-extension && npm install && npm run compile && npx @vscode/vsce package
+code --install-extension tc-coverage-0.1.0.vsix
+```
+
+See `vscode-extension/README.md`.
+
+## Development
+
+```bash
+pip install -e '.[dev]' && python3 -m pytest -q
+```
+
+Spec-driven docs: `specs/001-change-impact-test-advisor/` (spec, plan, tasks). Project rules:
+`.specify/memory/constitution.md`. Remaining acceptance step: pilot run on `remotecontrolapp`
+(tasks.md T032).

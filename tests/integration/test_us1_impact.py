@@ -93,3 +93,16 @@ def test_output_dir_inside_repo_is_rejected(project):
     rc = main(["analyze", "--repo", str(project.repo), "--build-dir", str(project.build), "--working-tree",
                "--output-dir", str(project.repo / "out"), "--cache-dir", str(project.cache), "-q"])
     assert rc == 2
+
+
+def test_llm_unavailable_degrades_gracefully(project):
+    project.edit("src/util.cpp", "if (n > 3) return 3;", "if (n > 9) return 9;")
+    project.commit()
+    r = project.analyze("--commit-range", "HEAD~1..HEAD", "--llm", "--llm-endpoint", "http://127.0.0.1:9")
+    assert r["llm_enabled"] is True and r["llm_degraded"] is True and r["llm_token_usage"] is None
+    assert r["test_case_candidates"] and any("degraded" in n for n in r["run_notes"])
+    assert (project.out / "llm-prompt.log").exists()
+
+
+def test_external_llm_requires_approval(project):
+    project.analyze("--working-tree", "--llm", "--llm-endpoint", "https://api.example.com", expect=2)

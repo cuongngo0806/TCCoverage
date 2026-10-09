@@ -1,0 +1,59 @@
+{
+  "name": "tc-coverage",
+  "displayName": "TC Coverage — Change Impact & Test Cases",
+  "description": "Shows the test cases, corner cases and impact flow a C++/CMake change must be checked against (powered by tcadvisor).",
+  "version": "0.1.0",
+  "publisher": "tccoverage",
+  "license": "UNLICENSED",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Testing", "Visualization", "Other"],
+  "main": "./out/extension.js",
+  "activationEvents": ["workspaceContains:**/CMakeLists.txt"],
+  "contributes": {
+    "commands": [
+      { "command": "tcCoverage.analyzeWorkingTree", "title": "Analyze Working Tree Changes", "category": "TC Coverage", "icon": "$(play)" },
+      { "command": "tcCoverage.analyzeLastCommit", "title": "Analyze Last Commit", "category": "TC Coverage" },
+      { "command": "tcCoverage.analyzeRange", "title": "Analyze Commit Range…", "category": "TC Coverage" },
+      { "command": "tcCoverage.analyzeSymbol", "title": "Analyze Symbol at Cursor", "category": "TC Coverage" },
+      { "command": "tcCoverage.showReport", "title": "Show Report (Impact Flow)", "category": "TC Coverage", "icon": "$(graph)" },
+      { "command": "tcCoverage.clearCache", "title": "Clear Index Cache", "category": "TC Coverage" },
+      { "command": "tcCoverage.openEvidence", "title": "Open Evidence", "category": "TC Coverage" }
+    ],
+    "menus": {
+      "view/title": [
+        { "command": "tcCoverage.analyzeWorkingTree", "when": "view == tcCoverage.cases", "group": "navigation" },
+        { "command": "tcCoverage.showReport", "when": "view == tcCoverage.cases", "group": "navigation" }
+      ],
+      "editor/context": [
+        { "command": "tcCoverage.analyzeSymbol", "when": "editorLangId == cpp || editorLangId == c", "group": "navigation@90" }
+      ],
+      "commandPalette": [ { "command": "tcCoverage.openEvidence", "when": "false" } ]
+    },
+    "views": {
+      "explorer": [ { "id": "tcCoverage.cases", "name": "TC Coverage" } ]
+    },
+    "configuration": {
+      "title": "TC Coverage",
+      "properties": {
+        "tcCoverage.pythonPath": { "type": "string", "default": "python3", "description": "Python interpreter with tcadvisor installed (pip install -e <TCCoverage>)." },
+        "tcCoverage.repo": { "type": "string", "default": "", "description": "Analysed git repository root. Empty = first workspace folder." },
+        "tcCoverage.buildDir": { "type": "string", "default": "build", "description": "CMake build dir (relative to repo or absolute) with compile_commands.json and .cmake/api/v1/reply." },
+        "tcCoverage.outputDir": { "type": "string", "default": "", "description": "Report directory (must be outside the repo). Empty = <repo>/../tcadvisor-report/<repo-name>." },
+        "tcCoverage.targets": { "type": "string", "default": "", "description": "Comma-separated CMake targets to restrict the scope (e.g. RemoteDoorLock,RemoteDoorUnlock)." },
+        "tcCoverage.maxHopDepth": { "type": "number", "default": 2, "minimum": 1, "maximum": 6 },
+        "tcCoverage.showInlineHints": { "type": "boolean", "default": true, "description": "Show P1/P2 cases as hints on the evidence lines." },
+        "tcCoverage.extraArgs": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Extra arguments for 'tcadvisor analyze'." }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.4.0"
+  }
+}

@@ -111,7 +111,7 @@ def to_markdown(r: dict[str, Any]) -> str:
             for c in group:
                 L.append(f"- [ ] **{c['id']}** [{GROUP_LABEL[c['risk_group']]}] {_md_cell(c['description'])}")
                 L.append(f"  - *When*: {_md_cell(c['activation_condition'])}")
-                L.append(f"  - *Evidence*: " + "; ".join(_ev_label(e) for e in c["evidence"]))
+                L.append("  - *Evidence*: " + "; ".join(_ev_label(e) for e in c["evidence"]))
                 if c.get("corner_cases"):
                     L.append("  - *Corner cases*: " + "; ".join(c["corner_cases"][:5]))
                 L.append(f"  - *Targets*: {', '.join(c['related_cmake_targets'])}")

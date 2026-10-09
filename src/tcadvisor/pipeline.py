@@ -175,7 +175,6 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     flags, flag_only = uncertainty.detect(changes, roots, graph, cdb)
 
     # -- traversal (split per CMake target above the threshold, FR-010a) ---------------------------
-    cpp_changed = {ch.rel_path for ch in changes}
     groups: dict[str, list[str]] = {"*": list(roots)}
     split_into: list[str] | None = None
     if len(set(cs.changed_files)) > opts.split_threshold:
