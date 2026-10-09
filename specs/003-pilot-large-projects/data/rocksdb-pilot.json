@@ -1,0 +1,322 @@
+[
+ {
+  "intro": "3b5cb114e",
+  "fix": "fc85a700c",
+  "subject": "Fix memory accounting leak in IODispatcher ReadIndex() (#14569)",
+  "seconds": 161.4,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "util/io_dispatcher_imp.cc:ReadIndex",
+    "hop": 1,
+    "via": "impacted",
+    "best_priority": "P1",
+    "rank": 127
+   }
+  ],
+  "file_hits": [],
+  "misses": [
+   "db_stress_tool/db_stress_common.h:DECLARE_bool",
+   "db_stress_tool/db_stress_gflags.cc:DEFINE_bool"
+  ],
+  "via": "impacted",
+  "best_priority": "P1",
+  "rank": 127,
+  "cases": 726,
+  "p1": 152,
+  "flags": 26,
+  "nodes": 486,
+  "changed": 76,
+  "truth": [
+   "db_stress_tool/db_stress_common.h:DECLARE_bool",
+   "db_stress_tool/db_stress_gflags.cc:DEFINE_bool",
+   "util/io_dispatcher_imp.cc:ReadIndex"
+  ]
+ },
+ {
+  "intro": "4026c3cc0",
+  "fix": "43d60bfe9",
+  "subject": "Revert reverse-comparator handling in range tree lock manager (#14887)",
+  "seconds": 116.1,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "utilities/transactions/lock/range/range_tree/range_tree_lock_manager.cc:AddColumnFamily",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 6
+   },
+   {
+    "symbol": "utilities/transactions/lock/range/range_tree/range_tree_lock_manager.cc:CompareDbtEndpoints",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P2",
+    "rank": 17
+   }
+  ],
+  "file_hits": [
+   "utilities/transactions/lock/range/range_tree/range_tree_lock_manager.cc:MakeLockTreePtr",
+   "utilities/transactions/lock/range/range_tree/range_tree_lock_manager.cc:UnLock"
+  ],
+  "misses": [],
+  "via": "root",
+  "best_priority": "P1",
+  "rank": 6,
+  "cases": 33,
+  "p1": 6,
+  "flags": 19,
+  "nodes": 17,
+  "changed": 17,
+  "truth": [
+   "utilities/transactions/lock/range/range_tree/range_tree_lock_manager.cc:AddColumnFamily,CompareDbtEndpoints,MakeLockTreePtr,UnLock"
+  ]
+ },
+ {
+  "intro": "408e8d4c8",
+  "fix": "112bf15dc",
+  "subject": "Fix false-positive TestBackupRestore corruption (#12917)",
+  "seconds": 134.7,
+  "verdict": "file-level",
+  "hits": [],
+  "file_hits": [
+   "db_stress_tool/expected_state.cc:Get",
+   "db_stress_tool/expected_state.cc:Precommit",
+   "db_stress_tool/expected_state.cc:PrepareDelete",
+   "db_stress_tool/expected_state.cc:PrepareDeleteRange",
+   "db_stress_tool/expected_state.cc:PreparePut",
+   "db_stress_tool/expected_value.cc:Delete",
+   "db_stress_tool/expected_value.cc:Put"
+  ],
+  "misses": [],
+  "via": null,
+  "best_priority": null,
+  "rank": null,
+  "cases": 1117,
+  "p1": 17,
+  "flags": 21,
+  "nodes": 492,
+  "changed": 32,
+  "truth": [
+   "db_stress_tool/expected_state.cc:Get,Precommit,PrepareDelete,PrepareDeleteRange,PreparePut",
+   "db_stress_tool/expected_value.cc:Delete,Put"
+  ]
+ },
+ {
+  "intro": "656b734a5",
+  "fix": "359d57be9",
+  "subject": "Fix blob file path misidentification in SstFileManager during compaction (#15021)",
+  "seconds": 324.2,
+  "verdict": "file-level",
+  "hits": [],
+  "file_hits": [
+   "db/blob/blob_file_builder.cc:Abandon",
+   "db/blob/blob_file_builder.cc:BlobFileBuilder",
+   "db/blob/blob_file_builder.cc:CloseBlobFile",
+   "db/blob/blob_file_builder.cc:OpenBlobFileIfNeeded"
+  ],
+  "misses": [],
+  "via": null,
+  "best_priority": null,
+  "rank": null,
+  "cases": 2673,
+  "p1": 794,
+  "flags": 29,
+  "nodes": 1328,
+  "changed": 196,
+  "truth": [
+   "db/blob/blob_file_builder.cc:Abandon,BlobFileBuilder,CloseBlobFile,OpenBlobFileIfNeeded"
+  ]
+ },
+ {
+  "intro": "7c9b58068",
+  "fix": "0c533e61b",
+  "subject": "Fix XPRESS compression and enable in CI (#13649)",
+  "seconds": 427.5,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "util/compression.h:CompressionOptionsToString",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 125
+   }
+  ],
+  "file_hits": [
+   "port/win/xpress_win.cc:Decompress",
+   "port/win/xpress_win.cc:DecompressToBuffer",
+   "port/win/xpress_win.h:Decompress"
+  ],
+  "misses": [],
+  "via": "root",
+  "best_priority": "P1",
+  "rank": 125,
+  "cases": 2547,
+  "p1": 769,
+  "flags": 91,
+  "nodes": 1000,
+  "changed": 307,
+  "truth": [
+   "port/win/xpress_win.cc:Decompress,DecompressToBuffer",
+   "port/win/xpress_win.h:Decompress",
+   "util/compression.h:CompressionOptionsToString"
+  ]
+ },
+ {
+  "intro": "7d83b4e3e",
+  "fix": "abd6751ab",
+  "subject": "Fix wrong padded bytes being used to generate file checksum (#12598)",
+  "seconds": 104.4,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "file/writable_file_writer.cc:Pad",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P2",
+    "rank": 1
+   }
+  ],
+  "file_hits": [],
+  "misses": [],
+  "via": "root",
+  "best_priority": "P2",
+  "rank": 1,
+  "cases": 17,
+  "p1": 0,
+  "flags": 1,
+  "nodes": 18,
+  "changed": 8,
+  "truth": [
+   "file/writable_file_writer.cc:Pad"
+  ]
+ },
+ {
+  "intro": "8234d67e5",
+  "fix": "1e1c19931",
+  "subject": "Fix dbstress run - attempt 1 (#13408)",
+  "seconds": 141.9,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "db/arena_wrapped_db_iter.cc:MaybeAutoRefresh",
+    "hop": 1,
+    "via": "impacted",
+    "best_priority": "P1",
+    "rank": 15
+   }
+  ],
+  "file_hits": [
+   "db/arena_wrapped_db_iter.cc:DoRefresh"
+  ],
+  "misses": [],
+  "via": "impacted",
+  "best_priority": "P1",
+  "rank": 15,
+  "cases": 4220,
+  "p1": 78,
+  "flags": 8,
+  "nodes": 1636,
+  "changed": 27,
+  "truth": [
+   "db/arena_wrapped_db_iter.cc:DoRefresh,MaybeAutoRefresh"
+  ]
+ },
+ {
+  "intro": "8f763bdea",
+  "fix": "3093d98c7",
+  "subject": "Fix higher read qps during db open caused by pr 11406 (#11516)",
+  "seconds": 341.4,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "table/block_based/block_based_table_reader.cc:PrefetchTail",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 20
+   },
+   {
+    "symbol": "table/block_based/partitioned_filter_block.cc:CacheDependencies",
+    "hop": 1,
+    "via": "impacted",
+    "best_priority": "P2",
+    "rank": 533
+   },
+   {
+    "symbol": "table/block_based/partitioned_index_reader.cc:CacheDependencies",
+    "hop": 1,
+    "via": "impacted",
+    "best_priority": "P2",
+    "rank": 536
+   }
+  ],
+  "file_hits": [],
+  "misses": [],
+  "via": "root",
+  "best_priority": "P1",
+  "rank": 20,
+  "cases": 1552,
+  "p1": 211,
+  "flags": 23,
+  "nodes": 692,
+  "changed": 94,
+  "truth": [
+   "table/block_based/block_based_table_reader.cc:PrefetchTail",
+   "table/block_based/partitioned_filter_block.cc:CacheDependencies",
+   "table/block_based/partitioned_index_reader.cc:CacheDependencies"
+  ]
+ },
+ {
+  "intro": "94d91dadd",
+  "fix": "9577b92b5",
+  "subject": "Fix ODR violation from open source folly build, update (#14094)",
+  "verdict": "no-source-truth"
+ },
+ {
+  "intro": "a27fce408",
+  "fix": "40adb2bab",
+  "subject": "Fix wraparound in SstFileManager (#13010)",
+  "verdict": "no-source-truth"
+ },
+ {
+  "intro": "b0ecf86f6",
+  "fix": "43d60bfe9",
+  "subject": "Revert reverse-comparator handling in range tree lock manager (#14887)",
+  "seconds": 158.2,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "utilities/transactions/lock/range/range_tree/range_tree_lock_manager.cc:CompareDbtEndpoints",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P2",
+    "rank": 1
+   }
+  ],
+  "file_hits": [
+   "utilities/transactions/lock/range/range_tree/range_tree_lock_manager.cc:AddColumnFamily",
+   "utilities/transactions/lock/range/range_tree/range_tree_lock_manager.cc:MakeLockTreePtr",
+   "utilities/transactions/lock/range/range_tree/range_tree_lock_manager.cc:UnLock"
+  ],
+  "misses": [],
+  "via": "root",
+  "best_priority": "P2",
+  "rank": 1,
+  "cases": 7,
+  "p1": 0,
+  "flags": 8,
+  "nodes": 7,
+  "changed": 7,
+  "truth": [
+   "utilities/transactions/lock/range/range_tree/range_tree_lock_manager.cc:AddColumnFamily,CompareDbtEndpoints,MakeLockTreePtr,UnLock"
+  ]
+ },
+ {
+  "intro": "d61a44936",
+  "fix": "8765a0f54",
+  "subject": "Fix version edit dump in json (#12703)",
+  "verdict": "no-source-truth"
+ }
+]

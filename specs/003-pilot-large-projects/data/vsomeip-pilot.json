@@ -1,0 +1,571 @@
+[
+ {
+  "intro": "d1e228130",
+  "fix": "eec6f1a",
+  "subject": "Fix duplicate registration warn to match major/minor",
+  "seconds": 62.5,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "implementation/runtime/src/application_impl.cpp:register_availability_handler",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 37
+   },
+   {
+    "symbol": "implementation/runtime/src/application_impl.cpp:warn_late_registration",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 18
+   }
+  ],
+  "file_hits": [],
+  "misses": [],
+  "via": "root",
+  "best_priority": "P1",
+  "rank": 18,
+  "cases": 112,
+  "p1": 42,
+  "flags": 5,
+  "nodes": 43,
+  "changed": 29,
+  "truth": [
+   "implementation/runtime/src/application_impl.cpp:register_availability_handler,warn_late_registration"
+  ]
+ },
+ {
+  "intro": "30f8553c9",
+  "fix": "a4c3a42",
+  "subject": "Fix queue_size not counting pending_trains",
+  "seconds": 269.4,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "implementation/endpoints/src/client_endpoint_impl.cpp:check_queue_limit",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 50
+   },
+   {
+    "symbol": "implementation/endpoints/src/server_endpoint_impl.cpp:check_queue_limit",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 71
+   }
+  ],
+  "file_hits": [
+   "implementation/endpoints/src/client_endpoint_impl.cpp:get_queue_size",
+   "implementation/endpoints/src/client_endpoint_impl.cpp:queue_train",
+   "implementation/endpoints/src/server_endpoint_impl.cpp:get_queue_size",
+   "implementation/endpoints/src/server_endpoint_impl.cpp:recalculate_queue_size"
+  ],
+  "misses": [],
+  "via": "root",
+  "best_priority": "P1",
+  "rank": 50,
+  "cases": 1311,
+  "p1": 224,
+  "flags": 60,
+  "nodes": 650,
+  "changed": 187,
+  "truth": [
+   "implementation/endpoints/src/client_endpoint_impl.cpp:check_queue_limit,get_queue_size,queue_train",
+   "implementation/endpoints/src/server_endpoint_impl.cpp:check_queue_limit,get_queue_size,recalculate_queue_size"
+  ]
+ },
+ {
+  "intro": "30f8553c9",
+  "fix": "bf9647c",
+  "subject": "fix lock order inversion",
+  "seconds": 263.3,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "implementation/endpoints/src/tcp_client_endpoint_impl.cpp:send_cbk",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 75
+   }
+  ],
+  "file_hits": [],
+  "misses": [],
+  "via": "root",
+  "best_priority": "P1",
+  "rank": 75,
+  "cases": 1311,
+  "p1": 224,
+  "flags": 60,
+  "nodes": 650,
+  "changed": 187,
+  "truth": [
+   "implementation/endpoints/src/tcp_client_endpoint_impl.cpp:send_cbk"
+  ]
+ },
+ {
+  "intro": "4062d4c97",
+  "fix": "c631be6",
+  "subject": "Fix network-tests using same ranges for client-ids",
+  "seconds": 73.6,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "implementation/routing/src/routing_manager_impl.cpp:is_valid_client_id",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P2",
+    "rank": 14
+   }
+  ],
+  "file_hits": [],
+  "misses": [],
+  "via": "root",
+  "best_priority": "P2",
+  "rank": 14,
+  "cases": 53,
+  "p1": 6,
+  "flags": 3,
+  "nodes": 61,
+  "changed": 17,
+  "truth": [
+   "implementation/routing/src/routing_manager_impl.cpp:is_valid_client_id"
+  ]
+ },
+ {
+  "intro": "710a8613e",
+  "fix": "a9f2002",
+  "subject": "fix SIGSEGV in add_remote_service_info",
+  "seconds": 552.7,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "implementation/endpoints/src/endpoint_manager_impl.cpp:add_remote_service_info",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 347
+   }
+  ],
+  "file_hits": [],
+  "misses": [],
+  "via": "root",
+  "best_priority": "P1",
+  "rank": 347,
+  "cases": 3094,
+  "p1": 883,
+  "flags": 813,
+  "nodes": 1568,
+  "changed": 1070,
+  "truth": [
+   "implementation/endpoints/src/endpoint_manager_impl.cpp:add_remote_service_info"
+  ]
+ },
+ {
+  "intro": "7a30a430d",
+  "fix": "ff17ad4",
+  "subject": "Fix integer overflow in `ASSIGN_CLIENT` payload deserializer",
+  "seconds": 163.5,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "implementation/protocol/include/deserialize.hpp:deserialize",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 22
+   }
+  ],
+  "file_hits": [],
+  "misses": [],
+  "via": "root",
+  "best_priority": "P1",
+  "rank": 22,
+  "cases": 307,
+  "p1": 63,
+  "flags": 7,
+  "nodes": 170,
+  "changed": 53,
+  "truth": [
+   "implementation/protocol/include/deserialize.hpp:deserialize"
+  ]
+ },
+ {
+  "intro": "38e9f99a1",
+  "fix": "723b482",
+  "subject": "fix daemon build",
+  "verdict": "no-source-truth"
+ },
+ {
+  "intro": "1a749b7e8",
+  "fix": "8b7e250",
+  "subject": "Fix Android build issues",
+  "seconds": 70.1,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "implementation/routing/src/routing_manager_stub.cpp:send_cached_security_policies",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 31
+   }
+  ],
+  "file_hits": [],
+  "misses": [],
+  "via": "root",
+  "best_priority": "P1",
+  "rank": 31,
+  "cases": 170,
+  "p1": 38,
+  "flags": 15,
+  "nodes": 75,
+  "changed": 36,
+  "truth": [
+   "implementation/routing/src/routing_manager_stub.cpp:send_cached_security_policies"
+  ]
+ },
+ {
+  "intro": "da754567d",
+  "fix": "af781c9",
+  "subject": "Fix double connect",
+  "seconds": 102.4,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "implementation/endpoints/src/client_endpoint_impl.cpp:is_closed",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P2",
+    "rank": 8
+   },
+   {
+    "symbol": "implementation/endpoints/src/server_endpoint_impl.cpp:is_closed",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P2",
+    "rank": 9
+   },
+   {
+    "symbol": "implementation/endpoints/src/virtual_server_endpoint_impl.cpp:is_closed",
+    "hop": 0,
+    "via": "root",
+    "best_priority": null,
+    "rank": null
+   },
+   {
+    "symbol": "implementation/routing/src/routing_manager_impl.cpp:add_routing_info",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P2",
+    "rank": 11
+   }
+  ],
+  "file_hits": [],
+  "misses": [
+   "implementation/endpoints/src/endpoint_manager_impl.cpp:find_or_create_remote_client"
+  ],
+  "via": "root",
+  "best_priority": "P2",
+  "rank": 8,
+  "cases": 53,
+  "p1": 6,
+  "flags": 5,
+  "nodes": 58,
+  "changed": 28,
+  "truth": [
+   "implementation/endpoints/src/client_endpoint_impl.cpp:is_closed",
+   "implementation/endpoints/src/endpoint_manager_impl.cpp:find_or_create_remote_client",
+   "implementation/endpoints/src/server_endpoint_impl.cpp:is_closed",
+   "implementation/endpoints/src/virtual_server_endpoint_impl.cpp:is_closed",
+   "implementation/routing/src/routing_manager_impl.cpp:add_routing_info"
+  ]
+ },
+ {
+  "intro": "2a4f05aa2",
+  "fix": "23a8282",
+  "subject": "Fix subscribe triggered by stale ON_AVAILABLE",
+  "seconds": 53.5,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "implementation/routing/src/routing_manager_impl.cpp:subscribe",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 50
+   }
+  ],
+  "file_hits": [
+   "implementation/routing/src/routing_manager_impl.cpp:del_routing_info"
+  ],
+  "misses": [],
+  "via": "root",
+  "best_priority": "P1",
+  "rank": 50,
+  "cases": 103,
+  "p1": 61,
+  "flags": 4,
+  "nodes": 32,
+  "changed": 23,
+  "truth": [
+   "implementation/routing/src/routing_manager_impl.cpp:del_routing_info,subscribe"
+  ]
+ },
+ {
+  "intro": "8c97ab91b",
+  "fix": "bcc74a9",
+  "subject": "Fix and test atomic stop offers",
+  "seconds": 237.1,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "implementation/endpoints/src/endpoint_manager_impl.cpp:on_connect",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P3",
+    "rank": 572
+   },
+   {
+    "symbol": "implementation/endpoints/src/endpoint_manager_impl.cpp:on_disconnect",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P3",
+    "rank": 573
+   },
+   {
+    "symbol": "implementation/routing/src/routing_manager_impl.cpp:cleanup_client",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P2",
+    "rank": 256
+   },
+   {
+    "symbol": "implementation/routing/src/routing_manager_impl.cpp:offer_service",
+    "hop": 1,
+    "via": "impacted",
+    "best_priority": "P2",
+    "rank": 306
+   },
+   {
+    "symbol": "implementation/routing/src/routing_manager_impl.cpp:on_stop_offer_service",
+    "hop": 2,
+    "via": "impacted",
+    "best_priority": "P3",
+    "rank": 583
+   },
+   {
+    "symbol": "implementation/routing/src/routing_manager_impl.cpp:on_stop_offer_service_unlocked",
+    "hop": 1,
+    "via": "impacted",
+    "best_priority": "P2",
+    "rank": 300
+   },
+   {
+    "symbol": "implementation/routing/src/routing_manager_impl.cpp:stop_offer_service",
+    "hop": 2,
+    "via": "impacted",
+    "best_priority": "P3",
+    "rank": 582
+   },
+   {
+    "symbol": "implementation/routing/src/routing_manager_stub.cpp:on_deregister_application",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P2",
+    "rank": 257
+   },
+   {
+    "symbol": "implementation/routing/src/routing_manager_stub.cpp:on_stop_offer_service",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P2",
+    "rank": 260
+   }
+  ],
+  "file_hits": [],
+  "misses": [],
+  "via": "root",
+  "best_priority": "P2",
+  "rank": 256,
+  "cases": 591,
+  "p1": 179,
+  "flags": 41,
+  "nodes": 338,
+  "changed": 158,
+  "truth": [
+   "implementation/endpoints/src/endpoint_manager_impl.cpp:on_connect,on_disconnect",
+   "implementation/routing/src/routing_manager_impl.cpp:cleanup_client,offer_service,on_stop_offer_service,on_stop_offer_service_unlocked,stop_offer_service",
+   "implementation/routing/src/routing_manager_stub.cpp:on_deregister_application,on_stop_offer_service"
+  ]
+ },
+ {
+  "intro": "30f8553c9",
+  "fix": "70598bb",
+  "subject": "fix availability loop on `send_cbk`",
+  "seconds": 272.4,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "implementation/endpoints/src/udp_client_endpoint_impl.cpp:send_cbk",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 77
+   }
+  ],
+  "file_hits": [
+   "implementation/endpoints/src/udp_client_endpoint_impl.cpp:send_queued"
+  ],
+  "misses": [],
+  "via": "root",
+  "best_priority": "P1",
+  "rank": 77,
+  "cases": 1311,
+  "p1": 224,
+  "flags": 60,
+  "nodes": 650,
+  "changed": 187,
+  "truth": [
+   "implementation/endpoints/src/udp_client_endpoint_impl.cpp:send_cbk,send_queued"
+  ]
+ },
+ {
+  "intro": "6ef7b4e12",
+  "fix": "4d9f466",
+  "subject": "fix 'Target replaced' warnings after STR",
+  "seconds": 243.8,
+  "verdict": "file-level",
+  "hits": [],
+  "file_hits": [
+   "implementation/endpoints/src/server_endpoint_impl.cpp:tp_segmentation_enabled"
+  ],
+  "misses": [],
+  "via": null,
+  "best_priority": null,
+  "rank": null,
+  "cases": 349,
+  "p1": 99,
+  "flags": 24,
+  "nodes": 216,
+  "changed": 117,
+  "truth": [
+   "implementation/endpoints/src/server_endpoint_impl.cpp:tp_segmentation_enabled"
+  ]
+ },
+ {
+  "intro": "91d3a2198",
+  "fix": "2a4f05a",
+  "subject": "fix deliver_notification/register_event race",
+  "seconds": 100.4,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "implementation/routing/src/routing_manager_impl.cpp:create_placeholder_event_and_subscribe",
+    "hop": 1,
+    "via": "impacted",
+    "best_priority": "P1",
+    "rank": 200
+   },
+   {
+    "symbol": "implementation/routing/src/routing_manager_impl.cpp:deliver_notification",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 198
+   },
+   {
+    "symbol": "implementation/routing/src/routing_manager_impl.cpp:handle_subscription_state",
+    "hop": 1,
+    "via": "impacted",
+    "best_priority": "P1",
+    "rank": 269
+   },
+   {
+    "symbol": "implementation/routing/src/routing_manager_impl.cpp:insert_subscription",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 150
+   },
+   {
+    "symbol": "implementation/routing/src/routing_manager_impl.cpp:on_subscribe_ack",
+    "hop": 1,
+    "via": "impacted",
+    "best_priority": "P1",
+    "rank": 334
+   },
+   {
+    "symbol": "implementation/routing/src/routing_manager_impl.cpp:register_event",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 94
+   },
+   {
+    "symbol": "implementation/routing/src/routing_manager_impl.cpp:register_shadow_event",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 196
+   },
+   {
+    "symbol": "implementation/routing/src/routing_manager_impl.cpp:subscribe",
+    "hop": 1,
+    "via": "impacted",
+    "best_priority": "P1",
+    "rank": 172
+   }
+  ],
+  "file_hits": [
+   "implementation/routing/src/routing_manager_impl.cpp:service_endpoint_disconnected"
+  ],
+  "misses": [
+   "implementation/endpoints/src/endpoint_manager_impl.cpp:on_disconnect"
+  ],
+  "via": "root",
+  "best_priority": "P1",
+  "rank": 94,
+  "cases": 779,
+  "p1": 369,
+  "flags": 11,
+  "nodes": 238,
+  "changed": 125,
+  "truth": [
+   "implementation/endpoints/src/endpoint_manager_impl.cpp:on_disconnect",
+   "implementation/routing/src/routing_manager_impl.cpp:create_placeholder_event_and_subscribe,deliver_notification,handle_subscription_state,insert_subscription,on_subscribe_ack,register_event,register_shadow_event,service_endpoint_disconnected,subscribe"
+  ]
+ },
+ {
+  "intro": "46bd8bf17",
+  "fix": "51faf63",
+  "subject": "fix wrap around to VSOMEIP_SEC_PORT_UNSET on UDS",
+  "seconds": 179.1,
+  "verdict": "surfaced",
+  "hits": [
+   {
+    "symbol": "implementation/routing/src/routing_manager_client.cpp:on_message",
+    "hop": 0,
+    "via": "root",
+    "best_priority": "P1",
+    "rank": 11
+   }
+  ],
+  "file_hits": [],
+  "misses": [],
+  "via": "root",
+  "best_priority": "P1",
+  "rank": 11,
+  "cases": 588,
+  "p1": 266,
+  "flags": 33,
+  "nodes": 282,
+  "changed": 164,
+  "truth": [
+   "implementation/routing/src/routing_manager_client.cpp:on_message"
+  ]
+ }
+]

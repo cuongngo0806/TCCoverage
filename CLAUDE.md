@@ -17,6 +17,7 @@ analysed repo.
 - `.claude/skills/tc-coverage`, `.claude/agents/{tc-coverage-analyst,tc-case-verifier,tc-verify-synthesizer}.md`,
   `.claude/workflows/{tc-verify,product-cycle}.js` — Claude front-end; see `docs/workflow.md` (models per step).
 - `scripts/eval_real_project.py` — leveldb ground-truth eval (run before release).
+- `scripts/pilot_regressions.py` + `scripts/szz_pairs.py` — SC-005 regression pilot (see `specs/003-pilot-large-projects/pilot.md`).
 - `specs/001-change-impact-test-advisor/` — speckit spec/plan/tasks; `.specify/memory/constitution.md` — rules.
 
 ## Commands

@@ -11,7 +11,9 @@ JSON, a token-lean brief, and an **interactive HTML impact-flow report**.
 **Impact comes from a code graph** (codegraph by default, GitNexus opt-in, or the built-in libclang graph);
 **AI only verifies** the deterministic cases and adds corner cases — see [docs/workflow.md](docs/workflow.md)
 for the agent/model workflow and the product-development cycle. Real-project evaluation on
-google/leveldb: [specs/002…/eval.md](specs/002-graph-providers-ai-verify/eval.md).
+google/leveldb: [specs/002…/eval.md](specs/002-graph-providers-ai-verify/eval.md). **Pilot on large projects**
+(COVESA vsomeip 133k LOC, RocksDB 898k LOC; 23 real regressions, 0 missed, 87 % at the fixed function):
+[specs/003…/pilot.md](specs/003-pilot-large-projects/pilot.md).
 
 Three front-ends share the same engine:
 
@@ -43,7 +45,8 @@ npm i -g gitnexus                    # optional; PolyForm-Noncommercial license,
 tcadvisor analyze ... --graph auto|codegraph|gitnexus|clang
 ```
 
-With codegraph/GitNexus a compile database is optional (results are marked *reduced accuracy* without it);
+With a graph provider the libclang index is replaced by a fast `#include` scan (`--index auto|full|lite`),
+so ~1M-line code bases analyse in minutes. With codegraph/GitNexus a compile database is optional (results are marked *reduced accuracy* without it);
 with it, change classification and CMake target mapping are exact.
 
 ## AI verification (optional, explicit opt-in)
