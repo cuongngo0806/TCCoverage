@@ -48,6 +48,7 @@ class Options:
     use_run_cache: bool = True
     graph: str = "clang"  # auto|codegraph|gitnexus|clang (spec 002)
     index: str = "auto"  # auto|full|lite: lite (include scan only) is the default with a graph provider
+    fallback_max_tus: int = 200
     jobs: int | None = None
     graph_bin: str | None = None
     progress: Callable[[str], None] | None = None
@@ -216,7 +217,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
                        roots[ch.node_id].kind, roots[ch.node_id].file_path, roots[ch.node_id].line) for ch in changes
                   # a removed symbol no longer exists in the provider's index; its former callers changed in the
                   # same commit (they are roots themselves), so there is nothing to look up
-                  if ch.change_kind != "removed"]
+                  if ch.change_kind != "removed" and not ch.is_test_code]
         try:
             ctx.notes.extend(provider.prepare())
             pres = provider.impact(proots)
@@ -239,12 +240,18 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
             missed_files |= {inc for src, inc, _l in facts.includes if src in missed_files and Path(inc).stem in stems}
             sub = [e for e in cdb.entries if missed_files & facts.tu_files.get(
                 e.file.relative_to(repo).as_posix() if e.file.is_relative_to(repo) else "", set())]
-            say(f"{len(pres.missed)} root(s) unresolved by {provider.name}: libclang fallback over {len(sub)} TU(s)")
-            ctx.notes.append(f"{len(pres.missed)} root(s) unresolved by {provider.name}; their dependents come from a "
-                             f"libclang index of the {len(sub)} translation unit(s) that include them")
-            full_facts, _st = build_index(repo, CompileDatabase(cdb.build_dir, sub, cdb.digest), cache, progress=say,
-                                          jobs=opts.jobs)
-            fallback = build_graph(full_facts, tmodel, repo)
+            if len(sub) > opts.fallback_max_tus:
+                # bounded cost (constitution V): flag instead of re-indexing most of the code base
+                ctx.notes.append(f"libclang fallback skipped: {len(sub)} TUs include the unresolved roots "
+                                 f"(> --fallback-max-tus {opts.fallback_max_tus}); they are flagged for manual review")
+                sub = []
+            if sub:
+                say(f"{len(pres.missed)} root(s) unresolved by {provider.name}: libclang fallback over {len(sub)} TU(s)")
+                ctx.notes.append(f"{len(pres.missed)} root(s) unresolved by {provider.name}; their dependents come from "
+                                 f"a libclang index of the {len(sub)} translation unit(s) that include them")
+                full_facts, _st = build_index(repo, CompileDatabase(cdb.build_dir, sub, cdb.digest), cache,
+                                              progress=say, jobs=opts.jobs)
+                fallback = build_graph(full_facts, tmodel, repo)
         for rid in pres.missed:  # provider could not resolve this root: use the libclang graph, else flag it
             if not copy_subgraph(fallback, overlay, rid, opts.max_hop_depth):
                 provider_flags.append(UncertaintyFlag(

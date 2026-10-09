@@ -28,11 +28,11 @@ FILE_GROUPS = {"abi_layout", "build_config"}
 
 # Sub-reasons whose only consequence is "recompile" / log output: they rank like logic (pilot: on vsomeip,
 # `header_change` alone produced 787 P1 cases and buried the code later fixed for real regressions).
-LOW_SUBS = {"header_change", "inline_change", "logging"}
+LOW_SUBS = {"header_change", "inline_change", "logging", "test_code"}
 
 
 def priority(hop: int, group: str, sub: str | None = None) -> str:
-    if sub == "logging":
+    if sub in ("logging", "test_code"):
         return "P3"
     direct = hop <= 1
     high = group in HIGH_SEVERITY and sub not in LOW_SUBS

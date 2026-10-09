@@ -170,6 +170,10 @@ def classify(ch: SymbolChange, configurations: list[str]) -> list[RiskClassifica
         out.append(RiskClassification(group, sub, detail, (extra_hints or []) + HINTS.get((group, sub), []),
                                       configs))
 
+    if ch.is_test_code:
+        return [RiskClassification("logic", "test_code", f"test code changed: `{ch.name}` ({ch.rel_path}:{ch.line})",
+                                   ["Run the changed test and confirm it fails without the product change "
+                                    "(it really covers it)"])]
     if ch.is_log_only:
         return [RiskClassification("logic", "logging", f"only logging statements changed in `{ch.name}` "
                                    f"({ch.rel_path}:{ch.line})",

@@ -107,3 +107,12 @@ def test_recompile_only_subreasons_rank_low():
     assert priority(2, "abi_layout", "inline_change") == "P3"
     assert priority(0, "abi_layout", "member_change") == "P1"
     assert priority(0, "logic", "logging") == "P3"
+
+
+def test_test_code_changes_do_not_propagate():
+    ch = SymbolChange(node_id="t", rel_path="db/db_sst_test.cc", change_kind="modified", name="X_Test::TestBody",
+                      kind="method", line=3, old=_fn(["a"]), new=_fn(["b"]))
+    assert ch.is_test_code and ch.propagation() == set()
+    assert [(r.risk_group, r.sub_reason) for r in classify(ch, [])] == [("logic", "test_code")]
+    assert not SymbolChange(node_id="u", rel_path="db/attest.cc", change_kind="modified", name="f", kind="function",
+                            line=1).is_test_code

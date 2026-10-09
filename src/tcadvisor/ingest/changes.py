@@ -28,6 +28,15 @@ _LOG_START = re.compile(os.environ.get("TCADVISOR_LOG_PATTERN", r"^\s*(VSOMEIP_(
                         r"ROCKS_LOG_\w+|[A-Z_]*LOG[A-Z_]*\s*\(|D?V?LOG\b|ALOG\w*|SPDLOG_\w+|spdlog::\w+|"
                         r"q(Debug|Info|Warning|Critical)\b|f?printf\s*\(|std::(cout|cerr|clog)\b|syslog\s*\()"))
 _LOG_CONT = re.compile(r'^\s*(<<|"[^"]*"\s*[,;)]*\s*$|[)};,]+\s*$|$)')
+_TEST_PATH = re.compile(r"(^|/)([Tt]ests?|[Uu]nit_?[Tt]ests?|gtest|testing)(/|$)|(^|/)[Tt]est_[^/]*$|"
+                        r"_(unit)?tests?\.[^/]+$|[a-z0-9]Tests?\.[^/]+$")
+_GTEST_SYM = re.compile(r"(_Test$|_Test::|^gtest_|::gtest_|AddToRegistry$|gtest_registering_dummy_)")
+
+
+def is_test_path(rel: str) -> bool:
+    return bool(_TEST_PATH.search(rel))
+
+
 _COMMENT_RE = re.compile(r"//.*?$|/\*.*?\*/", re.S | re.M)
 _PP_RE = re.compile(r"^\s*#\s*(\w+)\s*(.*)$")
 
@@ -76,6 +85,11 @@ class SymbolChange:
         return any(s.is_virtual for s in (self.old, self.new) if s)
 
     @property
+    def is_test_code(self) -> bool:
+        """Changed test code (or GoogleTest macro-generated symbols): nothing depends on it."""
+        return is_test_path(self.rel_path) or bool(_GTEST_SYM.search(self.name))
+
+    @property
     def is_log_only(self) -> bool:
         lines = [strip_comments(ln) for ln in self.added_lines + self.removed_lines]
         if self.kind not in ("function", "method") or not self.old or not self.new or not any(ln.strip() for ln in lines):
@@ -96,7 +110,7 @@ class SymbolChange:
         A class whose data layout and bases are unchanged (e.g. a method declaration was added) does not
         affect every user of the type: only subclasses (inherit/override) and includers (recompile).
         """
-        if self.is_log_only:
+        if self.is_log_only or self.is_test_code:
             return set()
         if self.kind in ("class", "struct") and self.old and self.new \
                 and self.old.fields == self.new.fields and self.old.bases == self.new.bases:
