@@ -29,3 +29,11 @@ def test_has_guard_present_absent_unknown(tmp_path):
     assert has_guard(tmp_path, ref("A::two", 5), ids, "A::run", cache) == "absent"
     assert has_guard(tmp_path, ref("A::three", 8), ids, "A::run", cache) == "present"  # one-line body
     assert has_guard(tmp_path, ref("A::four", 9), ids, "A::run", cache) == "unknown"
+
+
+def test_guard_scope():
+    from tcadvisor.graph.sources import guard_scope
+    lines = ["void f() {", "  if (!s) return;", "  if (a) {", "    g();", "  }", "  if (b)", "    h();", "  k();", "}"]
+    assert guard_scope(lines, 2) == (2, 10**9)  # early exit protects the rest
+    assert guard_scope(lines, 3) == (3, 5)  # block
+    assert guard_scope(lines, 6) == (6, 7)  # braceless if: next statement only

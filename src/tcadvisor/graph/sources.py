@@ -55,23 +55,50 @@ def guard_identifiers(lines: list[str], target_name: str) -> set[str]:
     return out
 
 
-def guarded_calls(ch: SymbolChange) -> list[tuple[str, str, int, list[str]]]:
-    """(callee usr, callee name, call line, added condition lines before it) for calls that a change put
-    behind a new or altered condition in the same function."""
-    if ch.new is None or ch.is_test_code or ch.kind not in ("function", "method"):
+_EXIT = re.compile(r"\b(return|continue|break|throw)\b")
+
+
+def guard_scope(lines: list[str], ln: int) -> tuple[int, int] | None:
+    """Lines (first, last) protected by the condition on 1-based line ``ln``: an early exit protects the rest
+    of the function, a ``{`` block its body, a braceless ``if`` the next statement."""
+    def code(i: int) -> str:
+        return strip_comments(lines[i - 1]) if 0 < i <= len(lines) else ""
+    head = code(ln)
+    nxt = code(ln + 1).strip()
+    if _EXIT.search(head) or _EXIT.match(nxt) or (nxt == "{" and _EXIT.match(code(ln + 2).strip())):
+        return ln, 10**9
+    start = ln if "{" in head.split(")")[-1] else (ln + 1 if nxt.startswith("{") else None)
+    if start is None:
+        return ln, ln + 1
+    depth, seen = 0, False
+    for i in range(start, len(lines) + 1):
+        for chr_ in code(i):
+            if chr_ == "{":
+                depth, seen = depth + 1, True
+            elif chr_ == "}":
+                depth -= 1
+                if seen and depth == 0:
+                    return ln, i
+    return ln, len(lines)
+
+
+def guarded_calls(ch: SymbolChange, lines: list[str]) -> list[tuple[str, str, int, list[str]]]:
+    """(callee usr, callee name, call line, guarding condition lines) for calls a change put behind a new or
+    altered condition (inside its block, right after it, or after an added early exit)."""
+    if ch.new is None or ch.is_test_code or ch.kind not in ("function", "method") or not lines:
         return []
     added = dict(zip(ch.added_line_numbers, ch.added_lines))
-    conds = {ln: t for ln, t in added.items() if _COND.search(strip_comments(t))}
-    if not conds:
+    scopes = [(ln, t, guard_scope(lines, ln)) for ln, t in sorted(added.items()) if _COND.search(strip_comments(t))]
+    if not scopes:
         return []
     out, seen = [], set()
     for usr, qn, _kind, _df, _dl, call_line in ch.new.calls:
         if usr in seen or usr == ch.node_id:
             continue
-        before = [t for ln, t in sorted(conds.items()) if ln <= call_line]
-        if before:
+        guards = [t for ln, t, sc in scopes if sc and sc[0] <= call_line <= sc[1]]
+        if guards:
             seen.add(usr)
-            out.append((usr, qn, call_line, before))
+            out.append((usr, qn, call_line, guards))
     return out
 
 
@@ -110,10 +137,16 @@ def has_guard(repo: Path, source: SymbolRef, ids: set[str], target_name: str, ca
 def find_guarded_targets(repo: Path, graph: Graph, changes: list[SymbolChange],
                          roots: dict[str, SymbolRef]) -> list[GuardedTarget]:
     targets: dict[str, GuardedTarget] = {}
+    cache: dict[str, list[str]] = {}
     for ch in changes:
         if ch.node_id not in roots:
             continue
-        for usr, qn, _line, conds in guarded_calls(ch):
+        if ch.rel_path not in cache:
+            try:
+                cache[ch.rel_path] = (repo / ch.rel_path).read_text(encoding="utf-8", errors="replace").splitlines()
+            except OSError:
+                cache[ch.rel_path] = []
+        for usr, qn, _line, conds in guarded_calls(ch, cache[ch.rel_path]):
             ref = graph.symbol_ref(usr)
             if ref is None or ref.kind == "file":
                 continue  # third-party / unknown target: covered by spec 005 boundary cases
@@ -124,7 +157,6 @@ def find_guarded_targets(repo: Path, graph: Graph, changes: list[SymbolChange],
             t.covered.append(ch.node_id)
             t.guard_ids |= ids
             t.guard_lines += [strip_comments(c).strip() for c in conds]
-    cache: dict[str, list[str]] = {}
     for t in targets.values():
         seen: set[str] = set()
         for dep in graph.callers(t.target_id):

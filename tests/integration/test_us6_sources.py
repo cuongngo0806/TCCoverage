@@ -60,3 +60,12 @@ def test_target_used_as_callback_is_flagged(project):
     r = project.analyze("--commit-range", "HEAD~1..HEAD")
     assert any("used as a callback / function pointer" in f["reason"] and
                f["related_symbol"]["qualified_name"] == "Conn::handle_timeout" for f in r["uncertainty_flags"])
+
+
+def test_unrelated_condition_before_the_call_is_not_a_guard(project):
+    add_sources_fixture(project)
+    project.edit("src/conn.cpp", "    retries_++;\n    handle_timeout();",
+                 "    retries_++;\n    if (retries_ > 3)\n        retries_ = 0;\n    handle_timeout();")
+    project.commit()
+    r = project.analyze("--commit-range", "HEAD~1..HEAD")
+    assert not _sibling(r) and r["trigger_sources"] == []
