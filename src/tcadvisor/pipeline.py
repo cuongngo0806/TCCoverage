@@ -59,7 +59,7 @@ class Options:
     contracts: Path | None = None  # spec 005: third-party API contracts (default <repo>/.tcadvisor/...)
     lessons: Path | None = None  # spec 006: sinks + team lessons (default <repo>/.tcadvisor/lessons.json)
     previous_report: Path | None = None  # spec 006: filled report.html whose test results are carried over
-    flow_max_tus: int = 24  # spec 006: TUs parsed for data-path facts
+    flow_max_tus: int = 4  # spec 006: TUs parsed for data-path facts
     patterns: bool = True  # spec 006: data paths, trigger sources, lesson patterns
     attachment_warn_mb: int = 50
     progress: Callable[[str], None] | None = None

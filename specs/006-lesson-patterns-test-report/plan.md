@@ -51,7 +51,7 @@ logic tested headless with the pre-installed Chromium via Playwright when availa
 140 s vsomeip); report with 50 cases and 20 MB of attachments saves in < 3 s in a browser
 
 **Constraints**: offline; deterministic (same input → same cases, keys and order); bounded cost — data-flow
-parsing limited to TUs defining functions already in the impact graph (`--flow-max-tus`, default 24 — lowered from 60 after profiling: ~2 s parse per TU on RocksDB);
+parsing limited to TUs defining functions already in the impact graph (`--flow-max-tus`, default 4 (changed files are always traced) — lowered from 60 after profiling: ~2–3.5 s parse per TU; changed files reuse the ingest parse; `git grep` calls of the patterns capped at 40 per run);
 attachments embedded (FR-611), warning above 50 MB (`--attachment-warn-mb`)
 
 **Scale/Scope**: code bases up to ~1M LOC (RocksDB) with a graph provider; reports up to a few thousand

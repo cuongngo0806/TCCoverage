@@ -34,7 +34,7 @@
 ## R2 — Flow facts in graph-provider (lite index) mode
 
 - **Decision**: flow facts are extracted on demand only for the TUs that define functions already present
-  in the impact graph (roots + nodes up to depth), bounded by `--flow-max-tus` (default 24; only functions defined in the TU main file are extracted), cached in a
+  in the impact graph (roots + nodes up to depth), bounded by `--flow-max-tus` (default 4 beyond the changed files; only functions defined in the TU main file are extracted), cached in a
   new `flow_facts` table keyed by the same TU content hash as `tu_facts` (schema version 1 → 2 drops old
   caches once). Above the bound: no flow cases for the remainder, one run note + one flag per root
   ("data path not traced beyond N translation units").

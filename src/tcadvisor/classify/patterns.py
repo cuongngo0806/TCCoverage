@@ -45,7 +45,13 @@ _CONST = re.compile(r"^(-?\d[\w.']*|true|false|nullptr|NULL|k[A-Z]\w*|[A-Z][A-Z0
                     r"E[A-Z]+|-?E\w+)$")
 
 
+GREP_BUDGET = [40]  # git grep calls per analysis (constitution V); reset by detect()
+
+
 def _git_grep(repo: Path, rev: str | None, args: list[str], limit: int = 200) -> list[tuple[str, int, str]]:
+    if GREP_BUDGET[0] <= 0:
+        return []
+    GREP_BUDGET[0] -= 1
     cmd = ["git", "-C", str(repo), "grep", "-n", "-I", *args]
     if rev:
         cmd.append(rev)
@@ -131,6 +137,7 @@ def counterpart_names(short: str) -> list[str]:
 def detect(repo: Path, rev: str | None, changes: list, roots: dict[str, SymbolRef], graph,
            targets) -> list[TestCaseCandidate]:
     files = _Files(repo, rev)
+    GREP_BUDGET[0] = 40
     root_names = {_short(r.qualified_name) for r in roots.values()}
     out: list[TestCaseCandidate] = []
     for ch in changes:

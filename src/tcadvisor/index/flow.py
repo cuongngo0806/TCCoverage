@@ -24,7 +24,7 @@ import clang.cindex as ci
 from tcadvisor.index.clang_index import (FUNC_KINDS, TRANSPARENT_EXPR, K, TUExtractor, file_sha, is_global_var,
                                          qualified_name)
 
-FLOW_VERSION = 2  # 2: main-file functions only
+FLOW_VERSION = 3  # 2: main-file functions only; 3: declaration file of callees
 _ASSIGN = {"=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>="}
 _SKIP = {K.TYPE_REF, K.NAMESPACE_REF, K.TEMPLATE_REF, K.LAMBDA_EXPR}
 
@@ -159,10 +159,10 @@ class _Fn:
             mch = _children(_strip(ch[0]))
             if mch:
                 base = self.target(mch[0])
-        d = r.get_definition() or r
-        def_file = self.ex.rel(d.location.file.name) if d.location.file else None
+        # declaration file only (get_definition() is slow); FlowIndex maps a header to its same-stem source
         decl_file = r.location.file.name if r.location.file else ""
-        external = "" if (def_file or self.ex.rel(decl_file)) else decl_file
+        def_file = self.ex.rel(decl_file) if decl_file else None
+        external = "" if def_file else decl_file
         self.calls.append([c.location.line, r.get_usr(), qualified_name(r), def_file or "", external, arg_srcs, outs,
                            base])
 
@@ -190,13 +190,12 @@ class FlowExtractor(TUExtractor):
             if rel:
                 deps[rel] = file_sha(self.repo / rel)
 
-        main = str(path)
+        from_main = ci.conf.lib.clang_Location_isFromMainFile
 
         def visit(c: ci.Cursor) -> None:
             for x in c.get_children():
-                f = x.location.file
-                if f is None or f.name != main:
-                    continue  # functions of included headers belong to the TUs that define them (cost: x5 faster)
+                if not from_main(x.location):
+                    continue  # functions of included headers belong to the TUs that define them
                 rel = main_rel
                 if x.kind in FUNC_KINDS and x.is_definition():
                     body = next((g for g in x.get_children() if g.kind == K.COMPOUND_STMT), None)

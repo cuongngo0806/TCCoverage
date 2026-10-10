@@ -41,7 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
                    "<repo>/.tcadvisor/lessons.json when present)")
     a.add_argument("--previous-report", type=Path, help="filled report.html of an earlier run: test results "
                    "and evidence are carried over by case key")
-    a.add_argument("--flow-max-tus", type=int, default=24, help="max TUs parsed for data-path tracing")
+    a.add_argument("--flow-max-tus", type=int, default=4, help="max TUs parsed for data-path tracing")
     a.add_argument("--no-patterns", dest="patterns", action="store_false",
                    help="no data paths, trigger sources or lesson patterns")
     a.add_argument("--attachment-warn-mb", type=int, default=50,
