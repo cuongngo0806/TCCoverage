@@ -27,6 +27,7 @@ REL_PHRASE = {
     "contains": "is a member of",
     "called_by_change": "is now called differently by",
 }
+MAX_SOURCES = 8  # spec 006 edge case: more sibling sources are summarised in one case
 # include-only (file) nodes only carry compile-level risks
 FILE_GROUPS = {"abi_layout", "build_config"}
 
@@ -36,6 +37,8 @@ FILE_GROUPS = {"abi_layout", "build_config"}
 LOW_SUBS = {"header_change", "inline_change", "logging", "test_code"}
 
 
+# lesson-pattern cases that only ask to confirm something already present (spec 006)
+PATTERN_LOW_SUBS = {"sibling_source_guarded", "sibling_source_more"}
 SEVERITY = {"thread_safety": 3, "ownership_lifetime": 3, "exception_safety": 3, "abi_layout": 2, "logic": 2,
             "build_config": 1}
 # For *impacted* symbols, a changed signature is checked by the compiler at every call site.
@@ -58,7 +61,8 @@ def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskCla
                 root_kind: dict[str, str], flag_only: set[str], targets_of,
                 tests: dict[str, str] | None = None, root_weight: dict[str, int] | None = None,
                 file_history: dict[str, int] | None = None,
-                root_external: dict[str, list[RiskClassification]] | None = None) -> list[TestCaseCandidate]:
+                root_external: dict[str, list[RiskClassification]] | None = None,
+                extra: list[TestCaseCandidate] | None = None) -> list[TestCaseCandidate]:
     """``root_external``: third-party boundary risks (spec 005) — cases on the changed symbol only, never
     propagated to its callers."""
     weight = root_weight or {}
@@ -125,6 +129,7 @@ def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskCla
                                                  subs[0] if subs else None)),
                 risk_group=grp, related_cmake_targets=targets_of(node),
                 node_id=nid, sub_reason=subs[0] if subs else None, hop_distance=hop, hints=hints))
+    cases.extend(extra or [])  # lesson-pattern cases (spec 006), built elsewhere, ranked with the rest
     # Relevance order (tuned on 55 real regressions in vsomeip + RocksDB, dev/holdout split — see
     # specs/004-ranking): closest to the change first; substantive risks before recompile-only / log / test
     # ones; bigger changes first (log2 of changed lines of the root, or of all roots reaching an impacted
@@ -137,7 +142,8 @@ def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskCla
         else:
             rs = nodes[c.node_id].root_ids if c.node_id in nodes else set()
             lines, fan_in = sum(weight.get(r, 0) for r in rs), len(rs)
-        low = c.sub_reason in LOW_SUBS or (c.hop_distance > 0 and c.sub_reason in IMPACT_LOW_SUBS)
+        low = c.sub_reason in LOW_SUBS or (c.hop_distance > 0 and c.sub_reason in IMPACT_LOW_SUBS) or \
+            c.sub_reason in PATTERN_LOW_SUBS
         ev = c.evidence[0]
         hist = history.get(ev.file_path, 0) if isinstance(ev, SymbolRef) else 0
         c.bug_history = hist
@@ -196,3 +202,60 @@ def assign_keys(cases: list[TestCaseCandidate], nodes: dict[str, ImpactNode], re
         seen[key] = n
         c.key = key if n == 1 else f"{key}-{n}"
         c.code_fingerprint = hashlib.sha1(text_of(ev).encode()).hexdigest()[:12]
+
+
+def sibling_source_cases(guarded, graph, roots: dict[str, SymbolRef]) -> list[TestCaseCandidate]:
+    """Spec 006 US2: one case per other trigger source of a function that the change protected in one source."""
+    from tcadvisor.models import PathStep
+    out: list[TestCaseCandidate] = []
+    for t in guarded:
+        covered = [roots[r] for r in t.covered if r in roots]
+        cov_names = ", ".join(f"`{c.qualified_name}`" for c in covered)
+        guard = "; ".join(dict.fromkeys(t.guard_lines))[:160]
+        others = [s for s in t.sources if not s.covered_by_change]
+        for i, s in enumerate(others):
+            targets = sorted(graph.file_targets.get(s.symbol.file_path, ())) or ["(no CMake target owns this file)"]
+            edge = ImpactEdge("call", s.symbol, t.target, s.symbol.file_path, s.call_line)
+            path = [PathStep(s.symbol, "source", s.call_line,
+                             detail=(f"callback registered at {s.registered_at[0]}:{s.registered_at[1]}"
+                                     if s.registered_at else "calls the target")),
+                    PathStep(t.target, "target", t.target.line)]
+            via = (f" (a callback registered at {s.registered_at[0]}:{s.registered_at[1]})" if s.registered_at else "")
+            if i >= MAX_SOURCES:
+                rest = others[MAX_SOURCES:]
+                out.append(TestCaseCandidate(
+                    id="", description=f"`{t.target.qualified_name}` has {len(rest)} more trigger source(s) not "
+                                       f"protected like {cov_names}: "
+                                       + ", ".join(f"`{x.symbol.qualified_name}`" for x in rest[:12])
+                                       + (" …" if len(rest) > 12 else ""),
+                    activation_condition=f"Guard added in {cov_names}: {guard}",
+                    evidence=[t.target], priority="P3", risk_group="logic",
+                    related_cmake_targets=targets, node_id=t.covered[0], sub_reason="sibling_source_more",
+                    hop_distance=1, pattern="sibling_source",
+                    hints=[f"Check each listed source reaches `{t.target.qualified_name}` only in states the new guard "
+                           "allows"]))
+                break
+            present = s.guard == "present"
+            sub = "sibling_source_guarded" if present else "sibling_source"
+            if present:
+                desc = (f"Confirm the existing check in `{s.symbol.qualified_name}`{via} is equivalent to the guard "
+                        f"added in {cov_names} before calling `{t.target.qualified_name}`")
+            else:
+                desc = (f"`{t.target.qualified_name}` is also triggered from `{s.symbol.qualified_name}`{via}: check "
+                        f"that the situation now guarded in {cov_names} cannot reach it this way")
+            hints = [f"Drive `{s.symbol.qualified_name}` into the state the new guard rejects "
+                     f"({', '.join(sorted(t.guard_ids)[:6])}) and check `{t.target.qualified_name}` is not reached "
+                     "or handles it",
+                     f"Compare with {cov_names}: same condition, same error handling / logging, same return value"]
+            if s.registered_at:
+                hints.append(f"The callback can fire at any time after registration at {s.registered_at[0]}:"
+                             f"{s.registered_at[1]}: trigger it while the guarded condition holds")
+            if s.guard == "unknown":
+                hints.append("The call is not visible in the source text (macro / indirection): confirm the path "
+                             "manually")
+            out.append(TestCaseCandidate(
+                id="", description=desc, activation_condition=f"Guard added in {cov_names}: {guard}",
+                evidence=[s.symbol, edge], priority="P3" if present else priority(1, "logic", sub),
+                risk_group="logic", related_cmake_targets=targets, node_id=t.covered[0], sub_reason=sub,
+                hop_distance=1, pattern="sibling_source", path=path, hints=hints))
+    return out

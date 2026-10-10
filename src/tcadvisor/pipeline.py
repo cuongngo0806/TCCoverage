@@ -344,9 +344,19 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     from tcadvisor.graph.providers.base import gtest_label
     tests = {nid: lbl for nid, n in nodes.items() if n.hop_distance > 0 and (lbl := gtest_label(repo, n.symbol))}
     history = G.fix_history(repo, ctx.new_rev or ctx.old_rev) if opts.history else {}
+    pattern_cases: list = []
+    guarded = []
+    if opts.patterns:
+        from tcadvisor.classify.cases import sibling_source_cases
+        from tcadvisor.graph.sources import find_guarded_targets, unresolved_source_flags
+        guarded = find_guarded_targets(repo, graph, changes, roots)
+        pattern_cases += sibling_source_cases(guarded, graph, roots)
+        flags.extend(unresolved_source_flags(graph, guarded, roots))
+        guarded = [t for t in guarded if any(not x.covered_by_change for x in t.sources) or t.target_id in
+                   graph.facts.address_taken]
     cases = build_cases(nodes, root_risks, root_kind, flag_only, targets_of, tests,
                         {ch.node_id: len(ch.added_lines) + len(ch.removed_lines) for ch in changes}, history,
-                        root_external)
+                        root_external, pattern_cases)
     known = ({s["name"] for s in facts.symbols.values()} | {r.qualified_name for r in roots.values()}
              | {r.qualified_name for r in graph.refs.values()})
     cases = gate(cases, repo, known)
@@ -398,6 +408,12 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
                             "hop_distance": nodes[nid].hop_distance} for nid, lbl in sorted(tests.items(), key=lambda kv: kv[1])],
         "affected_targets": affected,
         "test_case_candidates": [c.to_dict() for c in cases],
+        "trigger_sources": [{"target": t.target.to_dict(), "guard": list(dict.fromkeys(t.guard_lines)),
+                             "covered_by": [roots[r].qualified_name for r in t.covered if r in roots],
+                             "sources": [{"symbol": x.symbol.to_dict(), "kind": x.kind, "call_line": x.call_line,
+                                          "registered_at": list(x.registered_at) if x.registered_at else None,
+                                          "covered_by_change": x.covered_by_change, "guard": x.guard}
+                                         for x in t.sources]} for t in guarded],
         "uncertainty_flags": [f.to_dict() for f in flags],
         "out_of_scope": out_of_scope,
         "run_notes": ctx.notes,

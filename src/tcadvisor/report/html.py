@@ -93,7 +93,7 @@ table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid var(--li
 <input type="search" id="q" placeholder="Filter by symbol, file, text…">
 <select id="ord" title="List order" style="margin-left:8px;padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg)"><option value="rel">Order: relevance</option><option value="ai">Order: AI-triaged</option></select><span class="muted" id="count" style="margin-left:8px"></span>
 <div id="cases"></div></div>
-<section id="orphSec"></section><section id="aiSec"></section><section id="testsSec"></section><section id="flagsSec"></section><section id="targetsSec"></section><section id="oosSec"></section><section id="notesSec"></section>
+<section id="srcSec"></section><section id="orphSec"></section><section id="aiSec"></section><section id="testsSec"></section><section id="flagsSec"></section><section id="targetsSec"></section><section id="oosSec"></section><section id="notesSec"></section>
 </main>
 <script id="data" type="application/json">__DATA__</script>
 <script type="application/json" id="results">__RESULTS__</script>
@@ -288,6 +288,9 @@ render();
 const AV=R.ai_verification;
 if(AV)document.getElementById('aiSec').innerHTML=`<h2>AI verification <span class="muted" style="font-size:13px;font-weight:400">annotations only — no case is removed</span></h2><div class="panel"><div>${esc(AV.summary)}</div><div class="muted">verified cases: ${AV.verified_cases} · models: ${esc((AV.models||[]).join(', ')||'-')}</div>`+
  (AV.additional_checks.length?'<ul>'+AV.additional_checks.map(a=>`<li><b>${esc(a.title)}</b> — ${esc(a.why)} <span class="mono muted">${esc(a.evidence)}</span></li>`).join('')+'</ul>':'')+'</div>';
+const TS=R.trigger_sources||[];
+if(TS.length)document.getElementById('srcSec').innerHTML=TS.map(t=>`<h2>Trigger sources of <code>${esc(t.target.qualified_name)}</code></h2><div class="panel tw"><div class="muted">Guard added in ${t.covered_by.map(c=>'<code>'+esc(c)+'</code>').join(', ')}: <code>${esc(t.guard.join('; '))}</code></div><table><tr><th>Source</th><th>Kind</th><th>Guard</th><th></th></tr>`+
+ t.sources.map(x=>`<tr><td><code>${esc(x.symbol.qualified_name)}</code><br>${loc(x.symbol.file_path,x.call_line)}</td><td>${x.registered_at?'callback registered at '+loc(x.registered_at[0],x.registered_at[1]):'call'}</td><td>${esc(x.guard)}</td><td>${x.covered_by_change?'covered by this change':'<span class="flag">check — see cases</span>'}</td></tr>`).join('')+'</table></div>').join('');
 const XT=R.existing_tests||[];
 if(XT.length)document.getElementById('testsSec').innerHTML=`<h2>Existing tests to re-run (${XT.length})</h2><div class="panel"><code>--gtest_filter=${esc(XT.map(t=>t.test).join(':'))}</code><ul>`+XT.map(t=>`<li><code>${esc(t.test)}</code> ${loc(t.file_path,t.line)} · hop ${t.hop_distance}</li>`).join('')+'</ul></div>';
 const F=R.uncertainty_flags;

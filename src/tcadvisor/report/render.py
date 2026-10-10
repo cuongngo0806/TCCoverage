@@ -173,6 +173,17 @@ def to_markdown(r: dict[str, Any]) -> str:
               "`--gtest_filter=" + ":".join(t["test"] for t in r["existing_tests"]) + "`", ""]
         L += [f"- `{t['test']}` ({t['file_path']}:{t['line']}, hop {t['hop_distance']})" for t in r["existing_tests"]]
         L.append("")
+    for t in r.get("trigger_sources") or []:
+        L += [f"## Trigger sources of `{t['target']['qualified_name']}`", "",
+              f"Guard added in {', '.join(f'`{c}`' for c in t['covered_by'])}: `{_md_cell('; '.join(t['guard']))}`", "",
+              "| Source | Kind | Guard | |", "|---|---|---|---|"]
+        for x in t["sources"]:
+            sym = x["symbol"]
+            kind = (f"callback registered at {x['registered_at'][0]}:{x['registered_at'][1]}" if x["registered_at"]
+                    else "call")
+            L.append(f"| `{sym['qualified_name']}` {sym['file_path']}:{x['call_line']} | {kind} | {x['guard']} | "
+                     f"{'covered by this change' if x['covered_by_change'] else 'check (see cases)'} |")
+        L.append("")
     if r["uncertainty_flags"]:
         L += ["## Uncertain — needs manual review", "", "| Category | Symbol | Reason |", "|---|---|---|"]
         for f in r["uncertainty_flags"]:
@@ -216,6 +227,10 @@ def to_brief(r: dict[str, Any], limit: int = 80) -> str:
             L.append("   corner: " + " | ".join(c["corner_cases"][:3]))
     if len(r["test_case_candidates"]) > limit:
         L.append(f"... {len(r['test_case_candidates']) - limit} more in report.json")
+    for t in r.get("trigger_sources") or []:
+        L.append(f"SOURCES {t['target']['qualified_name']} :: " + ", ".join(
+            f"{x['symbol']['qualified_name']} ({'covered' if x['covered_by_change'] else 'guard ' + x['guard']})"
+            for x in t["sources"]))
     for f in r["uncertainty_flags"]:
         sym = f["related_symbol"]
         L.append(f"UNCERTAIN {f['category']} {sym['qualified_name'] if sym else '-'} :: {f['reason']}")
