@@ -102,10 +102,10 @@ description: "Tasks for spec 006 — lesson-learned impact patterns and a fillab
 ## Phase 7: Polish, ranking gate & cross-cutting
 
 - [x] T637 Merge duplicate cases found by two patterns (same evidence symbol + risk group): one case, both explanations and corner cases, `pattern` = first, others listed in the description, in `src/tcadvisor/classify/cases.py` (spec edge case)
-- [ ] T633 Offline rank lab over benchmark reports with and without new cases (slots of research R5) in `scripts/rank_lab.py` (new `--new-cases` variant), choose the slot that keeps dev and holdout MRR ≥ base
-- [ ] T634 Full benchmark (`scripts/pilot_regressions.py`, spec 004 pairs, codegraph) with and without `--no-patterns`; record recall, MRR all/dev/holdout, median cases, median time in `specs/006-lesson-patterns-test-report/results.md` (gate: no surfaced regression lost, MRR not lower, time ≤ +25%)
+- [x] T633 (not needed: MRR held on the first full measurement, see results.md) Offline rank lab over benchmark reports with and without new cases (slots of research R5) in `scripts/rank_lab.py` (new `--new-cases` variant), choose the slot that keeps dev and holdout MRR ≥ base
+- [x] T634 Full benchmark (`scripts/pilot_regressions.py`, spec 004 pairs, codegraph) with and without `--no-patterns`; record recall, MRR all/dev/holdout, median cases, median time in `specs/006-lesson-patterns-test-report/results.md` (gate: no surfaced regression lost, MRR not lower, time ≤ +25%)
 - [x] T635 [P] Docs: README section "Lessons-learned cases and the test report", `.claude/skills/tc-coverage/SKILL.md` (how to present sibling-source / data-path cases and the report), `CLAUDE.md` layout lines
-- [ ] T636 Full suite `python3 -m pytest -q`, review diff (code-review lens), quickstart S1–S4 by hand on the fixture, commit and push
+- [x] T636 Full suite `python3 -m pytest -q`, review diff (code-review lens), quickstart S1–S4 by hand on the fixture, commit and push
 
 ---
 
