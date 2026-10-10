@@ -41,6 +41,21 @@ class CompileCommand:
                 out.add(a[2:].split("=", 1)[0])
         return frozenset(out)
 
+    def macros(self) -> dict[str, str]:
+        """Macros defined when this command is parsed: the compiler's predefined macros for its target
+        (``__linux__``, ``__GNUC__``, ``_WIN32``, ...) plus/minus its own ``-D``/``-U`` in command-line order."""
+        out = dict(predefined_macros(_target_args(self.args), self.file.suffix.lower() or ".cpp"))
+        it = iter(self.args)
+        for a in it:
+            if a in ("-D", "-U"):
+                a += next(it, "")
+            if a.startswith("-D"):
+                name, _, value = a[2:].partition("=")
+                out[name] = value if "=" in a else "1"
+            elif a.startswith("-U"):
+                out.pop(a[2:], None)
+        return out
+
 
 def _split(command: str) -> list[str]:
     return shlex.split(command, posix=os.name != "nt")
@@ -99,6 +114,45 @@ def resource_dir_args() -> tuple[str, ...]:
     except (OSError, subprocess.SubprocessError):
         pass
     return ()
+
+
+# Flags that cannot change which macros the compiler predefines (dropped so configurations share one probe).
+_NO_PREDEF_WITH_VALUE = {"-I", "-isystem", "-iquote", "-idirafter", "-D", "-U"}
+_NO_PREDEF_PREFIX = ("-I", "-isystem", "-iquote", "-idirafter", "-D", "-U", "-W")
+
+
+def _target_args(args: tuple[str, ...]) -> tuple[str, ...]:
+    out: list[str] = []
+    it = iter(args)
+    for a in it:
+        if a in _NO_PREDEF_WITH_VALUE:
+            next(it, None)
+        elif not a.startswith(_NO_PREDEF_PREFIX):
+            out.append(a)
+    return tuple(out)
+
+
+@lru_cache(maxsize=None)
+def predefined_macros(target_args: tuple[str, ...], suffix: str = ".cpp") -> dict[str, str]:
+    """Macros libclang predefines for one compile configuration (target, language, -std, -include ...).
+
+    Parses an empty translation unit with the same flags the index uses, once per distinct configuration.
+    Returns {} when libclang is unavailable, so callers fall back to the ``-D`` defines alone.
+    """
+    try:
+        import clang.cindex as ci  # local import: compile_db is also used without libclang
+        tu = ci.Index.create().parse(
+            "tcadvisor_predef" + suffix, args=[*target_args, *resource_dir_args()],
+            unsaved_files=[("tcadvisor_predef" + suffix, "")],
+            options=ci.TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD)
+    except Exception:  # noqa: BLE001 - missing/old libclang or unparsable flags: degrade, do not fail
+        return {}
+    out: dict[str, str] = {}
+    for c in tu.cursor.get_children():
+        if c.kind == ci.CursorKind.MACRO_DEFINITION and c.location.file is None:  # <built-in> / command line
+            toks = [t.spelling for t in c.get_tokens()][1:]
+            out[c.spelling] = " ".join(toks) if toks else "1"
+    return out
 
 
 class CompileDatabase:

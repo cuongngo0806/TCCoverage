@@ -78,6 +78,7 @@ class SymbolChange:
     added_lines: list[str] = field(default_factory=list)  # source text of changed lines in this symbol
     removed_lines: list[str] = field(default_factory=list)
     conditions: list[str] = field(default_factory=list)  # enclosing #if conditions of changed lines
+    condition_stacks: list[list[str]] = field(default_factory=list)  # distinct per-line stacks (outermost first)
     is_header: bool = False
     added_line_numbers: list[int] = field(default_factory=list)
     textual: bool = False  # located by a text scan: the parser did not see it (inactive #if branch, no flags)
@@ -193,6 +194,14 @@ def conditional_stack(lines: list[str]) -> dict[int, list[str]]:
         if any(stack):
             out[i] = [c for c in stack if c]
     return out
+
+
+def _conditions(new_lines, new_conds: dict[int, list[str]], old_lines, old_conds: dict[int, list[str]]
+                ) -> tuple[list[str], list[list[str]]]:
+    """(union of enclosing conditions, distinct non-empty per-line condition stacks) of changed lines."""
+    stacks = {tuple(new_conds.get(ln, [])) for ln in new_lines} | {tuple(old_conds.get(ln, [])) for ln in old_lines}
+    stacks.discard(())
+    return sorted({c for st in stacks for c in st}), [list(st) for st in sorted(stacks)]
 
 
 def _include_guard(lines: list[str]) -> int | None:
@@ -514,12 +523,13 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
                      if n and n.start <= ln <= n.end and ln <= len(new_lines)]
             removed = [old_lines[ln - 1] for ln in sorted(fd.old_lines)
                        if o and o.start <= ln <= o.end and ln <= len(old_lines)]
-            conds = sorted({c for ln in fd.new_lines if n and n.start <= ln <= n.end for c in new_conds.get(ln, [])}
-                           | {c for ln in fd.old_lines if o and o.start <= ln <= o.end for c in old_conds.get(ln, [])})
+            in_new = [ln for ln in fd.new_lines if n and n.start <= ln <= n.end]
+            in_old = [ln for ln in fd.old_lines if o and o.start <= ln <= o.end]
+            conds, stacks = _conditions(in_new, new_conds, in_old, old_conds)
             cs.changes.append(SymbolChange(
                 node_id=usr, rel_path=fd.new_path or rel, change_kind=kind, name=ref.name, kind=ref.kind,
                 line=ref.start, old=o, new=n, added_lines=added, removed_lines=removed, conditions=conds,
-                is_header=is_header, added_line_numbers=sorted(ln for ln in fd.new_lines if n and n.start <= ln <= n.end),
+                condition_stacks=stacks, is_header=is_header, added_line_numbers=sorted(ln for ln in fd.new_lines if n and n.start <= ln <= n.end),
                 log_lines=log_statement_lines(new_lines, n.start, n.end) if n else set()))
 
         res_new = _residual(new_lines, fd.new_lines, new_syms.extents if new_syms else [])
@@ -551,12 +561,12 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
             for name, e in sorted(by_fn.items()):
                 if sorted(e["add"]) == sorted(e["rem"]):
                     continue
-                conds = sorted({c for ln in e["lines"] for c in new_conds.get(ln, [])}
-                               | {c for ln in e["old"] for c in old_conds.get(ln, [])})
+                conds, stacks = _conditions(e["lines"], new_conds, e["old"], old_conds)
                 cs.changes.append(SymbolChange(
                     node_id=f"text:{fd.new_path or rel}:{name}", rel_path=fd.new_path or rel, change_kind="modified",
                     name=name, kind="method" if "::" in name else "function", line=e["start"],
-                    added_lines=e["add"], removed_lines=e["rem"], conditions=conds, is_header=is_header,
+                    added_lines=e["add"], removed_lines=e["rem"], conditions=conds, condition_stacks=stacks,
+                    is_header=is_header,
                     added_line_numbers=sorted(e["lines"]), textual=True))
                 rest_new -= e["lines"]
                 rest_old -= e["old"]
@@ -564,15 +574,15 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
             res_old = _residual(old_lines, rest_old, cov_old)
             if sorted(res_new) == sorted(res_old):
                 continue
-            conds = sorted({c for ln in fd.new_lines if not _covered(new_syms.extents if new_syms else [], ln)
-                            for c in new_conds.get(ln, [])}
-                           | {c for ln in fd.old_lines if not _covered(old_syms.extents if old_syms else [], ln)
-                              for c in old_conds.get(ln, [])})
+            conds, stacks = _conditions(
+                [ln for ln in fd.new_lines if not _covered(new_syms.extents if new_syms else [], ln)], new_conds,
+                [ln for ln in fd.old_lines if not _covered(old_syms.extents if old_syms else [], ln)], old_conds)
             first = min(fd.new_lines or fd.old_lines or {1})
             cs.changes.append(SymbolChange(
                 node_id=f"file:{fd.new_path or rel}", rel_path=fd.new_path or rel,
                 change_kind="file" if fd.new_path else "removed", name=fd.new_path or rel, kind="file",
-                line=first, added_lines=res_new, removed_lines=res_old, conditions=conds, is_header=is_header))
+                line=first, added_lines=res_new, removed_lines=res_old, conditions=conds,
+                condition_stacks=stacks, is_header=is_header))
     return cs
 
 

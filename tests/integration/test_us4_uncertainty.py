@@ -1,4 +1,9 @@
 """US4: blind spots are flagged, never silently dropped, never fabricated into cases."""
+import sys
+
+import pytest
+
+from conftest import cases_for
 
 
 def _flags(r):
@@ -64,3 +69,40 @@ def test_change_in_inactive_ifdef_becomes_a_named_root(project):
     assert "extraCheck" in roots  # named although the parser never saw it
     assert any(f["category"] == "build_config_incomplete_macro" and f["related_symbol"]
                and f["related_symbol"]["qualified_name"] == "extraCheck" for f in r["uncertainty_flags"])
+
+
+def _macro_flags(r, name):
+    return [f["reason"] for f in r["uncertainty_flags"] if f["category"] == "build_config_incomplete_macro"
+            and f["related_symbol"] and f["related_symbol"]["qualified_name"] == name]
+
+
+_PLATFORM_GUARDS = ("int clampRetries(int n) {\n"
+                    "#if defined(__linux__)\n    if (n < 0) return 0;\n#endif\n"
+                    "#ifdef _WIN32\n    if (n < -1) return -1;\n#else\n    if (n < -2) return -2;\n#endif\n")
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="compiler predefines __linux__ only on Linux")
+def test_compiler_predefined_macro_counts_as_defined(project):
+    project.edit("src/util.cpp", "int clampRetries(int n) {\n", _PLATFORM_GUARDS)
+    project.commit()
+    project.edit("src/util.cpp", "if (n < 0) return 0;", "if (n <= 0) return 0;")  # inside #if defined(__linux__)
+    project.edit("src/util.cpp", "if (n < -2) return -2;", "if (n <= -2) return -2;")  # #else of #ifdef _WIN32
+    project.commit()
+    r = project.analyze("--commit-range", "HEAD~1..HEAD")
+    assert _macro_flags(r, "clampRetries") == []  # libclang parsed both branches on Linux
+    assert cases_for(r, "clampRetries")
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="compiler predefines __linux__ only on Linux")
+def test_other_platform_branch_is_flagged(project):
+    project.edit("src/util.cpp", "int clampRetries(int n) {\n", _PLATFORM_GUARDS)
+    project.commit()
+    project.edit("src/util.cpp", "if (n < -1) return -1;", "if (n <= -1) return -1;")  # inside #ifdef _WIN32
+    project.edit("src/util.cpp", "if (n < 0) return 0;", "if (n <= 0) return 0;")  # parsed: must not be blamed
+    project.commit()
+    r = project.analyze("--commit-range", "HEAD~1..HEAD")
+    reasons = _macro_flags(r, "clampRetries")
+    assert len(reasons) == 1
+    assert "`_WIN32` is not defined for the indexed target (" in reasons[0]
+    assert "-linux)" in reasons[0] and "the Windows branch was never parsed" in reasons[0]
+    assert "__linux__" not in reasons[0]
