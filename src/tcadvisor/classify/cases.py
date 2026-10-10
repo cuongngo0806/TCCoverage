@@ -38,7 +38,8 @@ LOW_SUBS = {"header_change", "inline_change", "logging", "test_code"}
 
 
 # lesson-pattern cases that only ask to confirm something already present (spec 006)
-PATTERN_LOW_SUBS = {"sibling_source_guarded", "sibling_source_more"}
+PATTERN_LOW_SUBS = {"sibling_source_guarded", "sibling_source_more", "data_path_forwarder",
+                    "data_path_emitter_checked"}
 SEVERITY = {"thread_safety": 3, "ownership_lifetime": 3, "exception_safety": 3, "abi_layout": 2, "logic": 2,
             "build_config": 1}
 # For *impacted* symbols, a changed signature is checked by the compiler at every call site.
@@ -258,4 +259,61 @@ def sibling_source_cases(guarded, graph, roots: dict[str, SymbolRef]) -> list[Te
                 evidence=[s.symbol, edge], priority="P3" if present else priority(1, "logic", sub),
                 risk_group="logic", related_cmake_targets=targets, node_id=t.covered[0], sub_reason=sub,
                 hop_distance=1, pattern="sibling_source", path=path, hints=hints))
+    return out
+
+
+def data_path_cases(paths, index, graph) -> list[TestCaseCandidate]:
+    """Spec 006 US1: a case on each function that emits data originating in a changed function (and, lower,
+    on the functions that only pass it on). One case per (emitter, producer) and per (forwarder, producer)."""
+    from tcadvisor.models import PathStep
+    out: list[TestCaseCandidate] = []
+    done: set[tuple[str, str, str]] = set()
+
+    def ref(st) -> SymbolRef:
+        f = index.functions.get(st.usr, {})
+        return SymbolRef(st.name, "function", st.file, max(1, f.get("line", st.line)))
+
+    for p in sorted(paths, key=lambda p: (len(p.steps), bool(p.checked), p.steps[-1].file, p.emitter_line)):
+        prod, em = p.steps[0], p.steps[-1]
+        chain = " → ".join(f"`{s.name}`" for s in p.steps)
+        steps = [PathStep(ref(s), s.role, s.line, bool(s.checked_at),
+                          s.detail or (f"checks it at line {s.checked_at}" if s.checked_at else "")) for s in p.steps]
+        hop = len(p.steps) - 1
+        targets = sorted(graph.file_targets.get(em.file, ())) or ["(no CMake target owns this file)"]
+        checked = [s for s in p.checked]
+        if (em.usr, prod.usr, "e") not in done:
+            done.add((em.usr, prod.usr, "e"))
+            sub = "data_path_emitter_checked" if checked else "data_path_emitter"
+            where = ", ".join(f"`{s.name}` line {s.checked_at}" for s in checked)
+            desc = (f"`{em.name}` sends data that originates in the changed `{prod.name}` ({chain}) through "
+                    f"`{p.emitter_call}`: " + (f"confirm the check in {where} covers the values `{prod.name}` can "
+                                               "now produce" if checked else
+                                               "check it validates the data itself instead of trusting the producer"))
+            hints = [f"Feed `{em.name}` with every value `{prod.name}` can now produce (boundary, invalid, empty, "
+                     f"maximum length) and check what goes out through `{p.emitter_call}`",
+                     f"`{em.name}` owns what it sends: malformed input must be rejected or corrected, not forwarded",
+                     "Compare the outgoing data with the interface specification of the receiver (format, ranges, "
+                     "mandatory fields)"]
+            if checked:
+                hints.insert(1, f"Existing check: {where} — confirm it rejects the new values, not only the old ones")
+            out.append(TestCaseCandidate(
+                id="", description=desc,
+                activation_condition=f"Data path from the changed `{prod.name}` (line {prod.line}): {chain}",
+                evidence=[ref(em), ref(prod)], priority=priority(hop, "logic", sub), risk_group="logic",
+                related_cmake_targets=targets, node_id=p.root, sub_reason=sub, hop_distance=max(1, hop),
+                pattern="data_path_emitter", path=steps, hints=hints))
+        for s in p.steps[1:-1]:
+            if (s.usr, prod.usr, "f") in done or s.usr == em.usr:
+                continue
+            done.add((s.usr, prod.usr, "f"))
+            ftargets = sorted(graph.file_targets.get(s.file, ())) or ["(no CMake target owns this file)"]
+            out.append(TestCaseCandidate(
+                id="", description=(f"`{s.name}` passes data from the changed `{prod.name}` on to `{em.name}` "
+                                    + ("after checking it" if s.checked_at else "without checking it")),
+                activation_condition=f"Data path: {chain}", evidence=[ref(s), ref(prod)],
+                priority=priority(max(1, p.steps.index(s)), "logic", "data_path_forwarder"), risk_group="logic",
+                related_cmake_targets=ftargets, node_id=p.root, sub_reason="data_path_forwarder",
+                hop_distance=max(1, p.steps.index(s)), pattern="data_path_forwarder", path=steps,
+                hints=[f"Pass the values `{prod.name}` can now produce through `{s.name}` and check nothing it does "
+                       "(copy, conversion, truncation) changes their meaning"]))
     return out

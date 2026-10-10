@@ -354,11 +354,14 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         flags.extend(unresolved_source_flags(graph, guarded, roots))
         guarded = [t for t in guarded if any(not x.covered_by_change for x in t.sources) or t.target_id in
                    graph.facts.address_taken]
+        flow_known, flow_flags = _data_paths(opts, repo, cdb, facts, cache, graph, changes, roots, lessons,
+                                             pattern_cases, ctx.notes)
+        flags.extend(flow_flags)
     cases = build_cases(nodes, root_risks, root_kind, flag_only, targets_of, tests,
                         {ch.node_id: len(ch.added_lines) + len(ch.removed_lines) for ch in changes}, history,
                         root_external, pattern_cases)
     known = ({s["name"] for s in facts.symbols.values()} | {r.qualified_name for r in roots.values()}
-             | {r.qualified_name for r in graph.refs.values()})
+             | {r.qualified_name for r in graph.refs.values()} | (flow_known if opts.patterns else set()))
     cases = gate(cases, repo, known)
     assign_keys(cases, nodes, repo)
 
@@ -428,6 +431,48 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     if opts.use_run_cache and not llm_degraded:
         cache.put_run(run_key, report["commit_hash"], report)
     return report
+
+
+def _data_paths(opts: Options, repo: Path, cdb: CompileDatabase, facts, cache, graph: Graph, changes: list,
+                roots: dict[str, SymbolRef], lessons, out_cases: list, notes: list[str]
+                ) -> tuple[set[str], list[UncertaintyFlag]]:
+    """Spec 006 US1: follow changed data to the code that sends it out (bounded, cached flow facts)."""
+    from tcadvisor.classify.cases import data_path_cases
+    from tcadvisor.graph.dataflow import FlowIndex, trace
+    if not cdb.entries:
+        notes.append("data paths not traced: no compile database")
+        return set(), []
+    by_file = {}
+    for e in cdb.entries:
+        try:
+            by_file.setdefault(e.file.resolve().relative_to(repo).as_posix(), e)
+        except ValueError:
+            continue
+
+    def tu_of_header(rel: str) -> str | None:
+        return next((tu for tu, inc in sorted(facts.tu_files.items()) if rel in inc and tu in by_file), None)
+    index = FlowIndex(repo, by_file, tu_of_header, cache, opts.flow_max_tus)
+    starts = [(ch.node_id, roots[ch.node_id], set(ch.added_line_numbers)) for ch in changes
+              if ch.node_id in roots and ch.kind in ("function", "method") and ch.new is not None
+              and not ch.is_test_code and not ch.is_log_only and ch.added_line_numbers]
+    paths, breaks = trace(index, starts, graph.callers, opts.max_hop_depth + 1, lessons.sinks,
+                          lambda name, decl: not is_standard(name, decl))
+    out_cases += data_path_cases(paths, index, graph)
+    flags: list[UncertaintyFlag] = []
+    by_root: dict[str, list] = {}
+    for b in breaks:
+        by_root.setdefault(b.root, []).append(b)
+    for rid, bs in by_root.items():
+        uniq = list(dict.fromkeys(f"{b.reason} in {b.where}" for b in bs))
+        flags.append(UncertaintyFlag(
+            "dynamic_runtime_dependency",
+            f"data produced by the changed `{roots[rid].qualified_name}` leaves the traced paths: "
+            + "; ".join(uniq[:5]) + (f" and {len(uniq) - 5} more" if len(uniq) > 5 else "")
+            + " — review who reads it and whether they send it out", roots[rid]))
+    if index.exhausted:
+        notes.append(f"data paths traced over {len(index.loaded)} translation unit(s) (--flow-max-tus); "
+                     "longer paths are flagged, not traced")
+    return {f["name"] for f in index.functions.values()}, flags
 
 
 def _add_changed_calls(repo: Path, changes: list, roots: dict[str, SymbolRef], graph: Graph,

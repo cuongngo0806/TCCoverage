@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # 2: flow_facts (spec 006)
 
 
 class CacheStore:
@@ -20,13 +20,15 @@ class CacheStore:
             CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
             CREATE TABLE IF NOT EXISTS tu_facts (
                 tu TEXT PRIMARY KEY, args_key TEXT NOT NULL, facts TEXT NOT NULL, updated REAL);
+            CREATE TABLE IF NOT EXISTS flow_facts (
+                tu TEXT PRIMARY KEY, args_key TEXT NOT NULL, facts TEXT NOT NULL, updated REAL);
             CREATE TABLE IF NOT EXISTS runs (
                 run_key TEXT PRIMARY KEY, commit_hash TEXT, report TEXT NOT NULL, created REAL);
             """
         )
         row = self.db.execute("SELECT value FROM meta WHERE key='schema'").fetchone()
         if row is None or int(row[0]) != SCHEMA_VERSION:
-            self.db.executescript("DELETE FROM tu_facts; DELETE FROM runs;")
+            self.db.executescript("DELETE FROM tu_facts; DELETE FROM flow_facts; DELETE FROM runs;")
             self.db.execute("INSERT OR REPLACE INTO meta VALUES ('schema', ?)", (str(SCHEMA_VERSION),))
         self.db.commit()
 
@@ -38,6 +40,17 @@ class CacheStore:
 
     def put_tu(self, tu: str, args_key: str, facts: dict[str, Any]) -> None:
         self.db.execute("INSERT OR REPLACE INTO tu_facts VALUES (?,?,?,?)",
+                        (tu, args_key, json.dumps(facts), time.time()))
+        self.db.commit()
+
+    def get_flow(self, tu: str, args_key: str) -> dict[str, Any] | None:
+        row = self.db.execute("SELECT args_key, facts FROM flow_facts WHERE tu=?", (tu,)).fetchone()
+        if row is None or row[0] != args_key:
+            return None
+        return json.loads(row[1])
+
+    def put_flow(self, tu: str, args_key: str, facts: dict[str, Any]) -> None:
+        self.db.execute("INSERT OR REPLACE INTO flow_facts VALUES (?,?,?,?)",
                         (tu, args_key, json.dumps(facts), time.time()))
         self.db.commit()
 

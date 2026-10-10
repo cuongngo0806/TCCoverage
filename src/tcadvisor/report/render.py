@@ -143,6 +143,10 @@ def to_markdown(r: dict[str, Any]) -> str:
                          f"{_md_cell(c['description'])}{_verdict_tag(c)}")
                 L.append(f"  - *When*: {_md_cell(c['activation_condition'])}")
                 L.append("  - *Evidence*: " + "; ".join(_ev_label(e) for e in c["evidence"]))
+                if c.get("path"):
+                    L.append("  - *Path*: " + " → ".join(
+                        f"`{x['symbol']['qualified_name']}` ({x['role']}{', checked' if x['checked'] else ''})"
+                        for x in c["path"]))
                 if c.get("corner_cases"):
                     L.append("  - *Corner cases*: " + "; ".join(c["corner_cases"][:5]))
                 L.append(f"  - *Targets*: {', '.join(c['related_cmake_targets'])}")
