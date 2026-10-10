@@ -43,7 +43,7 @@ provided. Providing more than one, or none, is a usage error (exit code 2).
 | `--contracts <file>` | `<repo>/.tcadvisor/external-contracts.json` if present | Third-party API contracts: `{"<name or pattern>": ["corner case", ...]}` added to `external_call` cases (spec 005). Unreadable → exit 2. |
 | `--lessons <file>` | `<repo>/.tcadvisor/lessons.json` if present | Extra emitting points (`sinks`) and team lessons (spec 006). Invalid → exit 2. |
 | `--previous-report <report.html>` | none | Filled report of an earlier run; test results + evidence carried over by case `key`, `needs_recheck` when the code behind a case changed (spec 006). Unreadable → exit 2. |
-| `--flow-max-tus <int>` | `60` | Max translation units parsed for data-path tracing (spec 006). |
+| `--flow-max-tus <int>` | `24` | Max translation units parsed for data-path tracing (spec 006). |
 | `--no-patterns` | off | Disable data paths, trigger sources and lesson patterns (spec 006). |
 | `--attachment-warn-mb <int>` | `50` | Report warns when embedded evidence exceeds this size (spec 006). |
 | `--cache-dir <path>` | `<repo>/../.tcadvisor-cache/<module-name>` (outside the analyzed repo's tracked tree) | Location of the SQLite cache (data-model.md `CachedDependencyIndex`). |

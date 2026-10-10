@@ -76,6 +76,7 @@ class FlowIndex:
     functions: dict[str, dict[str, Any]] = field(default_factory=dict)
     loaded: set[str] = field(default_factory=set)
     exhausted: bool = False
+    preloaded: dict[str, dict[str, Any]] = field(default_factory=dict)  # changed files, parsed by ingest
     _extractor: Any = None
 
     def _tu_for(self, rel: str) -> str | None:
@@ -89,6 +90,12 @@ class FlowIndex:
         return self.tu_of_header(rel)
 
     def load_file(self, rel: str) -> bool:
+        if rel in self.preloaded:
+            if rel not in self.loaded:
+                self.loaded.add(rel)
+                for usr, f in self.preloaded[rel]["functions"].items():
+                    self.functions[usr] = f  # new revision wins over cached working-tree facts
+            return True
         tu = self._tu_for(rel)
         if tu is None:
             return False

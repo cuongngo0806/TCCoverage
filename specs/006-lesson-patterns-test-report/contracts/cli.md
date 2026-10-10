@@ -9,7 +9,7 @@ Extends `specs/001-change-impact-test-advisor/contracts/cli-contract.md`. Exit c
 |---|---|---|
 | `--previous-report <report.html>` | none | Filled report of an earlier run: results and attachments are carried over by case `key`; changed code → `needs_recheck`. Unreadable / not a tcadvisor report / unknown schema → exit 2. |
 | `--lessons <file>` | `<repo>/.tcadvisor/lessons.json` if present | Emitter names (`sinks`) and team lessons. Invalid → exit 2. |
-| `--flow-max-tus <int>` | `60` | Max translation units parsed for data-path facts; beyond it data paths are flagged, not traced. |
+| `--flow-max-tus <int>` | `24` | Max translation units parsed for data-path facts; beyond it data paths are flagged, not traced. |
 | `--no-patterns` | off | Disable data paths, trigger sources and lesson patterns (cycle-5 behaviour). |
 | `--attachment-warn-mb <int>` | `50` | Report warns when embedded attachments exceed this size. |
 

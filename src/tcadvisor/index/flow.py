@@ -24,7 +24,7 @@ import clang.cindex as ci
 from tcadvisor.index.clang_index import (FUNC_KINDS, TRANSPARENT_EXPR, K, TUExtractor, file_sha, is_global_var,
                                          qualified_name)
 
-FLOW_VERSION = 1
+FLOW_VERSION = 2  # 2: main-file functions only
 _ASSIGN = {"=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>="}
 _SKIP = {K.TYPE_REF, K.NAMESPACE_REF, K.TEMPLATE_REF, K.LAMBDA_EXPR}
 
@@ -177,7 +177,9 @@ def _is_out(t: ci.Type) -> bool:
 
 class FlowExtractor(TUExtractor):
     def extract_flow(self, path: Path, args: tuple[str, ...]) -> dict[str, Any]:
-        tu = self.parse(path, args)
+        return self.from_tu(self.parse(path, args), path)
+
+    def from_tu(self, tu: ci.TranslationUnit, path: Path) -> dict[str, Any]:
         functions: dict[str, dict[str, Any]] = {}
         deps: dict[str, str] = {}
         main_rel = self.rel(str(path))
@@ -188,12 +190,14 @@ class FlowExtractor(TUExtractor):
             if rel:
                 deps[rel] = file_sha(self.repo / rel)
 
+        main = str(path)
+
         def visit(c: ci.Cursor) -> None:
             for x in c.get_children():
                 f = x.location.file
-                rel = self.rel(f.name) if f else None
-                if rel is None:
-                    continue
+                if f is None or f.name != main:
+                    continue  # functions of included headers belong to the TUs that define them (cost: x5 faster)
+                rel = main_rel
                 if x.kind in FUNC_KINDS and x.is_definition():
                     body = next((g for g in x.get_children() if g.kind == K.COMPOUND_STMT), None)
                     if body is not None and x.get_usr() and x.get_usr() not in functions:

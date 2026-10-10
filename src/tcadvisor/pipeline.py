@@ -59,7 +59,7 @@ class Options:
     contracts: Path | None = None  # spec 005: third-party API contracts (default <repo>/.tcadvisor/...)
     lessons: Path | None = None  # spec 006: sinks + team lessons (default <repo>/.tcadvisor/lessons.json)
     previous_report: Path | None = None  # spec 006: filled report.html whose test results are carried over
-    flow_max_tus: int = 60  # spec 006: TUs parsed for data-path facts
+    flow_max_tus: int = 24  # spec 006: TUs parsed for data-path facts
     patterns: bool = True  # spec 006: data paths, trigger sources, lesson patterns
     attachment_warn_mb: int = 50
     progress: Callable[[str], None] | None = None
@@ -204,7 +204,8 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
 
         say(f"analysing {len(diffs)} changed file(s)")
         cs = detect_changes(repo, diffs, old_text, new_text, cdb, facts.tu_files,
-                            fallback_args=_fallback_args(repo) if provider is not None else None)
+                            fallback_args=_fallback_args(repo) if provider is not None else None,
+                            flow=opts.patterns and bool(cdb.entries))
         ci_dict_symbols = None
     ctx.notes.extend(cs.notes)
 
@@ -359,7 +360,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         pattern_cases += detect_patterns(repo, ctx.new_rev if opts.commit_range else None, changes, roots, graph,
                                          lambda f: graph.file_targets.get(f, set()))
         flow_known, flow_flags = _data_paths(opts, repo, cdb, facts, cache, graph, changes, roots, lessons,
-                                             pattern_cases, ctx.notes)
+                                             pattern_cases, ctx.notes, cs.flow_facts)
         flags.extend(flow_flags)
     cases = build_cases(nodes, root_risks, root_kind, flag_only, targets_of, tests,
                         {ch.node_id: len(ch.added_lines) + len(ch.removed_lines) for ch in changes}, history,
@@ -442,8 +443,8 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
 
 
 def _data_paths(opts: Options, repo: Path, cdb: CompileDatabase, facts, cache, graph: Graph, changes: list,
-                roots: dict[str, SymbolRef], lessons, out_cases: list, notes: list[str]
-                ) -> tuple[set[str], list[UncertaintyFlag]]:
+                roots: dict[str, SymbolRef], lessons, out_cases: list, notes: list[str],
+                flow_pre: dict[str, Any]) -> tuple[set[str], list[UncertaintyFlag]]:
     """Spec 006 US1: follow changed data to the code that sends it out (bounded, cached flow facts)."""
     from tcadvisor.classify.cases import data_path_cases
     from tcadvisor.graph.dataflow import FlowIndex, trace
@@ -459,7 +460,7 @@ def _data_paths(opts: Options, repo: Path, cdb: CompileDatabase, facts, cache, g
 
     def tu_of_header(rel: str) -> str | None:
         return next((tu for tu, inc in sorted(facts.tu_files.items()) if rel in inc and tu in by_file), None)
-    index = FlowIndex(repo, by_file, tu_of_header, cache, opts.flow_max_tus)
+    index = FlowIndex(repo, by_file, tu_of_header, cache, opts.flow_max_tus, preloaded=flow_pre)
     starts = [(ch.node_id, roots[ch.node_id], set(ch.added_line_numbers)) for ch in changes
               if ch.node_id in roots and ch.kind in ("function", "method") and ch.new is not None
               and not ch.is_test_code and not ch.is_log_only and ch.added_line_numbers]

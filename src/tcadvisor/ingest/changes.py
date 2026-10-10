@@ -144,6 +144,8 @@ class ChangeSet:
     non_cpp_files: list[str] = field(default_factory=list)
     out_of_scope: list[dict[str, str]] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    # spec 006: flow facts of the new side of each changed file, taken from the parse done here (no re-parse)
+    flow_facts: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
 def strip_comments(text: str) -> str:
@@ -259,6 +261,7 @@ class _FileSymbols:
     """Symbols declared/defined in one file of one parse, with comment-free token signatures."""
 
     def __init__(self, tu: ci.TranslationUnit, path: Path):
+        self.tu: ci.TranslationUnit | None = tu
         self.syms: dict[str, SymInfo] = {}
         self.extents: list[tuple[int, int]] = []
         self._target = str(path)
@@ -443,10 +446,16 @@ def _args_for_file(abs_path: Path, rel: str, cdb: CompileDatabase, tu_files: dic
 
 
 def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: Any, cdb: CompileDatabase,
-                   tu_files: dict[str, set[str]], fallback_args: tuple[str, ...] | None = None) -> ChangeSet:
-    """``old_text(rel)`` / ``new_text(rel)`` return file content on each side (None if absent)."""
+                   tu_files: dict[str, set[str]], fallback_args: tuple[str, ...] | None = None,
+                   flow: bool = False) -> ChangeSet:
+    """``old_text(rel)`` / ``new_text(rel)`` return file content on each side (None if absent). ``flow``: also
+    extract data-path facts from the new-side parse (spec 006)."""
     repo = repo.resolve()
     extractor = TUExtractor(repo)
+    flow_ex = None
+    if flow:
+        from tcadvisor.index.flow import FlowExtractor
+        flow_ex = FlowExtractor(repo)
     cs = ChangeSet()
     for fd in diffs:
         rel = fd.path
@@ -474,6 +483,13 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
         new_src = new_text(fd.new_path) if fd.new_path else None
         old_syms = _parse_symbols(extractor, abs_old, args, old_src) if old_src is not None else None
         new_syms = _parse_symbols(extractor, abs_new, args, new_src) if new_src is not None else None
+        if new_syms is not None:
+            if flow_ex is not None and suffix not in CPP_HEADER_EXT:
+                try:
+                    cs.flow_facts[fd.new_path or rel] = flow_ex.from_tu(new_syms.tu, abs_new)
+                except Exception:  # noqa: BLE001 - flow facts are optional
+                    pass
+            new_syms.tu = None  # release libclang memory
         old_lines = old_src.splitlines() if old_src is not None else []
         new_lines = new_src.splitlines() if new_src is not None else []
         new_conds = conditional_stack(new_lines)

@@ -79,7 +79,7 @@ practice (spec 006, all deterministic, off with `--no-patterns`):
 | `new_early_exit` | new `return` leaked a lock | the changed function (what was acquired before the exit) |
 | `config_reader` | setting read differently in two places | other readers of the setting |
 
-Data paths are traced with libclang over the translation units they need (`--flow-max-tus`, default 60,
+Data paths are traced with libclang over the translation units they need (`--flow-max-tus`, default 24,
 cached); where a value leaves what can be followed (stored in a member or a container, budget reached) an
 uncertainty flag says where. A reason found on code that already has a case is folded into that case.
 
