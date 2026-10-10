@@ -14,6 +14,9 @@ analysed repo.
 - `tests/` — pytest; `tests/conftest.py` builds a synthetic CMake project (needs cmake + clang).
 - `vscode-extension/` — VS Code front-end (TypeScript) calling the CLI.
 - `src/tcadvisor/graph/providers/` — codegraph / GitNexus adapters; `src/tcadvisor/verify/` — packets, annotate, headless Claude runner.
+- Spec 006 (lessons + test report): `index/flow.py` + `graph/dataflow.py` (data paths A→B→C), `graph/sources.py`
+  (sibling trigger sources), `classify/patterns.py` + `classify/lessons.py` (patterns, `.tcadvisor/lessons.json`),
+  `report/results.py` (fillable report results, `--previous-report`, `tcadvisor results`).
 - `.claude/skills/tc-coverage`, `.claude/agents/{tc-coverage-analyst,tc-case-verifier,tc-verify-synthesizer}.md`,
   `.claude/workflows/{tc-verify,product-cycle}.js` — Claude front-end; see `docs/workflow.md` (models per step).
 - `scripts/eval_real_project.py` — leveldb ground-truth eval (run before release).

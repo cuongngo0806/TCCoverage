@@ -69,8 +69,14 @@ Or run the saved workflow `tc-verify` (Workflow tool, name `tc-verify`) which do
    Cases with `sub_reason: external_call` are third-party API boundaries: turn their corner cases into
    stub/mock scenarios (make the API fail, return null, throw, call back late). If the user knows library
    behaviour the declaration cannot show, suggest recording it in `.tcadvisor/external-contracts.json`.
+   Lesson-pattern cases (`pattern` set): explain the lesson in one line — `data_path_emitter`: show the path
+   A → … → C and ask whether C validates what it sends; `sibling_source`: list the other trigger sources and
+   whether each has the guard; others: name the counterpart (decode, readers, switch sites, …).
 5. Rebuild/retest scope: targets list.
-6. Point to `report.html` for the visual impact flow (open in a browser or VS Code "TC Coverage: Show Report").
+6. Test report: remind the user that `report.html` is fillable (verdict + evidence per case, *Save report*),
+   and that `--previous-report <filled.html>` carries results over on the next run; `tcadvisor results
+   <filled.html>` checks completeness.
+7. Point to `report.html` for the visual impact flow (open in a browser or VS Code "TC Coverage: Show Report").
 
 ## Rules (constitution)
 

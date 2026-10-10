@@ -62,6 +62,59 @@ analysed repo (or `--contracts FILE`); keys are qualified names or `fnmatch` pat
 
 Matching entries appear as `Contract: ...` corner cases. Nothing leaves the machine; no model is involved.
 
+## Lessons-learned cases
+
+Besides the changed code and its callers, the report points at the *other* code that regressions came from in
+practice (spec 006, all deterministic, off with `--no-patterns`):
+
+| Pattern (`pattern`) | Lesson | Case on |
+|---|---|---|
+| `data_path_emitter` / `_forwarder` | A changed what it produced; B and C were untouched, C forwarded it and sent wrong data | the function that finally sends the data (send / write / publish-like call, third-party API), with the full path A → B → C; forwarders lower |
+| `sibling_source` | a function triggered from 4 places was protected in one | every other caller / registered callback without the same guard |
+| `symmetric_counterpart` | encode changed, decode not | decode / close / unlock / unregister … |
+| `same_code_elsewhere` | the fixed line was copy-pasted | other functions containing it |
+| `new_enum_value` | new enumerator fell into `default:` | switch sites over the enum |
+| `return_meaning` | new error code treated as success | callers deciding on the result |
+| `shared_state` | new value / timing of a member | readers of the member / global |
+| `new_early_exit` | new `return` leaked a lock | the changed function (what was acquired before the exit) |
+| `config_reader` | setting read differently in two places | other readers of the setting |
+
+Data paths are traced with libclang over the translation units they need (`--flow-max-tus`, default 60,
+cached); where a value leaves what can be followed (stored in a member or a container, budget reached) an
+uncertainty flag says where. A reason found on code that already has a case is folded into that case.
+
+Team knowledge goes into `.tcadvisor/lessons.json` (or `--lessons FILE`):
+
+```json
+{
+  "sinks": ["ipc_post*", "Bus::emit"],
+  "lessons": [{"id": "L7", "title": "Units", "when": {"tokens_any": ["timeout_ms", "delay"]},
+               "ask": "Check every caller passes milliseconds"}]
+}
+```
+
+`sinks` extend the emitting points of data paths; a lesson whose `when` matches (tokens of the change,
+`name_glob`, `path_glob`, `sub_reason`) adds `Lesson L7 (Units): …` to the case.
+
+## Test report (fill in, attach evidence, submit)
+
+`report.html` is also the verification record of the change. Per case: **Pass / Fail / Cannot be tested /
+Cannot occur**, comment, tester, date, defect reference and attachments (screenshots, logs, any file —
+embedded in the file). Rules: *Cannot be tested* / *Cannot occur* need a justification, *Fail* needs an
+attachment or a defect reference. **Save report** writes a new single HTML file with everything inside
+(VS Code: save dialog); **Print / PDF** gives a printable record. Above `--attachment-warn-mb` (50) the
+report warns about its size.
+
+```bash
+tcadvisor results filled.html            # summary; exit 0 complete, 4 incomplete or any Fail
+tcadvisor analyze ... --previous-report filled.html   # after more edits: results carried over by case key,
+                                                      # 'needs re-check' where the code behind a case changed
+```
+
+Each case has a stable `key` (what the case is about, not its position) and a `code_fingerprint`. A new
+analysis never silently drops a filled report in its output directory: it is copied to
+`report.results-backup-<time>.html` first.
+
 ## Graph providers
 
 ```bash
