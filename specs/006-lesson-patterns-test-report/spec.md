@@ -149,8 +149,9 @@ and the counterpart / copy / reader / handler it points to.
   with both explanations.
 - A previously recorded case no longer appears after a re-run: its verdict and evidence are kept in a
   "no longer reported" section, never discarded.
-- Attachments that are very large or of an unsupported type: the report still references them by name and
-  states they were not embedded.
+- Very large attachments (long logs, videos): still embedded; the report warns above the size limit and the
+  tester may compress or trim the log before attaching.
+- An attachment of a type the browser cannot preview: embedded and offered for download, not previewed.
 - Report opened on a machine without network access: filling in and exporting must work offline.
 
 ## Requirements *(mandatory)*
@@ -186,13 +187,15 @@ and the counterpart / copy / reader / handler it points to.
   occur), comment, tester, date, defect reference, and evidence attachments (images, log files, any file).
 - **FR-609**: The report MUST enforce: a justification for "Cannot be tested" / "Cannot occur"; evidence or
   a defect reference for "Fail".
-- **FR-610**: The report MUST export to [NEEDS CLARIFICATION: Which format must the completed report be
-  submitted in — e.g. Excel workbook, self-contained HTML/PDF, Markdown + evidence folder, or upload to a
-  tracker such as Jira/Redmine?], including a summary of verdict counts and an "incomplete" marker when
-  cases remain untested.
-- **FR-611**: Evidence attachments MUST be [NEEDS CLARIFICATION: Should evidence be embedded inside the
-  single exported report file (one file to submit, larger) or kept as separate files in an evidence folder
-  referenced by the report (smaller report, files submitted together)?].
+- **FR-610**: The fillable report MUST be a single self-contained HTML file that works offline in a browser
+  and in the VS Code report view: the tester fills it in place, and saving produces an updated copy of the
+  same single file. It MUST also print / export to PDF. Both show a summary of verdict counts and an
+  "incomplete" marker when cases remain untested.
+- **FR-611**: Evidence attachments MUST be embedded inside the report file, so one file is submitted.
+  Images are shown inline, logs and other files can be opened or saved back from the report. The report
+  MUST show the total attachment size and warn when it exceeds a configurable limit (default 50 MB).
+- **FR-612a**: A re-run of the advisor MUST accept a previously filled report file as input to carry over
+  verdicts and evidence (FR-612).
 - **FR-612**: Each case MUST keep a stable identity across re-runs (based on the code it points to and the
   reason, not on its list position), so recorded verdicts and evidence carry over; carried-over verdicts on
   code that changed again MUST be marked "needs re-check".
@@ -247,7 +250,8 @@ and the counterpart / copy / reader / handler it points to.
 ## Assumptions
 
 - Testers fill in the report on their own machines; nothing is uploaded by the advisor (local-first). The
-  team submits the completed report through its existing process.
+  team submits the completed report (one HTML file, or its PDF print) through its existing process.
+- Decided 2026-10-10: report format = self-contained HTML (+ PDF print); evidence = embedded in the file.
 - "Cannot occur" means the scenario is impossible in the product as built (e.g. guarded elsewhere); the
   justification records why. It does not remove the case from future runs.
 - Default list of emitting points covers common send/write/publish/serialize calls; projects extend it in

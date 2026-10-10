@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -33,5 +33,5 @@
 
 - Code-level vocabulary (return value, out-parameter, member/global, switch) is the domain language of the
   users (C++ developers and testers), not an implementation choice; kept deliberately.
-- Open: FR-610 (export format / submission channel) and FR-611 (embedded vs referenced evidence) await the
-  team's answer before `/speckit-plan`.
+- Resolved 2026-10-10: FR-610 = self-contained HTML report filled in place (+ PDF print); FR-611 = evidence
+  embedded in the report file (size warning, default 50 MB). Ready for `/speckit-plan`.
