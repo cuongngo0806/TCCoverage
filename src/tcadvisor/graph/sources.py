@@ -198,3 +198,49 @@ def unresolved_source_flags(graph: Graph, guarded: list[GuardedTarget], roots: d
                 f"`{t.target.qualified_name}` is virtual: calls through a base-class pointer reach it from sources "
                 f"that cannot be listed statically; check them against the guard added in {cov}", t.target))
     return out
+
+
+def changed_function_sources(graph: Graph, changes: list[SymbolChange], roots: dict[str, SymbolRef],
+                             depth: int, skip: set[str], limit: int = 20) -> list[dict]:
+    """FR-605: every distinct source reaching each changed function — the immediate caller (via) and the entry
+    points behind it up to ``depth`` — plus callback registrations. A listing for the reviewer, no cases."""
+    out = []
+    for ch in changes:
+        rid = ch.node_id
+        if rid not in roots or rid in skip or ch.kind not in ("function", "method") or ch.is_test_code:
+            continue
+        sources, seen = [], set()
+        for dep in graph.callers(rid):
+            if dep.dependent in seen or dep.dependent == rid:
+                continue
+            seen.add(dep.dependent)
+            ref = graph.symbol_ref(dep.dependent)
+            if ref is None or ref.kind == "file":
+                continue
+            entries, frontier, visited = [], [dep.dependent], {dep.dependent, rid}
+            for _ in range(max(0, depth - 1)):
+                nxt = []
+                for n in frontier:
+                    ups = [d.dependent for d in graph.callers(n) if d.dependent not in visited]
+                    if not ups:
+                        entries.append(n)
+                    for u in ups:
+                        visited.add(u)
+                        nxt.append(u)
+                frontier = nxt
+            entries += frontier  # depth reached: the farthest callers seen are the entries shown
+            refs = [graph.symbol_ref(e) for e in entries if e != dep.dependent]
+            names = sorted({r.qualified_name for r in refs if r is not None})
+            reg = graph.facts.address_taken.get(dep.dependent)
+            sources.append({"symbol": ref.to_dict(), "kind": "registration" if reg else "call",
+                            "call_line": dep.line, "registered_at": list(reg) if reg else None,
+                            "covered_by_change": dep.dependent in roots, "guard": "n/a",
+                            "entries": names[:5] + ([f"+{len(names) - 5} more"] if len(names) > 5 else [])})
+        reg_self = graph.facts.address_taken.get(rid)
+        if not sources and reg_self is None:
+            continue
+        sources.sort(key=lambda x: (x["symbol"]["file_path"], x["symbol"]["qualified_name"]))
+        out.append({"target": roots[rid].to_dict(), "reason": "changed", "guard": [], "covered_by": [],
+                    "registered_at": list(reg_self) if reg_self else None, "total": len(sources),
+                    "sources": sources[:limit]})
+    return out

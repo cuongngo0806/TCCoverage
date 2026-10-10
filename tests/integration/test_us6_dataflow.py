@@ -60,3 +60,33 @@ def test_no_patterns_switch(project):
     _change_producer(project)
     r = project.analyze("--commit-range", "HEAD~1..HEAD", "--no-patterns")
     assert not _by_pattern(r, "data_path_emitter")
+
+
+def test_value_stored_in_a_member_is_followed_to_its_reader(project):
+    add_flow_fixture(project)
+    project.edit("include/door/frame.h", "    std::deque<Frame> q_;", "    std::deque<Frame> q_;\n    Frame last_;\n    void flush();")
+    project.edit("src/frame.cpp", "    Publisher p;\n    p.publish(copy);", "    last_ = copy;")
+    project.edit("src/frame.cpp", "void Publisher::publish(", "void Relay::flush() {\n    Publisher p;\n    p.publish(last_);\n}\n"
+                 "void Publisher::publish(")
+    project.commit("relay stores, flush sends")
+    _change_producer(project)
+    r = project.analyze("--commit-range", "HEAD~1..HEAD", "--max-hop-depth", "3")
+    c = _by_pattern(r, "data_path_emitter")["Publisher::publish"]
+    names = [s["symbol"]["qualified_name"] for s in c["path"]]
+    assert "Relay::relay" in names and "Relay::flush" in names, names
+    assert any("stores it in `last_`" in s["detail"] for s in c["path"])
+
+
+def test_depth_limit_is_reported_where_tracing_stopped(project):
+    add_flow_fixture(project)
+    project.edit("src/frame.cpp", "    p.publish(copy);", "    p.handle(copy);")
+    project.edit("include/door/frame.h", "    void publish(const Frame& f);", "    void publish(const Frame& f);\n"
+                 "    void handle(const Frame& f);")
+    project.edit("src/frame.cpp", "void Publisher::publish(", "void Publisher::handle(const Frame& f) {\n"
+                 "    publish(f);\n}\nvoid Publisher::publish(")
+    project.commit("relay -> handle -> publish")
+    _change_producer(project)
+    r = project.analyze("--commit-range", "HEAD~1..HEAD", "--max-hop-depth", "1")
+    assert not _by_pattern(r, "data_path_emitter")
+    assert any("depth limit" in f["reason"] and "Publisher::handle" in f["reason"]
+               for f in r["uncertainty_flags"]), [f["reason"] for f in r["uncertainty_flags"]]

@@ -167,6 +167,22 @@ def _taint(f: dict[str, Any], atoms: set[str], lines: set[int]) -> set[str]:
     return t
 
 
+def _readers(index: FlowIndex, store: str, writer: str, file: str, limit: int = 4) -> list[str]:
+    """Loaded functions reading a member (same file or same-stem file as the writer) or a global (any)."""
+    stem = Path(file).stem
+    out = []
+    for u, g in index.functions.items():
+        if u == writer or (store.startswith("member:") and Path(g["file"]).stem != stem):
+            continue
+        reads = any(store in d[2] for d in g["defs"]) or any(store in a for c in g["calls"] for a in c[5]) or \
+            any(store in c[1] for c in g["conds"])
+        if reads:
+            out.append(u)
+            if len(out) >= limit:
+                break
+    return out
+
+
 def trace(index: FlowIndex, roots: list[tuple[str, SymbolRef, set[int]]], callers: Callable[[str], list[Any]],
           max_depth: int, sinks: list[str], is_third_party: Callable[[str, str], bool]
           ) -> tuple[list[DataPath], list[Break]]:
@@ -216,24 +232,42 @@ def trace(index: FlowIndex, roots: list[tuple[str, SymbolRef, set[int]]], caller
                         breaks.append(Break(root_usr, f"{f['name']} ({f['file']}:{line})", line,
                                             f"stored into `{base.split(':', 1)[1]}` via `{cname}`"))
                     continue
-                if depth + 1 > max_depth or cu == usr:
+                if cu == usr or cname.startswith(("std::", "__")) or not cdef:
+                    continue  # recursion, standard library, third-party (spec 005 boundary cases)
+                where = f"{f['name']} ({f['file']}:{line})"
+                if depth + 1 > max_depth:  # FR-616: say where tracing stopped
+                    breaks.append(Break(root_usr, where, line, f"still passed on to `{cname}` when the depth limit "
+                                                               f"({max_depth} functions) was reached"))
                     continue
-                callee = index.get(cu, cdef) if cdef else None
+                callee = index.get(cu, cdef)
                 if callee is None:
-                    if cdef and index.exhausted:
-                        breaks.append(Break(root_usr, f"{f['name']} ({f['file']}:{line})", line,
-                                            f"passed to `{cname}`, not traced (translation-unit budget reached)"))
+                    why = ("translation-unit budget reached" if index.exhausted else
+                           "its definition is not in an indexed translation unit")
+                    breaks.append(Break(root_usr, where, line, f"passed to `{cname}`, not traced ({why})"))
                     continue
                 params = callee["params"]
                 work.append((cu, frozenset(f"param:{params[k]}" for k in ks if k < len(params)), frozenset(),
                              path + [step], depth + 1))
             stores = sorted({d[1] for d in f["defs"] if d[1].startswith(("member:", "global:")) and
                              (d[0] in hot_lines or t & set(d[2]))})
-            if stores and path:
+            unread = []
+            for st in stores:  # FR-601: follow the stored value to the functions that read it
+                readers = [] if depth + 1 > max_depth else _readers(index, st, usr, f["file"])
+                for r_usr in readers:
+                    work.append((r_usr, frozenset({st}), frozenset(),
+                                 path + [Step(usr, f["name"], f["file"], f["line"], role, 0,
+                                              f"stores it in `{st.split(':', 1)[1]}`")], depth + 1))
+                if not readers:
+                    unread.append(st)
+            if unread and path:
                 breaks.append(Break(root_usr, f"{f['name']} ({f['file']}:{f['line']})", f["line"],
-                                    "stored in " + ", ".join(f"`{s.split(':', 1)[1]}`" for s in stores[:3])))
+                                    "stored in " + ", ".join(f"`{s.split(':', 1)[1]}`" for s in unread[:3])
+                                    + " with no traced reader"))
             outs = [k for k, p in enumerate(f["params"]) if f["param_out"][k] and f"param:{p}" in t
                     and any(d[1] == f"param:{p}" for d in f["defs"])]
+            if ("return" in t or outs) and depth + 1 > max_depth and callers(usr):
+                breaks.append(Break(root_usr, f"{f['name']} ({f['file']}:{f['line']})", f["line"],
+                                    f"returned to {len(callers(usr))} caller(s) when the depth limit was reached"))
             if ("return" in t or outs) and depth + 1 <= max_depth:
                 give = {f"call:{usr}"} | {f"outarg:{usr}:{k}" for k in outs}
                 for dep in callers(usr):

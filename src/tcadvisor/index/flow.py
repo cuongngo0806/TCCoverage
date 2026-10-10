@@ -24,7 +24,7 @@ import clang.cindex as ci
 from tcadvisor.index.clang_index import (FUNC_KINDS, TRANSPARENT_EXPR, K, TUExtractor, file_sha, is_global_var,
                                          qualified_name)
 
-FLOW_VERSION = 3  # 2: main-file functions only; 3: declaration file of callees
+FLOW_VERSION = 4  # 2: main-file functions only; 3: declaration file of callees; 4: operator= defs
 _ASSIGN = {"=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>="}
 _SKIP = {K.TYPE_REF, K.NAMESPACE_REF, K.TEMPLATE_REF, K.LAMBDA_EXPR}
 
@@ -135,6 +135,14 @@ class _Fn:
             if cond is not None:
                 self.conds.append([cond.location.line, sorted(self.srcs(cond))])
         elif k == K.CALL_EXPR:
+            r = c.referenced
+            op = r.spelling if r is not None else ""
+            if op.startswith("operator") and op.endswith("=") and op[8:] not in ("==", "!=", "<=", ">="):
+                ch = _children(c)  # class assignment: [lhs, operator ref, rhs]
+                tgt = self.target(ch[0]) if len(ch) >= 2 else None
+                if tgt:
+                    s_ = self.srcs(ch[-1]) | (self.srcs(ch[0]) if op[8:] != "=" else set())
+                    self.defs.append([line, tgt, sorted(s_)])
             self.call(c)
         for x in c.get_children():
             if x.kind != K.LAMBDA_EXPR:

@@ -28,6 +28,7 @@ REL_PHRASE = {
     "called_by_change": "is now called differently by",
 }
 MAX_SOURCES = 8  # spec 006 edge case: more sibling sources are summarised in one case
+UTILITY_FANIN = 12  # more other sources than this: a utility (e.g. a stats counter) -> summary case only
 # include-only (file) nodes only carry compile-level risks
 FILE_GROUPS = {"abi_layout", "build_config"}
 
@@ -217,6 +218,7 @@ def sibling_source_cases(guarded, graph, roots: dict[str, SymbolRef]) -> list[Te
         cov_names = ", ".join(f"`{c.qualified_name}`" for c in covered)
         guard = "; ".join(dict.fromkeys(t.guard_lines))[:160]
         others = [s for s in t.sources if not s.covered_by_change]
+        expand = MAX_SOURCES if len(others) <= UTILITY_FANIN else 0  # a widely used utility: one summary case
         for i, s in enumerate(others):
             targets = sorted(graph.file_targets.get(s.symbol.file_path, ())) or ["(no CMake target owns this file)"]
             edge = ImpactEdge("call", s.symbol, t.target, s.symbol.file_path, s.call_line)
@@ -225,8 +227,8 @@ def sibling_source_cases(guarded, graph, roots: dict[str, SymbolRef]) -> list[Te
                                      if s.registered_at else "calls the target")),
                     PathStep(t.target, "target", t.target.line)]
             via = (f" (a callback registered at {s.registered_at[0]}:{s.registered_at[1]})" if s.registered_at else "")
-            if i >= MAX_SOURCES:
-                rest = others[MAX_SOURCES:]
+            if i >= expand:
+                rest = others[expand:]
                 out.append(TestCaseCandidate(
                     id="", description=f"`{t.target.qualified_name}` has {len(rest)} more trigger source(s) not "
                                        f"protected like {cov_names}: "

@@ -347,6 +347,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     history = G.fix_history(repo, ctx.new_rev or ctx.old_rev) if opts.history else {}
     pattern_cases: list = []
     guarded = []
+    changed_sources: list = []
     flow_known: set[str] = set()
     if opts.patterns:
         from tcadvisor.classify.cases import sibling_source_cases
@@ -354,6 +355,9 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         guarded = find_guarded_targets(repo, graph, changes, roots)
         pattern_cases += sibling_source_cases(guarded, graph, roots)
         flags.extend(unresolved_source_flags(graph, guarded, roots))
+        from tcadvisor.graph.sources import changed_function_sources
+        changed_sources = changed_function_sources(graph, changes, roots, opts.max_hop_depth,
+                                                   {t.target_id for t in guarded})
         guarded = [t for t in guarded if any(not x.covered_by_change for x in t.sources) or t.target_id in
                    graph.facts.address_taken]
         from tcadvisor.classify.patterns import detect as detect_patterns
@@ -420,12 +424,13 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
                             "hop_distance": nodes[nid].hop_distance} for nid, lbl in sorted(tests.items(), key=lambda kv: kv[1])],
         "affected_targets": affected,
         "test_case_candidates": [c.to_dict() for c in cases],
-        "trigger_sources": [{"target": t.target.to_dict(), "guard": list(dict.fromkeys(t.guard_lines)),
+        "trigger_sources": [{"target": t.target.to_dict(), "reason": "guarded",
+                             "guard": list(dict.fromkeys(t.guard_lines)),
                              "covered_by": [roots[r].qualified_name for r in t.covered if r in roots],
                              "sources": [{"symbol": x.symbol.to_dict(), "kind": x.kind, "call_line": x.call_line,
                                           "registered_at": list(x.registered_at) if x.registered_at else None,
                                           "covered_by_change": x.covered_by_change, "guard": x.guard}
-                                         for x in t.sources]} for t in guarded],
+                                         for x in t.sources]} for t in guarded] + changed_sources,
         "uncertainty_flags": [f.to_dict() for f in flags],
         "out_of_scope": out_of_scope,
         "run_notes": ctx.notes,
