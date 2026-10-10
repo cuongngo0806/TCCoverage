@@ -40,6 +40,28 @@ Three front-ends share the same engine:
    macro branches not compiled in any configuration.
 6. Optional local LLM (Ollama) may only reword descriptions; off by default and degrades gracefully.
 
+## Third-party API boundaries
+
+When the analysed module only contains its own code, its libraries are visible as **declarations** only
+(headers on the include path of `compile_commands.json`). A changed line that calls such a function gets one
+case on the calling function (`sub_reason: external_call`, never propagated to its callers) whose corner cases
+come from the declaration and the call site: null pointer return, failure / sentinel return (and whether the
+result is ignored), may throw (C++ linkage, not `noexcept`), out-parameters, callbacks, pointer + length pairs.
+The call also stays an uncertainty flag: the library's behaviour is not in the graph. Standard-library calls
+are only counted in `run_notes`.
+
+Behaviour a declaration cannot show is recorded once, by hand, in `.tcadvisor/external-contracts.json` of the
+analysed repo (or `--contracts FILE`); keys are qualified names or `fnmatch` patterns:
+
+```json
+{
+  "vendor_send": ["returns -EAGAIN when the send queue is full"],
+  "vendor::*":   ["not thread-safe: one channel per thread"]
+}
+```
+
+Matching entries appear as `Contract: ...` corner cases. Nothing leaves the machine; no model is involved.
+
 ## Graph providers
 
 ```bash

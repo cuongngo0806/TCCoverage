@@ -136,21 +136,56 @@ def test_make_unique_call_site_impacts_the_constructor(project):
     assert ctor[0]["symbol"]["file_path"] == "src/builder.cpp"  # definition, not the header declaration
 
 
-def test_changed_call_into_third_party_code_is_flagged(project):
+def _vendor_change(project):
     vendor = project.root / "vendor" / "vendorlib"
     vendor.mkdir(parents=True)
-    (vendor / "api.h").write_text("#pragma once\nint vendor_send(const char* buf, int len);\n")
+    (vendor / "api.h").write_text("#pragma once\nextern \"C\" int vendor_send(const char* buf, int len);\n"
+                                  "namespace vendor { char* open_channel(int id); }\n")
     project.edit("CMakeLists.txt", "target_include_directories(DoorLock PUBLIC include)",
                  f"target_include_directories(DoorLock PUBLIC include {vendor.parent})")
     project.edit("src/lock.cpp", '#include "door/util.h"', '#include "door/util.h"\n#include "vendorlib/api.h"\n#include <string>')
     project.commit()
     project.configure()
     project.edit("src/lock.cpp", "    return handleResponse(l, code);",
-                 "    std::string s(\"x\");\n    vendor_send(s.c_str(), code);\n    return handleResponse(l, code);")
+                 "    std::string s(\"x\");\n    vendor_send(s.c_str(), code);\n    vendor::open_channel(code);\n"
+                 "    return handleResponse(l, code);")
     project.commit()
+
+
+def test_changed_call_into_third_party_code_is_flagged(project):
+    _vendor_change(project)
     r = project.analyze("--commit-range", "HEAD~1..HEAD")
     flags = [f for f in r["uncertainty_flags"] if "outside the repository" in f["reason"]]
     assert len(flags) == 1 and "`vendor_send` (vendorlib/api.h)" in flags[0]["reason"]
     assert flags[0]["category"] == "dynamic_runtime_dependency" and flags[0]["related_symbol"]["file_path"] == "src/lock.cpp"
     assert "vendor_send" not in {n["symbol"]["qualified_name"] for n in r["impact_nodes"]}
     assert any("standard-library call(s) on changed lines" in n for n in r["run_notes"])
+
+
+def test_third_party_call_yields_a_boundary_case_from_its_declaration(project):
+    _vendor_change(project)
+    r = project.analyze("--commit-range", "HEAD~1..HEAD")
+    ext = [c for c in r["test_case_candidates"] if c["sub_reason"] == "external_call"]
+    assert len(ext) == 1 and ext[0]["hop_distance"] == 0 and ext[0]["evidence"][0]["qualified_name"] == "dispatch"
+    assert ext[0]["risk_group"] == "exception_safety" and ext[0]["priority"] == "P1"
+    hints = " | ".join(ext[0]["corner_cases"])
+    assert "the `int` result of `vendor_send` is ignored" in hints
+    assert "`vendor_send`(`buf`, `len`): boundary lengths" in hints
+    assert "`vendor::open_channel` returns `char *`: make it return nullptr" in hints
+    assert "`vendor::open_channel` is not noexcept" in hints  # C++ linkage, no noexcept
+    assert "`vendor_send` is not noexcept" not in hints  # extern "C"
+    # not propagated: callers of dispatch get no external_call case
+    assert all(c["hop_distance"] == 0 for c in r["test_case_candidates"] if c["sub_reason"] == "external_call")
+
+
+def test_contract_file_adds_known_library_behaviour(project):
+    _vendor_change(project)
+    (project.repo / ".tcadvisor").mkdir()
+    (project.repo / ".tcadvisor" / "external-contracts.json").write_text(
+        '{"vendor_send": ["returns -EAGAIN when the send queue is full"], "vendor::*": ["not thread-safe"]}')
+    r = project.analyze("--commit-range", "HEAD~1..HEAD")
+    hints = [h for c in r["test_case_candidates"] if c["sub_reason"] == "external_call" for h in c["corner_cases"]]
+    assert "Contract: vendor_send: returns -EAGAIN when the send queue is full" in hints
+    assert "Contract: vendor::open_channel: not thread-safe" in hints
+    (project.repo / ".tcadvisor" / "external-contracts.json").write_text("{not json")
+    project.analyze("--commit-range", "HEAD~1..HEAD", expect=2)

@@ -26,7 +26,9 @@ from tcadvisor.index.compile_db import CompileDatabase
 from tcadvisor.ingest import git as G
 from tcadvisor.ingest.changes import ChangeSet, explicit_changes, detect_changes, is_test_path
 from tcadvisor.ingest.symbols import resolve_symbols
-from tcadvisor.models import ChangeInput, ImpactNode, PrerequisiteError, SymbolRef, UncertaintyFlag, UsageError
+from tcadvisor.classify.external import ExternalCall, external_risk, is_standard, load_contracts
+from tcadvisor.models import ChangeInput, ImpactNode, PrerequisiteError, RiskClassification, SymbolRef, UncertaintyFlag, \
+    UsageError
 
 
 @dataclass
@@ -52,6 +54,7 @@ class Options:
     history: bool = True  # rank by bug-fix history of files (git log, local)
     jobs: int | None = None
     graph_bin: str | None = None
+    contracts: Path | None = None  # spec 005: third-party API contracts (default <repo>/.tcadvisor/...)
     progress: Callable[[str], None] | None = None
 
 
@@ -151,12 +154,13 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         sorted((k, sorted(v)) for k, v in facts.tu_files.items())).encode()
         + "".join(sorted(f"{s['file']}:{s['line']}:{u}" for u, s in facts.symbols.items())).encode()).hexdigest()
 
+    contracts = load_contracts(repo, opts.contracts)
     run_key = hashlib.sha256(json.dumps({
         "v": __version__, "code": _code_digest(), "mode": ci_.mode, "old": ctx.old_rev, "new": ctx.new_rev, "wt": ctx.fingerprint,
         "symbols": opts.symbols, "hop": opts.max_hop_depth, "split": opts.split_threshold,
         "targets": sorted(opts.targets or []), "cdb": cdb.digest, "index": index_state,
         "llm": opts.llm, "llm_model": opts.llm_model if opts.llm else None,
-        "graph": provider.name if provider else "clang"}).encode()).hexdigest()
+        "graph": provider.name if provider else "clang", "contracts": contracts}).encode()).hexdigest()
     if opts.use_run_cache:
         cached = cache.get_run(run_key)
         if cached is not None:
@@ -264,7 +268,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         flows = pres.flows
     else:
         provider_flags = []
-    external_flags = _add_changed_calls(repo, changes, roots, graph, ctx.notes)
+    external_flags, root_external = _add_changed_calls(repo, changes, roots, graph, ctx.notes, contracts)
     flags, flag_only = uncertainty.detect(changes, roots, graph, cdb)
     flags.extend(provider_flags)
     flags.extend(external_flags)
@@ -326,7 +330,8 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     tests = {nid: lbl for nid, n in nodes.items() if n.hop_distance > 0 and (lbl := gtest_label(repo, n.symbol))}
     history = G.fix_history(repo, ctx.new_rev or ctx.old_rev) if opts.history else {}
     cases = build_cases(nodes, root_risks, root_kind, flag_only, targets_of, tests,
-                        {ch.node_id: len(ch.added_lines) + len(ch.removed_lines) for ch in changes}, history)
+                        {ch.node_id: len(ch.added_lines) + len(ch.removed_lines) for ch in changes}, history,
+                        root_external)
     known = ({s["name"] for s in facts.symbols.values()} | {r.qualified_name for r in roots.values()}
              | {r.qualified_name for r in graph.refs.values()})
     cases = gate(cases, repo, known)
@@ -366,7 +371,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         "target_scope": target_scope,
         "no_detected_impact": not cases and not flags,
         "changed_files": sorted(set(cs.changed_files)),
-        "changed_symbols": [{**ch_dict(ch, roots[ch.node_id]), "risks": [r.to_dict() for r in root_risks[ch.node_id]]}
+        "changed_symbols": [{**ch_dict(ch, roots[ch.node_id]), "risks": [r.to_dict() for r in root_risks[ch.node_id] + root_external.get(ch.node_id, [])]}
                             for ch in changes if ch.node_id in roots],
         "graph_provider": provider.name if provider else "clang",
         "impact_nodes": [{**n.to_dict(), **({"flows": flows[nid]} if nid in flows else {}),
@@ -394,23 +399,26 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
 
 
 def _add_changed_calls(repo: Path, changes: list, roots: dict[str, SymbolRef], graph: Graph,
-                       notes: list[str], per_root: int = 8) -> list[UncertaintyFlag]:
+                       notes: list[str], contracts: dict[str, list[str]] | None = None, per_root: int = 8
+                       ) -> tuple[list[UncertaintyFlag], dict[str, list[RiskClassification]]]:
     """Downstream impact: a function called *differently* on a changed line (new call / new arguments) may
     now receive inputs it was never tested with (pilot: RocksDB #14227 changed what CompactionJob handed to
     BlobFileBuilder; the fix landed in BlobFileBuilder). Edges are terminal: the callee's other callers are
     not affected.
 
     Callees declared outside the repository (third-party libraries) have no body to trace: they are
-    returned as uncertainty flags on the calling root (constitution IV) instead of being dropped.
-    Standard-library calls are only counted in the run notes."""
+    returned as uncertainty flags on the calling root (constitution IV) instead of being dropped, plus one
+    boundary case per root built from their declarations (spec 005). Standard-library calls are only
+    counted in the run notes."""
     from tcadvisor.graph.impact import Dep
     flags: list[UncertaintyFlag] = []
+    risks: dict[str, list[RiskClassification]] = {}
     std_calls = 0
     for ch in changes:
         if ch.node_id not in roots:
             continue
         n = 0
-        external: dict[str, str] = {}
+        external: dict[str, ExternalCall] = {}
         for usr, qn, kind, decl_file, decl_line, call_line in ch.changed_calls():
             if usr in roots:
                 continue
@@ -423,11 +431,11 @@ def _add_changed_calls(repo: Path, changes: list, roots: dict[str, SymbolRef], g
                     except ValueError:
                         pass
                 if rel is None:  # declared outside the repository
-                    if qn.startswith(("std::", "__")):
+                    if is_standard(qn, decl_file):
                         std_calls += 1
-                    else:
+                    elif qn not in external:
                         where = "/".join(Path(decl_file).parts[-2:]) if decl_file else "declaration not found"
-                        external.setdefault(qn, f"`{qn}` ({where}) at {ch.rel_path}:{call_line}")
+                        external[qn] = ExternalCall(qn, where, ch.rel_path, call_line, ch.new.call_sigs.get(usr, {}))
                     continue
             if n >= per_root:
                 continue
@@ -440,7 +448,8 @@ def _add_changed_calls(repo: Path, changes: list, roots: dict[str, SymbolRef], g
             graph.dependents[ch.node_id].append(Dep(usr, "called_by_change", ch.rel_path, call_line))
             n += 1
         if external:
-            shown = list(external.values())[:10]
+            risks[ch.node_id] = [external_risk(ch.name, list(external.values()), contracts)]
+            shown = [f"`{c.name}` ({c.header}) at {c.call_file}:{c.call_line}" for c in list(external.values())[:10]]
             more = f" and {len(external) - len(shown)} more" if len(external) > len(shown) else ""
             flags.append(UncertaintyFlag(
                 "dynamic_runtime_dependency",
@@ -449,7 +458,7 @@ def _add_changed_calls(repo: Path, changes: list, roots: dict[str, SymbolRef], g
                 "ownership of passed/returned pointers and callbacks", roots[ch.node_id]))
     if std_calls:
         notes.append(f"{std_calls} standard-library call(s) on changed lines are not traced into the library")
-    return flags
+    return flags, risks
 
 
 def _definition_site(repo: Path, rel: str, qn: str, line: int) -> tuple[str, int]:

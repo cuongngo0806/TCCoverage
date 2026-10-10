@@ -55,18 +55,25 @@ def priority(hop: int, group: str, sub: str | None = None) -> str:
 def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskClassification]],
                 root_kind: dict[str, str], flag_only: set[str], targets_of,
                 tests: dict[str, str] | None = None, root_weight: dict[str, int] | None = None,
-                file_history: dict[str, int] | None = None) -> list[TestCaseCandidate]:
+                file_history: dict[str, int] | None = None,
+                root_external: dict[str, list[RiskClassification]] | None = None) -> list[TestCaseCandidate]:
+    """``root_external``: third-party boundary risks (spec 005) — cases on the changed symbol only, never
+    propagated to its callers."""
     weight = root_weight or {}
+    external = root_external or {}
     history = file_history or {}
     cases: list[TestCaseCandidate] = []
     for nid, node in nodes.items():
         if node.hop_distance == 0:
             if nid in flag_only:
                 continue
-            for r in root_risks.get(nid, []):
+            for r in root_risks.get(nid, []) + external.get(nid, []):
                 desc = (f"Verify the {GROUP_TITLE[r.risk_group]} of `{node.symbol.qualified_name}` "
                         f"({root_kind.get(nid, 'modified')}"
                         + (f", {r.sub_reason.replace('_', ' ')}" if r.sub_reason else "") + ")")
+                if r.sub_reason == "external_call":
+                    desc = (f"Verify how `{node.symbol.qualified_name}` handles failures and unusual behaviour of "
+                            f"the third-party API it now calls ({GROUP_TITLE[r.risk_group]} first)")
                 cases.append(TestCaseCandidate(
                     id="", description=desc, activation_condition=f"Changed directly: {r.detail}",
                     evidence=[node.symbol], risk_group=r.risk_group,

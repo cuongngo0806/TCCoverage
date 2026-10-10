@@ -66,6 +66,9 @@ Or run the saved workflow `tc-verify` (Workflow tool, name `tc-verify`) which do
    (inputs/states, expected result) derived from the corner cases + the evidence code you read.
 3. P2/P3 grouped compactly (one line each, or "N more" with the report path).
 4. **Uncertain / manual review** — every flag, verbatim category + reason. Never drop one.
+   Cases with `sub_reason: external_call` are third-party API boundaries: turn their corner cases into
+   stub/mock scenarios (make the API fail, return null, throw, call back late). If the user knows library
+   behaviour the declaration cannot show, suggest recording it in `.tcadvisor/external-contracts.json`.
 5. Rebuild/retest scope: targets list.
 6. Point to `report.html` for the visual impact flow (open in a browser or VS Code "TC Coverage: Show Report").
 

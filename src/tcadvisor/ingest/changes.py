@@ -16,7 +16,7 @@ from typing import Any
 
 import clang.cindex as ci
 
-from tcadvisor.index.clang_index import (CLASS_KINDS, FUNC_KINDS, K, SYMBOL_KINDS, TUExtractor,
+from tcadvisor.index.clang_index import (CLASS_KINDS, FUNC_KINDS, K, SYMBOL_KINDS, TRANSPARENT_EXPR, TUExtractor,
                                          is_global_var, qualified_name, symbol_kind)
 from tcadvisor.index.compile_db import CPP_EXT, CPP_HEADER_EXT, CompileDatabase
 from tcadvisor.ingest.git import FileDiff
@@ -61,6 +61,8 @@ class SymInfo:
     noexcept: str = ""
     # call sites in the body: (callee usr, callee qualified name, callee kind, decl file (abs), decl line, call line)
     calls: list[tuple[str, str, str, str, int, int]] = field(default_factory=list)
+    # callee usr -> declaration facts (see callee_sig) + "discarded": call lines whose result is unused
+    call_sigs: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
 @dataclass
@@ -186,6 +188,50 @@ def _include_guard(lines: list[str]) -> int | None:
     return None
 
 
+_STATUS_TYPE = re.compile(r"(?i)(error|status|result|optional|expected|errc)")
+_SIZE_NAME = re.compile(r"(?i)^(n|len|length|size|sz|count|cnt|num\w*|\w*_?(len|length|size|count|bytes))$")
+_INT_KINDS = {"BOOL", "CHAR_U", "UCHAR", "CHAR16", "CHAR32", "USHORT", "UINT", "ULONG", "ULONGLONG", "CHAR_S",
+              "SCHAR", "WCHAR", "SHORT", "INT", "LONG", "LONGLONG", "ENUM"}
+
+
+def callee_sig(ref: ci.Cursor) -> dict[str, Any]:
+    """Facts a reviewer can test at a call site, read from the callee's *declaration* only (spec 005)."""
+    sig: dict[str, Any] = {"result": "", "result_type": "", "may_throw": False, "out_params": [],
+                           "callbacks": [], "buffers": [], "discarded": []}
+    try:
+        rt = ref.result_type
+        if rt.kind != ci.TypeKind.INVALID and ref.kind != K.CONSTRUCTOR:
+            canon = rt.get_canonical()
+            sig["result_type"] = rt.spelling
+            if canon.kind == ci.TypeKind.POINTER:
+                sig["result"] = "pointer"
+            elif canon.kind.name in _INT_KINDS or (canon.kind == ci.TypeKind.RECORD
+                                                   and _STATUS_TYPE.search(rt.spelling + " " + canon.spelling)):
+                sig["result"] = "status"
+        spec = str(ref.exception_specification_kind).split(".")[-1]
+        mangled = ref.mangled_name or ""
+        sig["may_throw"] = spec in ("NONE", "DYNAMIC", "MS_ANY") and mangled.startswith(("_Z", "?"))
+        prev_ptr = None
+        for i, a in enumerate(ref.get_arguments()):
+            name = a.spelling or f"#{i + 1}"
+            t = a.type.get_canonical()
+            pointee = t.get_pointee() if t.kind in (ci.TypeKind.POINTER, ci.TypeKind.LVALUEREFERENCE) else None
+            if pointee is not None and pointee.kind in (ci.TypeKind.FUNCTIONPROTO, ci.TypeKind.FUNCTIONNOPROTO):
+                sig["callbacks"].append(name)
+            elif t.kind == ci.TypeKind.RECORD and t.spelling.startswith("std::") and "function<" in t.spelling:
+                sig["callbacks"].append(name)
+            elif pointee is not None and not pointee.is_const_qualified():
+                sig["out_params"].append(name)
+            if t.kind == ci.TypeKind.POINTER and pointee is not None and pointee.kind != ci.TypeKind.FUNCTIONPROTO:
+                prev_ptr = name
+            elif prev_ptr and t.kind.name in _INT_KINDS and _SIZE_NAME.match(a.spelling or ""):
+                sig["buffers"].append((prev_ptr, name))
+                prev_ptr = None
+    except Exception:  # noqa: BLE001 - a libclang binding gap must not break change detection
+        pass
+    return sig
+
+
 class _FileSymbols:
     """Symbols declared/defined in one file of one parse, with comment-free token signatures."""
 
@@ -246,6 +292,7 @@ class _FileSymbols:
                     exclude.append((ch.extent.start.offset, ch.extent.end.offset))
         tokens = self._tokens(c, exclude)
         calls: list[tuple[str, str, str, str, int, int]] = []
+        call_sigs: dict[str, dict[str, Any]] = {}
         is_inline = False
         noexcept = ""
         if k in FUNC_KINDS:
@@ -262,7 +309,7 @@ class _FileSymbols:
             except Exception:
                 noexcept = ""
             if body is not None:
-                calls = self._calls(body)
+                calls, call_sigs = self._calls(body)
         usr = c.get_usr()
         info = SymInfo(
             usr=usr, name=qualified_name(c) if k != K.MACRO_DEFINITION else c.spelling,
@@ -271,7 +318,7 @@ class _FileSymbols:
             is_template=k in (K.FUNCTION_TEMPLATE, K.CLASS_TEMPLATE, K.CLASS_TEMPLATE_PARTIAL_SPECIALIZATION),
             is_virtual=k in (K.CXX_METHOD, K.DESTRUCTOR) and bool(c.is_virtual_method()),
             is_inline=is_inline, is_def=bool(c.is_definition()) or k == K.MACRO_DEFINITION, noexcept=noexcept,
-            calls=calls,
+            calls=calls, call_sigs=call_sigs,
         )
         prev = self.syms.get(usr)
         if prev is None or (info.is_def and not prev.is_def):
@@ -281,11 +328,12 @@ class _FileSymbols:
             prev.decl_tokens = prev.decl_tokens or info.decl_tokens
         self.extents.append((info.start, info.end))
 
-    def _calls(self, body: ci.Cursor) -> list[tuple[str, str, str, str, int, int]]:
+    def _calls(self, body: ci.Cursor) -> tuple[list[tuple[str, str, str, str, int, int]], dict[str, dict[str, Any]]]:
         out = []
-        stack = [body]
+        sigs: dict[str, dict[str, Any]] = {}
+        stack: list[tuple[ci.Cursor, ci.Cursor | None]] = [(body, None)]  # (cursor, nearest non-transparent parent)
         while stack:
-            cur = stack.pop()
+            cur, parent = stack.pop()
             if cur.kind == K.CALL_EXPR:
                 ref = cur.referenced
                 ctor = self._factory_ctor(cur, ref)
@@ -294,12 +342,20 @@ class _FileSymbols:
                 elif ref is not None and ref.kind in FUNC_KINDS and ref.location.file is not None and ref.get_usr():
                     out.append((ref.get_usr(), qualified_name(ref), symbol_kind(ref), ref.location.file.name,
                                 ref.location.line, cur.location.line))
+                    sig = sigs.get(ref.get_usr())
+                    if sig is None:
+                        sig = sigs[ref.get_usr()] = callee_sig(ref)
+                    if sig.get("result") and parent is not None and (
+                            parent.kind == K.COMPOUND_STMT or (parent.kind == K.CSTYLE_CAST_EXPR
+                                                              and parent.type.kind == ci.TypeKind.VOID)):
+                        sig["discarded"].append(cur.location.line)
             elif cur.kind == K.CXX_NEW_EXPR:
                 ctor = self._ctor_of(cur.type.get_pointee(), cur.location.line)
                 if ctor is not None:
                     out.append(ctor)
-            stack.extend(cur.get_children())
-        return out
+            nxt = parent if cur.kind in TRANSPARENT_EXPR else cur
+            stack.extend((ch, nxt) for ch in cur.get_children())
+        return out, sigs
 
     _FACTORIES = ("make_unique", "make_shared", "allocate_shared", "construct_at", "emplace", "emplace_back",
                   "emplace_front")
