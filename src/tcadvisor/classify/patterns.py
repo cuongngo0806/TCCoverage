@@ -181,8 +181,8 @@ def detect(repo: Path, rev: str | None, changes: list, roots: dict[str, SymbolRe
                 hits = _git_grep(repo, rev, ["-F", "-e", text], limit=40)
                 for f, line, _t in hits:
                     ref = files.function_at(f, line)
-                    if ref is None or _same(ref, root):
-                        continue
+                    if ref is None or _same(ref, root) or _short(ref.qualified_name) in root_names:
+                        continue  # changed in this commit too (moved code): reviewed with the change
                     if any(_same(ref, c.evidence[0]) for c in found if c.pattern == "same_code_elsewhere"):
                         continue
                     found.append(_case(ref, ch.node_id, "same_code_elsewhere",

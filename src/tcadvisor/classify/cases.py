@@ -39,7 +39,10 @@ LOW_SUBS = {"header_change", "inline_change", "logging", "test_code"}
 
 # lesson-pattern cases that only ask to confirm something already present (spec 006)
 PATTERN_LOW_SUBS = {"sibling_source_guarded", "sibling_source_more", "data_path_forwarder",
-                    "data_path_emitter_checked", "new_early_exit"}
+                    "data_path_emitter_checked", "new_early_exit",
+                    # US4 heuristics: listed after the substantive cases of the same distance
+                    "symmetric_counterpart", "same_code_elsewhere", "new_enum_value", "return_meaning",
+                    "shared_state", "config_reader"}
 SEVERITY = {"thread_safety": 3, "ownership_lifetime": 3, "exception_safety": 3, "abi_layout": 2, "logic": 2,
             "build_config": 1}
 # For *impacted* symbols, a changed signature is checked by the compiler at every call site.
