@@ -196,9 +196,15 @@ _INT_KINDS = {"BOOL", "CHAR_U", "UCHAR", "CHAR16", "CHAR32", "USHORT", "UINT", "
 
 def callee_sig(ref: ci.Cursor) -> dict[str, Any]:
     """Facts a reviewer can test at a call site, read from the callee's *declaration* only (spec 005)."""
-    sig: dict[str, Any] = {"result": "", "result_type": "", "may_throw": False, "out_params": [],
-                           "callbacks": [], "buffers": [], "discarded": []}
+    sig: dict[str, Any] = {"role": "function", "result": "", "result_type": "", "may_throw": False,
+                           "out_params": [], "callbacks": [], "buffers": [], "discarded": []}
     try:
+        if ref.kind in (K.CONSTRUCTOR, K.DESTRUCTOR, K.CONVERSION_FUNCTION):
+            sig["role"] = "special"
+        elif re.match(r"operator(?!\w)", ref.spelling):
+            sig["role"] = "operator"
+        elif ref.kind == K.CXX_METHOD:
+            sig["role"] = "const_method" if ref.is_const_method() else "method"
         rt = ref.result_type
         if rt.kind != ci.TypeKind.INVALID and ref.kind != K.CONSTRUCTOR:
             canon = rt.get_canonical()

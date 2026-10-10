@@ -448,7 +448,9 @@ def _add_changed_calls(repo: Path, changes: list, roots: dict[str, SymbolRef], g
             graph.dependents[ch.node_id].append(Dep(usr, "called_by_change", ch.rel_path, call_line))
             n += 1
         if external:
-            risks[ch.node_id] = [external_risk(ch.name, list(external.values()), contracts)]
+            risk = external_risk(ch.name, list(external.values()), contracts)
+            if risk is not None:
+                risks[ch.node_id] = [risk]
             shown = [f"`{c.name}` ({c.header}) at {c.call_file}:{c.call_line}" for c in list(external.values())[:10]]
             more = f" and {len(external) - len(shown)} more" if len(external) > len(shown) else ""
             flags.append(UncertaintyFlag(

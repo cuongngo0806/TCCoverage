@@ -11,5 +11,5 @@
 - [x] T506 [US2] Integration test for contract hints; README + tc-coverage skill docs
 
 ## Phase 3: Evaluate
-- [ ] T507 Benchmark (spec 004 pairs) before/after; record in `specs/005-external-api-cases/results.md`
-- [ ] T508 Full test suite, review diff, commit
+- [x] T507 Benchmark (spec 004 pairs) before/after; record in `specs/005-external-api-cases/results.md`
+- [x] T508 Full test suite, review diff, commit

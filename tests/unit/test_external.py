@@ -43,3 +43,15 @@ def test_contracts_file_validation(tmp_path):
         load_contracts(tmp_path, bad)
     with pytest.raises(UsageError):
         load_contracts(tmp_path, tmp_path / "missing.json")
+
+
+def test_operators_constructors_and_queries_are_not_boundary_cases():
+    assert signals(_call("lib::Addr::operator==", role="operator", result="status", result_type="bool"), "f") == []
+    assert signals(_call("lib::Addr::Addr", role="special", may_throw=True), "f") == []
+    q = _call("lib::Addr::port", role="const_method", result="status", result_type="int", may_throw=True)
+    assert signals(q, "f") == []
+    assert external_risk("f", [q]) is None
+    assert external_risk("f", [q], {"lib::Addr::port": ["0 when unbound"]}).hints == [
+        "Contract: lib::Addr::port: 0 when unbound"]
+    p = _call("lib::Tree::get_child", role="const_method", result="pointer", result_type="Node *")
+    assert [g for g, _ in signals(p, "f")] == ["ownership_lifetime"]

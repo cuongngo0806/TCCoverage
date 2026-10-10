@@ -48,7 +48,10 @@ of `vendor_send` lists that corner case, labelled as coming from the contract fi
 - **FR-503** One `TestCaseCandidate` per calling function with `sub_reason: external_call`, the most severe risk
   group among the derived signals (`exception_safety` / `ownership_lifetime` / `thread_safety` / `logic`),
   evidence = the calling function, activation condition naming each callee, its header and call line, and one
-  hint per derived signal (at most 8). Emitted at hop 0 only.
+  hint per derived signal (at most 10; may-throw callees merged into one hint). Emitted at hop 0 only, ordered
+  after the other hop-0 cases. Operators, constructors/destructors/conversions and `const` queries contribute
+  no signal of their own (a `const` query only for a pointer return or a callback); a call with nothing to
+  test yields no case (the FR-505 flag remains).
 - **FR-504** Optional `.tcadvisor/external-contracts.json` in the analysed repo (or `--contracts FILE`):
   `{"<qualified name or fnmatch pattern>": ["corner case", ...]}`. Matching entries are added to the hints,
   prefixed `Contract:`. An unreadable file is a usage error (exit 2).

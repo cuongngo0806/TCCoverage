@@ -42,10 +42,25 @@ def is_standard(qualified_name: str, decl_file: str) -> bool:
     return p.name in C_STD_HEADERS and p.parent.name == "include"
 
 
-def signals(call: ExternalCall, caller: str) -> list[tuple[str, str]]:
-    """(risk group, corner case) pairs derived from the callee declaration and the call site."""
+def signals(call: ExternalCall, caller: str, throws: bool = True) -> list[tuple[str, str]]:
+    """(risk group, corner case) pairs derived from the callee declaration and the call site. ``throws=False``
+    leaves out the may-throw hint (external_risk merges those of all callees into one)."""
     s, api = call.sig, f"`{call.name}`"
     out: list[tuple[str, str]] = []
+    role = s.get("role", "function")
+    if role in ("operator", "special"):  # operators, constructors, conversions: no testable contract of their own
+        return out
+    if role == "const_method":  # a query: only a returned pointer or a callback is worth a case
+        s = {**s, "result": "pointer" if s.get("result") == "pointer" else "", "may_throw": False,
+             "out_params": [], "buffers": []}
+        rt = s.get("result_type", "")
+        if s["result"] == "pointer":
+            out.append(("ownership_lifetime", f"{api} returns `{rt}`: check `{caller}` handles nullptr and does not "
+                                              "keep the pointer beyond the owner's lifetime"))
+        for p in s.get("callbacks", [])[:2]:
+            out.append(("thread_safety", f"{api} takes callback `{p}`: check it may run later, on another thread "
+                                         f"or re-entrantly, and that state it captures from `{caller}` is still alive"))
+        return out
     rt = s.get("result_type", "")
     if s.get("result") == "pointer":
         out.append(("ownership_lifetime", f"{api} returns `{rt}`: make it return nullptr and check `{caller}` does "
@@ -57,9 +72,8 @@ def signals(call: ExternalCall, caller: str) -> list[tuple[str, str]]:
         else:
             out.append(("logic", f"make {api} return its failure / sentinel `{rt}` value and check the error path "
                                  f"of `{caller}`"))
-    if s.get("may_throw"):
-        out.append(("exception_safety", f"{api} is not noexcept: make it throw and check `{caller}` leaves no "
-                                        "partial state, held lock or leaked resource"))
+    if s.get("may_throw") and throws:
+        out.append(("exception_safety", _throw_hint([call.name], caller)))
     for p in s.get("out_params", [])[:2]:
         out.append(("ownership_lifetime", f"{api} writes through `{p}`: check the value `{caller}` uses when the "
                                           "call fails or returns early (out-parameter left unset)"))
@@ -68,29 +82,53 @@ def signals(call: ExternalCall, caller: str) -> list[tuple[str, str]]:
                                      f"re-entrantly, and that state it captures from `{caller}` is still alive"))
     for buf, n in s.get("buffers", [])[:2]:
         out.append(("logic", f"{api}(`{buf}`, `{n}`): boundary lengths 0, 1, exact capacity and capacity + 1"))
-    if not out:
+    if not out and not s.get("may_throw"):
         out.append(("logic", f"{api} has no checkable contract in its declaration: replace it with a stub that "
                              f"fails, blocks or returns unusual data and check `{caller}`"))
     return out
 
 
 def external_risk(caller: str, calls: list[ExternalCall],
-                  contracts: dict[str, list[str]] | None = None) -> RiskClassification:
-    """One classification per calling function: the most severe group, one hint per signal."""
+                  contracts: dict[str, list[str]] | None = None) -> RiskClassification | None:
+    """One classification per calling function: the most severe group; contract hints first, then one merged
+    may-throw hint, then one hint per other signal. None when no call has anything to test (only operators,
+    constructors or queries without a contract)."""
     groups: set[str] = set()
-    hints: list[str] = []
+    known: list[str] = []
+    throwers: list[str] = []
+    derived: list[str] = []
+    used: list[ExternalCall] = []
     for c in calls:
-        for h in contract_hints(c.name, contracts or {}):
-            hints.append(f"Contract: {c.name}: {h}")
-        for grp, h in signals(c, caller):
+        own = [f"Contract: {c.name}: {h}" for h in contract_hints(c.name, contracts or {})]
+        sig = signals(c, caller, throws=False)
+        throws = c.sig.get("may_throw") and c.sig.get("role", "function") in ("function", "method")
+        if not (own or sig or throws):
+            continue
+        used.append(c)
+        known.extend(own)
+        groups.update(["logic"] if own else [])
+        if throws:
+            throwers.append(c.name)
+            groups.add("exception_safety")
+        for grp, h in sig:
             groups.add(grp)
-            hints.append(h)
+            derived.append(h)
+    if not used:
+        return None
+    hints = known + ([_throw_hint(throwers, caller)] if throwers else []) + derived
     group = next(g for g in GROUP_ORDER if g in groups)
-    names = ", ".join(f"`{c.name}` ({c.header}, {c.call_file}:{c.call_line})" for c in calls[:6])
-    more = f" and {len(calls) - 6} more" if len(calls) > 6 else ""
+    names = ", ".join(f"`{c.name}` ({c.header}, {c.call_file}:{c.call_line})" for c in used[:6])
+    more = f" and {len(used) - 6} more" if len(used) > 6 else ""
     return RiskClassification(group, "external_call",
                               f"`{caller}` now calls third-party code outside the repository: {names}{more}",
                               list(dict.fromkeys(hints))[:MAX_HINTS])
+
+
+def _throw_hint(names: list[str], caller: str) -> str:
+    shown = ", ".join(f"`{n}`" for n in names[:4]) + (f" and {len(names) - 4} more" if len(names) > 4 else "")
+    verb = "is" if len(names) == 1 else "are"
+    return (f"{shown} {verb} not noexcept: make each throw in turn and check `{caller}` leaves no partial state, "
+            "held lock or leaked resource")
 
 
 def contract_hints(name: str, contracts: dict[str, list[str]]) -> list[str]:

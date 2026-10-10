@@ -172,7 +172,7 @@ def test_third_party_call_yields_a_boundary_case_from_its_declaration(project):
     assert "the `int` result of `vendor_send` is ignored" in hints
     assert "`vendor_send`(`buf`, `len`): boundary lengths" in hints
     assert "`vendor::open_channel` returns `char *`: make it return nullptr" in hints
-    assert "`vendor::open_channel` is not noexcept" in hints  # C++ linkage, no noexcept
+    assert "`vendor::open_channel` is not noexcept: make each throw" in hints  # C++ linkage, no noexcept
     assert "`vendor_send` is not noexcept" not in hints  # extern "C"
     # not propagated: callers of dispatch get no external_call case
     assert all(c["hop_distance"] == 0 for c in r["test_case_candidates"] if c["sub_reason"] == "external_call")

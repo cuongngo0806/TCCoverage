@@ -127,8 +127,8 @@ def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskCla
     # specs/004-ranking): closest to the change first; substantive risks before recompile-only / log / test
     # ones; bigger changes first (log2 of changed lines of the root, or of all roots reaching an impacted
     # symbol); then how bug-prone the file was (fix commits in the last 12 months); then risk-group severity
-    # and fan-in. Deterministic, no model. The P1/P2/P3 label keeps the
-    # FR-004a meaning (hop distance x severity); the list order adds change size.
+    # and fan-in; third-party API boundary cases (spec 005) last among hop-0 cases. Deterministic, no model.
+    # The P1/P2/P3 label keeps the FR-004a meaning (hop distance x severity); the list order adds change size.
     def key(c: TestCaseCandidate):
         if c.hop_distance == 0:
             lines, fan_in = weight.get(c.node_id, 0), 1
@@ -139,7 +139,7 @@ def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskCla
         ev = c.evidence[0]
         hist = history.get(ev.file_path, 0) if isinstance(ev, SymbolRef) else 0
         c.bug_history = hist
-        return (c.hop_distance, low, -int(math.log2(1 + lines)), -int(math.log2(1 + hist)), -SEVERITY[c.risk_group],
+        return (c.hop_distance, c.sub_reason == "external_call", low, -int(math.log2(1 + lines)), -int(math.log2(1 + hist)), -SEVERITY[c.risk_group],
                 -fan_in,
                 RISK_GROUPS.index(c.risk_group), ev.file_path if isinstance(ev, SymbolRef) else "",
                 ev.line if isinstance(ev, SymbolRef) else 0, c.description)

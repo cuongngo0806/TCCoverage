@@ -19,5 +19,7 @@
 - "Result discarded": the nearest non-transparent parent of the `CALL_EXPR` is a compound statement.
 - Severity order for the case's group: exception_safety > ownership_lifetime > thread_safety > logic.
 - JSON (not YAML) for the contract file: no new dependency.
-- Ranking: the case sorts like any hop-0 case (key unchanged). If the benchmark drops, the case is ranked as
-  low (`LOW_SUBS`) instead.
+- Ranking: first benchmark run (case sorted like any hop-0 case) lowered vsomeip MRR (dev 0.163 → 0.153);
+  offline re-ordering of those reports showed that closing the hop-0 block with the boundary cases is
+  neutral, so the sort key gets `sub_reason == "external_call"` right after the hop distance. The P1/P2/P3
+  label is unchanged. See `results.md`.
