@@ -210,7 +210,8 @@ def analyse(a, pair: dict, info: dict) -> dict:
     cmd = [sys.executable, "-m", "tcadvisor", "analyze", "--repo", info["wt"], "--build-dir", info["build"],
            "--commit-range", f"{pair['intro']}^..{pair['intro']}", "--output-dir", str(out), "--cache-dir",
            str(a.run_dir / f"cache-{pair['intro']}"), "--graph", a.graph, "--no-run-cache",
-           "--allow-stale-compile-db", "--max-hop-depth", str(a.max_hop_depth), "--jobs", "1", "-q"]
+           "--allow-stale-compile-db", "--max-hop-depth", str(a.max_hop_depth), "--jobs", "1", "-q",
+           *shlex.split(a.extra_args)]
     res = subprocess.run(cmd, capture_output=True, text=True, env=ENV)
     row["seconds"] = round(time.monotonic() - t0, 1)
     if res.returncode != 0:
@@ -283,6 +284,7 @@ def main() -> int:
     ap.add_argument("--rescore", action="store_true", help="recompute metrics from the last run's reports")
     ap.add_argument("--retruth", action="store_true", help="with --rescore: recompute the ground truth")
     ap.add_argument("--tag", default="current", help="results go to WORK/runs/TAG (prepared worktrees are shared)")
+    ap.add_argument("--extra-args", default="", help="extra `tcadvisor analyze` arguments, e.g. --no-patterns")
     a = ap.parse_args()
     a.work = a.work.resolve()
     a.work.mkdir(parents=True, exist_ok=True)
