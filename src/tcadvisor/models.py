@@ -132,6 +132,20 @@ class ChangedSymbol:
 
 
 @dataclass
+class PathStep:
+    """One function on a data path (spec 006 US1) or a trigger-source chain (US2)."""
+    symbol: SymbolRef
+    role: str  # producer|forwarder|emitter|source|via|target
+    line: int
+    checked: bool = False  # a condition reads the value here before it moves on
+    detail: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"symbol": self.symbol.to_dict(), "role": self.role, "line": max(1, self.line),
+                "checked": self.checked, "detail": self.detail}
+
+
+@dataclass
 class TestCaseCandidate:
     id: str
     description: str
@@ -145,6 +159,12 @@ class TestCaseCandidate:
     hop_distance: int = 0
     hints: list[str] = field(default_factory=list)
     bug_history: int = 0  # fix commits touching the evidence file in the last 12 months (ranking signal)
+    key: str = ""  # stable identity across runs (spec 006 FR-612), independent of list position
+    code_fingerprint: str = ""  # hash of the evidence function text: carried-over results need re-check if it moves
+    pattern: str | None = None  # lesson pattern behind the case (spec 006)
+    path: list[PathStep] | None = None
+    lessons: list[str] = field(default_factory=list)
+    test_result: dict[str, Any] | None = None  # tester's record (distinct from the AI `verification`)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -160,6 +180,12 @@ class TestCaseCandidate:
             "corner_cases": self.hints,
             "bug_history": self.bug_history,
             "related_cmake_targets": self.related_cmake_targets,
+            "key": self.key,
+            "code_fingerprint": self.code_fingerprint,
+            "pattern": self.pattern,
+            "path": [s.to_dict() for s in self.path] if self.path else None,
+            "lessons": self.lessons,
+            "test_result": self.test_result,
         }
 
 

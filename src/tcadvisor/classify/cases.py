@@ -1,7 +1,9 @@
 """Test-case candidates with deterministic priority (FR-004, FR-004a) and stable ids."""
 from __future__ import annotations
 
+import hashlib
 import math
+from pathlib import Path
 
 from tcadvisor.models import HIGH_SEVERITY, RISK_GROUPS, ImpactEdge, ImpactNode, RiskClassification, \
     SymbolRef, TestCaseCandidate
@@ -153,3 +155,44 @@ def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskCla
 def _root_label(nodes: dict[str, ImpactNode], rid: str) -> str:
     n = nodes.get(rid)
     return f"`{n.symbol.qualified_name}`" if n else f"`{rid}`"
+
+
+def assign_keys(cases: list[TestCaseCandidate], nodes: dict[str, ImpactNode], repo: Path) -> None:
+    """Stable identity + code fingerprint per case (spec 006 FR-612, research R6).
+
+    ``key`` hashes what the case is about (evidence symbol, file, risk group, reason, the changed symbols that
+    reach it, the pattern counterpart) — not its list position, so test results recorded on a case survive
+    re-ranking. ``code_fingerprint`` hashes the comment-free text of the evidence function: when it differs
+    from the one stored with a carried-over result, that result needs a re-check.
+    """
+    from tcadvisor.ingest.changes import strip_comments, textual_functions
+    files: dict[str, tuple[list[str], list[tuple[str, int, int]]]] = {}
+
+    def text_of(ref: SymbolRef) -> str:
+        if ref.file_path not in files:
+            try:
+                lines = (repo / ref.file_path).read_text(encoding="utf-8", errors="replace").splitlines()
+            except OSError:
+                lines = []
+            files[ref.file_path] = (lines, textual_functions(lines) if ref.kind != "file" else [])
+        lines, fns = files[ref.file_path]
+        span = [f for f in fns if f[1] <= ref.line <= f[2]]
+        if ref.kind != "file" and span:
+            _n, a, b = min(span, key=lambda f: f[2] - f[1])
+            lines = lines[a - 1:b]
+        return "".join(strip_comments("\n".join(lines)).split())
+
+    seen: dict[str, int] = {}
+    for c in cases:
+        ev = next(e for e in c.evidence if isinstance(e, SymbolRef))
+        node = nodes.get(c.node_id)
+        roots = sorted(nodes[r].symbol.qualified_name if r in nodes else r
+                       for r in (node.root_ids if node is not None and c.hop_distance > 0 else {c.node_id}))
+        counterpart = "|".join(f"{s.role}:{s.symbol.qualified_name}" for s in (c.path or []))
+        raw = "\x1f".join([ev.qualified_name, ev.file_path, c.risk_group, c.sub_reason or "", ",".join(roots),
+                            c.pattern or "", counterpart])
+        key = hashlib.sha1(raw.encode()).hexdigest()[:12]
+        n = seen.get(key, 0) + 1
+        seen[key] = n
+        c.key = key if n == 1 else f"{key}-{n}"
+        c.code_fingerprint = hashlib.sha1(text_of(ev).encode()).hexdigest()[:12]

@@ -41,6 +41,11 @@ provided. Providing more than one, or none, is a usage error (exit code 2).
 | `--max-hop-depth <int>` | `2` | Indirect-impact traversal depth (FR-002). |
 | `--split-threshold <int>` | `50` | File-count threshold above which the diff is split per CMake target (FR-010a). |
 | `--contracts <file>` | `<repo>/.tcadvisor/external-contracts.json` if present | Third-party API contracts: `{"<name or pattern>": ["corner case", ...]}` added to `external_call` cases (spec 005). Unreadable → exit 2. |
+| `--lessons <file>` | `<repo>/.tcadvisor/lessons.json` if present | Extra emitting points (`sinks`) and team lessons (spec 006). Invalid → exit 2. |
+| `--previous-report <report.html>` | none | Filled report of an earlier run; test results + evidence carried over by case `key`, `needs_recheck` when the code behind a case changed (spec 006). Unreadable → exit 2. |
+| `--flow-max-tus <int>` | `60` | Max translation units parsed for data-path tracing (spec 006). |
+| `--no-patterns` | off | Disable data paths, trigger sources and lesson patterns (spec 006). |
+| `--attachment-warn-mb <int>` | `50` | Report warns when embedded evidence exceeds this size (spec 006). |
 | `--cache-dir <path>` | `<repo>/../.tcadvisor-cache/<module-name>` (outside the analyzed repo's tracked tree) | Location of the SQLite cache (data-model.md `CachedDependencyIndex`). |
 | `--llm` / `--no-llm` | `--no-llm` | Enables/disables the optional LLM enrichment step (FR-011/FR-012). Disabled by default (Principle VI). |
 | `--llm-endpoint <url>` | `http://localhost:11434` (local Ollama default) | Only used when `--llm` is set. Any non-localhost endpoint requires `--llm-external-approved` to also be set (Principle VI enforcement). |

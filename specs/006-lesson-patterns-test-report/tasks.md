@@ -19,17 +19,17 @@ description: "Tasks for spec 006 — lesson-learned impact patterns and a fillab
 
 ## Phase 1: Setup
 
-- [ ] T601 Add `--previous-report`, `--lessons`, `--flow-max-tus` (default 60), `--no-patterns`, `--attachment-warn-mb` (default 50) to `Options` in `src/tcadvisor/pipeline.py` and `analyze` in `src/tcadvisor/cli/main.py`; add them to `specs/001-change-impact-test-advisor/contracts/cli-contract.md` (per `contracts/cli.md`)
-- [ ] T602 [P] Add `.tcadvisor/lessons.json` loader `load_lessons(repo, explicit) -> LessonsConfig` (validate against `contracts/lessons-config.schema.json` by hand, no jsonschema at runtime; invalid → `UsageError`, exit 2) in `src/tcadvisor/classify/lessons.py`; include `lessons` content in the run-cache key in `src/tcadvisor/pipeline.py`
+- [x] T601 Add `--previous-report`, `--lessons`, `--flow-max-tus` (default 60), `--no-patterns`, `--attachment-warn-mb` (default 50) to `Options` in `src/tcadvisor/pipeline.py` and `analyze` in `src/tcadvisor/cli/main.py`; add them to `specs/001-change-impact-test-advisor/contracts/cli-contract.md` (per `contracts/cli.md`)
+- [x] T602 [P] Add `.tcadvisor/lessons.json` loader `load_lessons(repo, explicit) -> LessonsConfig` (validate against `contracts/lessons-config.schema.json` by hand, no jsonschema at runtime; invalid → `UsageError`, exit 2) in `src/tcadvisor/classify/lessons.py`; include `lessons` content in the run-cache key in `src/tcadvisor/pipeline.py`
 
 ---
 
 ## Phase 2: Foundational (blocks every story)
 
-- [ ] T603 Extend `TestCaseCandidate` in `src/tcadvisor/models.py` with `key: str`, `code_fingerprint: str`, `pattern: str | None`, `path: list[PathStep] | None`, `lessons: list[str]`, `test_result: dict | None` and add `PathStep` dataclass (`symbol`, `role` ∈ `producer|forwarder|emitter|source|via|target`, `line`, `checked`, `detail`); emit them in `to_dict()`
-- [ ] T604 Compute stable `key = sha1(evidence qualified name | evidence file | risk_group | sub_reason | sorted root qualified names | pattern counterpart)[:12]` and `code_fingerprint = sha1(comment-stripped text of the evidence function)[:12]` for every case after ranking in `src/tcadvisor/classify/cases.py` (helper reads source lines via `textual_functions`); keys must be unique (suffix `-2`, `-3` on collision)
-- [ ] T605 [P] Extend `specs/001-change-impact-test-advisor/contracts/output-schema.json` with the new case fields and the optional top-level `test_results` block (`$ref` to `specs/006-lesson-patterns-test-report/contracts/report-results.schema.json` content inlined)
-- [ ] T606 [P] Unit tests: key stable across re-ordering and unrelated edits, fingerprint changes when the evidence function body changes, in `tests/unit/test_case_keys.py`
+- [x] T603 Extend `TestCaseCandidate` in `src/tcadvisor/models.py` with `key: str`, `code_fingerprint: str`, `pattern: str | None`, `path: list[PathStep] | None`, `lessons: list[str]`, `test_result: dict | None` and add `PathStep` dataclass (`symbol`, `role` ∈ `producer|forwarder|emitter|source|via|target`, `line`, `checked`, `detail`); emit them in `to_dict()`
+- [x] T604 Compute stable `key = sha1(evidence qualified name | evidence file | risk_group | sub_reason | sorted root qualified names | pattern counterpart)[:12]` and `code_fingerprint = sha1(comment-stripped text of the evidence function)[:12]` for every case after ranking in `src/tcadvisor/classify/cases.py` (helper reads source lines via `textual_functions`); keys must be unique (suffix `-2`, `-3` on collision)
+- [x] T605 [P] Extend `specs/001-change-impact-test-advisor/contracts/output-schema.json` with the new case fields and the optional top-level `test_results` block (`$ref` to `specs/006-lesson-patterns-test-report/contracts/report-results.schema.json` content inlined)
+- [x] T606 [P] Unit tests: key stable across re-ordering and unrelated edits, fingerprint changes when the evidence function body changes, in `tests/unit/test_case_keys.py`
 
 **Checkpoint**: every case has a stable key; schema test (`tests/integration/test_schema.py`) passes.
 

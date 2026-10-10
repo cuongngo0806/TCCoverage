@@ -37,6 +37,15 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--split-threshold", type=int, default=50)
     a.add_argument("--contracts", type=Path, help="third-party API contracts JSON (default: "
                    "<repo>/.tcadvisor/external-contracts.json when present)")
+    a.add_argument("--lessons", type=Path, help="emitting points + team lessons JSON (default: "
+                   "<repo>/.tcadvisor/lessons.json when present)")
+    a.add_argument("--previous-report", type=Path, help="filled report.html of an earlier run: test results "
+                   "and evidence are carried over by case key")
+    a.add_argument("--flow-max-tus", type=int, default=60, help="max TUs parsed for data-path tracing")
+    a.add_argument("--no-patterns", dest="patterns", action="store_false",
+                   help="no data paths, trigger sources or lesson patterns")
+    a.add_argument("--attachment-warn-mb", type=int, default=50,
+                   help="report warns when embedded evidence exceeds this size")
     a.add_argument("--cache-dir", type=Path)
     a.add_argument("--output-dir", type=Path, default=Path("tcadvisor-report"))
     a.add_argument("--format", choices=["md", "json", "html", "both", "all"], default="all",
@@ -119,7 +128,8 @@ def _analyze(ns: argparse.Namespace) -> int:
         llm=ns.llm, llm_endpoint=ns.llm_endpoint, llm_model=ns.llm_model, allow_stale=ns.allow_stale_compile_db,
         use_run_cache=not ns.no_run_cache, progress=say, graph=ns.graph, graph_bin=ns.graph_bin,
         index=ns.index, jobs=ns.jobs, fallback_max_tus=ns.fallback_max_tus, history=ns.history,
-        contracts=ns.contracts)
+        contracts=ns.contracts, lessons=ns.lessons, previous_report=ns.previous_report,
+        flow_max_tus=ns.flow_max_tus, patterns=ns.patterns, attachment_warn_mb=ns.attachment_warn_mb)
     report = run(opts)
     files = write_outputs(report, ns.output_dir, ns.format)
     if ns.print == "json":

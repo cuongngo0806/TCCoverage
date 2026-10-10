@@ -15,7 +15,7 @@ from typing import Any, Callable
 
 from tcadvisor import __version__
 from tcadvisor.cache.store import CacheStore
-from tcadvisor.classify.cases import build_cases
+from tcadvisor.classify.cases import assign_keys, build_cases
 from tcadvisor.classify.rules import classify
 from tcadvisor.evidence import uncertainty
 from tcadvisor.evidence.gate import gate
@@ -27,6 +27,7 @@ from tcadvisor.ingest import git as G
 from tcadvisor.ingest.changes import ChangeSet, explicit_changes, detect_changes, is_test_path
 from tcadvisor.ingest.symbols import resolve_symbols
 from tcadvisor.classify.external import ExternalCall, external_risk, is_standard, load_contracts
+from tcadvisor.classify.lessons import load_lessons
 from tcadvisor.models import ChangeInput, ImpactNode, PrerequisiteError, RiskClassification, SymbolRef, UncertaintyFlag, \
     UsageError
 
@@ -55,6 +56,11 @@ class Options:
     jobs: int | None = None
     graph_bin: str | None = None
     contracts: Path | None = None  # spec 005: third-party API contracts (default <repo>/.tcadvisor/...)
+    lessons: Path | None = None  # spec 006: sinks + team lessons (default <repo>/.tcadvisor/lessons.json)
+    previous_report: Path | None = None  # spec 006: filled report.html whose test results are carried over
+    flow_max_tus: int = 60  # spec 006: TUs parsed for data-path facts
+    patterns: bool = True  # spec 006: data paths, trigger sources, lesson patterns
+    attachment_warn_mb: int = 50
     progress: Callable[[str], None] | None = None
 
 
@@ -155,12 +161,14 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         + "".join(sorted(f"{s['file']}:{s['line']}:{u}" for u, s in facts.symbols.items())).encode()).hexdigest()
 
     contracts = load_contracts(repo, opts.contracts)
+    lessons = load_lessons(repo, opts.lessons)
     run_key = hashlib.sha256(json.dumps({
         "v": __version__, "code": _code_digest(), "mode": ci_.mode, "old": ctx.old_rev, "new": ctx.new_rev, "wt": ctx.fingerprint,
         "symbols": opts.symbols, "hop": opts.max_hop_depth, "split": opts.split_threshold,
         "targets": sorted(opts.targets or []), "cdb": cdb.digest, "index": index_state,
         "llm": opts.llm, "llm_model": opts.llm_model if opts.llm else None,
-        "graph": provider.name if provider else "clang", "contracts": contracts}).encode()).hexdigest()
+        "graph": provider.name if provider else "clang", "contracts": contracts,
+        "lessons": lessons.to_key(), "patterns": opts.patterns, "flow_tus": opts.flow_max_tus}).encode()).hexdigest()
     if opts.use_run_cache:
         cached = cache.get_run(run_key)
         if cached is not None:
@@ -335,6 +343,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     known = ({s["name"] for s in facts.symbols.values()} | {r.qualified_name for r in roots.values()}
              | {r.qualified_name for r in graph.refs.values()})
     cases = gate(cases, repo, known)
+    assign_keys(cases, nodes, repo)
 
     # -- affected targets (FR-005) ---------------------------------------------------------------
     direct_targets = sorted({t for n in nodes.values() for t in n.targets})
