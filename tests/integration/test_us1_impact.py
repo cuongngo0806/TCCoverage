@@ -134,3 +134,23 @@ def test_make_unique_call_site_impacts_the_constructor(project):
     ctor = [n for n in r["impact_nodes"] if n["symbol"]["qualified_name"] == "Builder::Builder"]
     assert ctor and ctor[0]["edges"][0]["relation"] == "called_by_change"
     assert ctor[0]["symbol"]["file_path"] == "src/builder.cpp"  # definition, not the header declaration
+
+
+def test_changed_call_into_third_party_code_is_flagged(project):
+    vendor = project.root / "vendor" / "vendorlib"
+    vendor.mkdir(parents=True)
+    (vendor / "api.h").write_text("#pragma once\nint vendor_send(const char* buf, int len);\n")
+    project.edit("CMakeLists.txt", "target_include_directories(DoorLock PUBLIC include)",
+                 f"target_include_directories(DoorLock PUBLIC include {vendor.parent})")
+    project.edit("src/lock.cpp", '#include "door/util.h"', '#include "door/util.h"\n#include "vendorlib/api.h"\n#include <string>')
+    project.commit()
+    project.configure()
+    project.edit("src/lock.cpp", "    return handleResponse(l, code);",
+                 "    std::string s(\"x\");\n    vendor_send(s.c_str(), code);\n    return handleResponse(l, code);")
+    project.commit()
+    r = project.analyze("--commit-range", "HEAD~1..HEAD")
+    flags = [f for f in r["uncertainty_flags"] if "outside the repository" in f["reason"]]
+    assert len(flags) == 1 and "`vendor_send` (vendorlib/api.h)" in flags[0]["reason"]
+    assert flags[0]["category"] == "dynamic_runtime_dependency" and flags[0]["related_symbol"]["file_path"] == "src/lock.cpp"
+    assert "vendor_send" not in {n["symbol"]["qualified_name"] for n in r["impact_nodes"]}
+    assert any("standard-library call(s) on changed lines" in n for n in r["run_notes"])

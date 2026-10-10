@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -124,21 +125,34 @@ def build_overlay(base: Graph | None, facts: IndexFacts, results: ProviderResult
     if base is not None:
         g.file_targets = base.file_targets
     g.refs = {k: v for k, v in results.refs.items() if v.file_path}
-    dropped = len(results.refs) - len(g.refs)
-    if dropped:  # e.g. external/library nodes: no checkable evidence (constitution II)
-        results.notes.append(f"{dropped} provider node(s) without a source file were ignored")
+    # external/library nodes have no checkable evidence (constitution II): they never become cases, but a
+    # dependency they reach is flagged for manual review (constitution IV) instead of being dropped
+    dropped = {k for k in results.refs if k not in g.refs}
+    unknown: dict[str, list[str]] = defaultdict(list)
     seen = set()
     for e in results.edges:
         key = (e.dependent, e.dependency, e.relation)
         if key in seen or e.dependent == e.dependency:
             continue
-        if e.dependent in results.refs and e.dependent not in g.refs:
+        if e.dependent in dropped:
+            if results.refs[e.dependent].qualified_name not in unknown[e.dependency]:
+                unknown[e.dependency].append(results.refs[e.dependent].qualified_name)
             continue
         seen.add(key)
         g.dependents[e.dependency].append(Dep(e.dependent, e.relation, e.file, max(1, e.line)))
         if e.relation == "inherit_override":
             g.override_group[e.dependent].add(e.dependency)
             g.override_group[e.dependency].add(e.dependent)
+    for dep, names in unknown.items():
+        ref = g.symbol_ref(dep)
+        shown = ", ".join(f"`{n}`" for n in names[:10]) + (f" and {len(names) - 10} more" if len(names) > 10 else "")
+        results.flags.append(UncertaintyFlag(
+            "dynamic_runtime_dependency",
+            f"{len(names)} dependent(s) of `{ref.qualified_name if ref else dep}` reported by the graph provider have "
+            f"no source file in the repository ({shown}); they are outside the analysed code — review manually", ref))
+    unattached = len(dropped - {e.dependent for e in results.edges})
+    if unattached:
+        results.notes.append(f"{unattached} provider node(s) without a source file are not on any impact path")
     return g
 
 

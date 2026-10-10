@@ -48,6 +48,19 @@ def test_codegraph_adapter_maps_edges_and_rejects_fake_inheritance(tmp_path, mon
     assert {d.dependent for d in g.dependents["USR_CACHE"]} == {"h", "i", "m"}
 
 
+def test_overlay_flags_provider_nodes_without_source_instead_of_dropping(tmp_path):
+    from tcadvisor.graph.providers.base import ProviderEdge, ProviderResult
+    res = ProviderResult(
+        edges=[ProviderEdge("a", "root", "call", "a.cc", 3), ProviderEdge("ext", "root", "call", "", 0)],
+        refs={"root": SymbolRef("Root::f", "method", "r.cc", 2), "a": SymbolRef("A::g", "method", "a.cc", 1),
+              "ext": SymbolRef("libfoo::cb", "function", "", 1), "lone": SymbolRef("libfoo::x", "function", "", 1)})
+    g = build_overlay(None, IndexFacts(tmp_path), res)
+    assert {d.dependent for d in g.dependents["root"]} == {"a"}
+    assert len(res.flags) == 1 and "`libfoo::cb`" in res.flags[0].reason
+    assert res.flags[0].related_symbol.qualified_name == "Root::f"
+    assert any("1 provider node(s) without a source file are not on any impact path" in n for n in res.notes)
+
+
 def test_gitnexus_cypher_parsing_restores_pipes(tmp_path, monkeypatch):
     monkeypatch.setenv("TCADVISOR_GITNEXUS", "/bin/true")
     p = GitNexusProvider(tmp_path, 2)

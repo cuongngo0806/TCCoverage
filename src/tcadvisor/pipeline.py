@@ -264,9 +264,10 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         flows = pres.flows
     else:
         provider_flags = []
-    _add_changed_calls(repo, changes, roots, graph)
+    external_flags = _add_changed_calls(repo, changes, roots, graph, ctx.notes)
     flags, flag_only = uncertainty.detect(changes, roots, graph, cdb)
     flags.extend(provider_flags)
+    flags.extend(external_flags)
 
     # -- traversal (split per CMake target above the threshold, FR-010a) ---------------------------
     groups: dict[str, list[str]] = {"*": list(roots)}
@@ -393,25 +394,44 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
 
 
 def _add_changed_calls(repo: Path, changes: list, roots: dict[str, SymbolRef], graph: Graph,
-                       per_root: int = 8) -> None:
+                       notes: list[str], per_root: int = 8) -> list[UncertaintyFlag]:
     """Downstream impact: a function called *differently* on a changed line (new call / new arguments) may
     now receive inputs it was never tested with (pilot: RocksDB #14227 changed what CompactionJob handed to
     BlobFileBuilder; the fix landed in BlobFileBuilder). Edges are terminal: the callee's other callers are
-    not affected."""
+    not affected.
+
+    Callees declared outside the repository (third-party libraries) have no body to trace: they are
+    returned as uncertainty flags on the calling root (constitution IV) instead of being dropped.
+    Standard-library calls are only counted in the run notes."""
     from tcadvisor.graph.impact import Dep
+    flags: list[UncertaintyFlag] = []
+    std_calls = 0
     for ch in changes:
         if ch.node_id not in roots:
             continue
         n = 0
+        external: dict[str, str] = {}
         for usr, qn, kind, decl_file, decl_line, call_line in ch.changed_calls():
-            if usr in roots or n >= per_root:
+            if usr in roots:
                 continue
             ref = graph.symbol_ref(usr)
             if ref is None:
-                try:
-                    rel = Path(decl_file).resolve().relative_to(repo).as_posix()
-                except ValueError:
-                    continue  # standard library / third-party code
+                rel = None
+                if decl_file:
+                    try:
+                        rel = Path(decl_file).resolve().relative_to(repo).as_posix()
+                    except ValueError:
+                        pass
+                if rel is None:  # declared outside the repository
+                    if qn.startswith(("std::", "__")):
+                        std_calls += 1
+                    else:
+                        where = "/".join(Path(decl_file).parts[-2:]) if decl_file else "declaration not found"
+                        external.setdefault(qn, f"`{qn}` ({where}) at {ch.rel_path}:{call_line}")
+                    continue
+            if n >= per_root:
+                continue
+            if ref is None:
                 rel, decl_line = _definition_site(repo, rel, qn, decl_line)
                 ref = SymbolRef(qn, kind if kind in ("function", "method") else "function", rel, max(1, decl_line))
                 graph.refs[usr] = ref
@@ -419,6 +439,17 @@ def _add_changed_calls(repo: Path, changes: list, roots: dict[str, SymbolRef], g
                 continue
             graph.dependents[ch.node_id].append(Dep(usr, "called_by_change", ch.rel_path, call_line))
             n += 1
+        if external:
+            shown = list(external.values())[:10]
+            more = f" and {len(external) - len(shown)} more" if len(external) > len(shown) else ""
+            flags.append(UncertaintyFlag(
+                "dynamic_runtime_dependency",
+                f"`{ch.name}` calls code outside the repository on changed lines: {', '.join(shown)}{more}; its "
+                "behaviour is not in the static graph — check the call site for error/null returns, exceptions, "
+                "ownership of passed/returned pointers and callbacks", roots[ch.node_id]))
+    if std_calls:
+        notes.append(f"{std_calls} standard-library call(s) on changed lines are not traced into the library")
+    return flags
 
 
 def _definition_site(repo: Path, rel: str, qn: str, line: int) -> tuple[str, int]:

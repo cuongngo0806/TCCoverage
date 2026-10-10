@@ -31,5 +31,5 @@
 - [x] T218 Code review pass, fix findings, full test suite, package, retro → next-cycle backlog
 
 ## Phase 7: Convergence
-- [ ] T219 CRITICAL: replace the silent skip of out-of-repo callees on changed lines (`src/tcadvisor/pipeline.py` `_add_changed_calls`, "standard library / third-party code") with an explicit `uncertainty_flags` entry naming the external call site per Constitution IV (contradicts)
-- [ ] T220 Route provider nodes without a source file (`src/tcadvisor/graph/providers/base.py` `build_overlay`) to `uncertainty_flags` instead of only a `run_notes` count per FR-202 / Constitution IV (partial)
+- [x] T219 CRITICAL: replace the silent skip of out-of-repo callees on changed lines (`src/tcadvisor/pipeline.py` `_add_changed_calls`, "standard library / third-party code") with an explicit `uncertainty_flags` entry naming the external call site per Constitution IV (contradicts)
+- [x] T220 Route provider nodes without a source file (`src/tcadvisor/graph/providers/base.py` `build_overlay`) to `uncertainty_flags` instead of only a `run_notes` count per FR-202 / Constitution IV (partial)
