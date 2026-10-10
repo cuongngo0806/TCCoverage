@@ -90,18 +90,18 @@ description: "Tasks for spec 006 — lesson-learned impact patterns and a fillab
 
 **Independent test**: quickstart S3, one fixture per pattern (+ a negative fixture each, SC-606).
 
-- [ ] T627 [P] [US4] `src/tcadvisor/classify/patterns.py`: `symmetric_counterpart` (pair table of research R4, counterpart in same class/namespace via index/provider refs, else same file stem)
-- [ ] T628 [P] [US4] `same_code_elsewhere` in `src/tcadvisor/classify/patterns.py` (removed/changed line ≥ 25 non-space chars or ≥ 3 consecutive lines; `git grep -F -n` in C++ files at the new revision; enclosing function via `textual_functions`; max 10; exclude the changed function itself)
-- [ ] T629 [P] [US4] `new_enum_value` and `return_meaning` in `src/tcadvisor/classify/patterns.py` (enumerator added / new returned constant → switch/compare users and branching callers)
-- [ ] T630 [P] [US4] `shared_state`, `new_early_exit`, `config_reader` in `src/tcadvisor/classify/patterns.py`
-- [ ] T631 [US4] Team lessons matching (`tokens_any`, `name_glob`, `path_glob`, `sub_reason`) → `Lesson <id>: <ask>` corner cases + `lessons` field in `src/tcadvisor/classify/lessons.py`; wire patterns + lessons into `src/tcadvisor/pipeline.py` (respect `--no-patterns`)
-- [ ] T632 [P] [US4] Tests: `tests/unit/test_patterns.py` and `tests/integration/test_us6_patterns.py` (positive + negative per pattern; lesson match)
+- [x] T627 [P] [US4] `src/tcadvisor/classify/patterns.py`: `symmetric_counterpart` (pair table of research R4, counterpart in same class/namespace via index/provider refs, else same file stem)
+- [x] T628 [P] [US4] `same_code_elsewhere` in `src/tcadvisor/classify/patterns.py` (removed/changed line ≥ 25 non-space chars or ≥ 3 consecutive lines; `git grep -F -n` in C++ files at the new revision; enclosing function via `textual_functions`; max 10; exclude the changed function itself)
+- [x] T629 [P] [US4] `new_enum_value` and `return_meaning` in `src/tcadvisor/classify/patterns.py` (enumerator added / new returned constant → switch/compare users and branching callers)
+- [x] T630 [P] [US4] `shared_state`, `new_early_exit`, `config_reader` in `src/tcadvisor/classify/patterns.py`
+- [x] T631 [US4] Team lessons matching (`tokens_any`, `name_glob`, `path_glob`, `sub_reason`) → `Lesson <id>: <ask>` corner cases + `lessons` field in `src/tcadvisor/classify/lessons.py`; wire patterns + lessons into `src/tcadvisor/pipeline.py` (respect `--no-patterns`)
+- [x] T632 [P] [US4] Tests: `tests/unit/test_patterns.py` and `tests/integration/test_us6_patterns.py` (positive + negative per pattern; lesson match)
 
 ---
 
 ## Phase 7: Polish, ranking gate & cross-cutting
 
-- [ ] T637 Merge duplicate cases found by two patterns (same evidence symbol + risk group): one case, both explanations and corner cases, `pattern` = first, others listed in the description, in `src/tcadvisor/classify/cases.py` (spec edge case)
+- [x] T637 Merge duplicate cases found by two patterns (same evidence symbol + risk group): one case, both explanations and corner cases, `pattern` = first, others listed in the description, in `src/tcadvisor/classify/cases.py` (spec edge case)
 - [ ] T633 Offline rank lab over benchmark reports with and without new cases (slots of research R5) in `scripts/rank_lab.py` (new `--new-cases` variant), choose the slot that keeps dev and holdout MRR ≥ base
 - [ ] T634 Full benchmark (`scripts/pilot_regressions.py`, spec 004 pairs, codegraph) with and without `--no-patterns`; record recall, MRR all/dev/holdout, median cases, median time in `specs/006-lesson-patterns-test-report/results.md` (gate: no surfaced regression lost, MRR not lower, time ≤ +25%)
 - [ ] T635 [P] Docs: README section "Lessons-learned cases and the test report", `.claude/skills/tc-coverage/SKILL.md` (how to present sibling-source / data-path cases and the report), `CLAUDE.md` layout lines

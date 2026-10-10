@@ -39,7 +39,7 @@ LOW_SUBS = {"header_change", "inline_change", "logging", "test_code"}
 
 # lesson-pattern cases that only ask to confirm something already present (spec 006)
 PATTERN_LOW_SUBS = {"sibling_source_guarded", "sibling_source_more", "data_path_forwarder",
-                    "data_path_emitter_checked"}
+                    "data_path_emitter_checked", "new_early_exit"}
 SEVERITY = {"thread_safety": 3, "ownership_lifetime": 3, "exception_safety": 3, "abi_layout": 2, "logic": 2,
             "build_config": 1}
 # For *impacted* symbols, a changed signature is checked by the compiler at every call site.
@@ -130,7 +130,7 @@ def build_cases(nodes: dict[str, ImpactNode], root_risks: dict[str, list[RiskCla
                                                  subs[0] if subs else None)),
                 risk_group=grp, related_cmake_targets=targets_of(node),
                 node_id=nid, sub_reason=subs[0] if subs else None, hop_distance=hop, hints=hints))
-    cases.extend(extra or [])  # lesson-pattern cases (spec 006), built elsewhere, ranked with the rest
+    merge_pattern_cases(cases, extra or [])  # lesson-pattern cases (spec 006), ranked with the rest
     # Relevance order (tuned on 55 real regressions in vsomeip + RocksDB, dev/holdout split — see
     # specs/004-ranking): closest to the change first; substantive risks before recompile-only / log / test
     # ones; bigger changes first (log2 of changed lines of the root, or of all roots reaching an impacted
@@ -317,3 +317,24 @@ def data_path_cases(paths, index, graph) -> list[TestCaseCandidate]:
                 hints=[f"Pass the values `{prod.name}` can now produce through `{s.name}` and check nothing it does "
                        "(copy, conversion, truncation) changes their meaning"]))
     return out
+
+
+def merge_pattern_cases(cases: list[TestCaseCandidate], extra: list[TestCaseCandidate]) -> None:
+    """Spec 006 edge case: the same code found by two reasons is one case with both explanations. A pattern
+    case whose evidence symbol and risk group match an existing case is folded into it (its description and
+    corner cases appended; the existing case keeps its key, pattern and path, so recorded results stay put)."""
+    idx = {}
+    for c in cases:
+        ev = c.evidence[0]
+        idx.setdefault((ev.qualified_name, ev.file_path, c.risk_group), c)
+    for x in extra:
+        ev = x.evidence[0]
+        k = (ev.qualified_name, ev.file_path, x.risk_group)
+        tgt = idx.get(k)
+        if tgt is None:
+            idx[k] = x
+            cases.append(x)
+            continue
+        tgt.description += f" Also ({x.pattern or x.sub_reason}): {x.description}"
+        tgt.hints = list(dict.fromkeys(tgt.hints + x.hints))[:10]
+        tgt.lessons = list(dict.fromkeys(tgt.lessons + x.lessons))

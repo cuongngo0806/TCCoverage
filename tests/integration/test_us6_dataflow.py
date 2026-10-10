@@ -24,7 +24,11 @@ def test_emitter_two_modules_away_gets_a_case(project):
     assert c["sub_reason"] == "data_path_emitter" and "transport_send" in c["description"]
     assert c["evidence"][1]["qualified_name"] == "Producer::build_status"
     fw = _by_pattern(r, "data_path_forwarder")
-    assert set(fw) == {"Producer::tick", "Relay::relay"}
+    assert set(fw) == {"Relay::relay"}
+    # Producer::tick already has a case (direct caller of the change): the forwarder reason is folded into it
+    tick = [c for c in r["test_case_candidates"] if c["evidence"][0]["qualified_name"] == "Producer::tick"]
+    assert len([c for c in tick if c["risk_group"] == "logic"]) == 1
+    assert any("Also (data_path_forwarder)" in c["description"] for c in tick)
     # neither Relay nor Publisher changed
     assert {s["symbol"]["qualified_name"] for s in r["changed_symbols"]} == {"Producer::build_status"}
 

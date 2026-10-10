@@ -346,6 +346,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     history = G.fix_history(repo, ctx.new_rev or ctx.old_rev) if opts.history else {}
     pattern_cases: list = []
     guarded = []
+    flow_known: set[str] = set()
     if opts.patterns:
         from tcadvisor.classify.cases import sibling_source_cases
         from tcadvisor.graph.sources import find_guarded_targets, unresolved_source_flags
@@ -354,14 +355,21 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         flags.extend(unresolved_source_flags(graph, guarded, roots))
         guarded = [t for t in guarded if any(not x.covered_by_change for x in t.sources) or t.target_id in
                    graph.facts.address_taken]
+        from tcadvisor.classify.patterns import detect as detect_patterns
+        pattern_cases += detect_patterns(repo, ctx.new_rev if opts.commit_range else None, changes, roots, graph,
+                                         lambda f: graph.file_targets.get(f, set()))
         flow_known, flow_flags = _data_paths(opts, repo, cdb, facts, cache, graph, changes, roots, lessons,
                                              pattern_cases, ctx.notes)
         flags.extend(flow_flags)
     cases = build_cases(nodes, root_risks, root_kind, flag_only, targets_of, tests,
                         {ch.node_id: len(ch.added_lines) + len(ch.removed_lines) for ch in changes}, history,
                         root_external, pattern_cases)
+    if opts.patterns:
+        from tcadvisor.classify.patterns import apply_lessons
+        apply_lessons(cases, lessons, changes, nodes)
     known = ({s["name"] for s in facts.symbols.values()} | {r.qualified_name for r in roots.values()}
-             | {r.qualified_name for r in graph.refs.values()} | (flow_known if opts.patterns else set()))
+             | {r.qualified_name for r in graph.refs.values()} | (flow_known if opts.patterns else set())
+             | {c.evidence[0].qualified_name for c in pattern_cases})  # text-found code, file checked by the gate
     cases = gate(cases, repo, known)
     assign_keys(cases, nodes, repo)
 

@@ -104,3 +104,92 @@ def add_flow_fixture(project):
     project.edit("CMakeLists.txt", "src/handlers.cpp)", "src/handlers.cpp src/frame.cpp)")
     project.commit("frame")
     project.configure()
+
+
+PATTERN_FILES = {
+    "include/door/codec.h": """#pragma once
+enum class State { Idle, Busy };
+int encode_frame(int v);
+int decode_frame(int w);
+int checksum_legacy(const int* data, int n);
+int checksum_fast(const int* data, int n);
+const char* state_name(State s);
+int parse_code(int raw);
+int use_parse(int raw);
+struct Cfg { bool fast_mode_enabled = false; };
+extern Cfg g_cfg;
+int run_a(int x);
+int run_b(int x);
+struct Counter {
+    int count_ = 0;
+    void bump();
+    int read() const;
+};
+int process(int* buf);
+""",
+    "src/codec.cpp": """#include "door/codec.h"
+Cfg g_cfg;
+int encode_frame(int v) {
+    return v * 2 + 1;
+}
+int decode_frame(int w) {
+    return (w - 1) / 2;
+}
+int checksum_legacy(const int* data, int n) {
+    int sum = 0;
+    for (int i = 0; i < n; ++i) sum = (sum + data[i] * 31) % 65521;
+    return sum;
+}
+int checksum_fast(const int* data, int n) {
+    int sum = 0;
+    for (int i = 0; i < n; ++i) sum = (sum + data[i] * 31) % 65521;
+    return sum;
+}
+const char* state_name(State s) {
+    switch (s) {
+    case State::Idle: return "idle";
+    case State::Busy: return "busy";
+    }
+    return "?";
+}
+int parse_code(int raw) {
+    if (raw < 0)
+        return -1;
+    return raw;
+}
+int use_parse(int raw) {
+    int r = parse_code(raw);
+    if (r < 0)
+        return 0;
+    return r;
+}
+int run_a(int x) {
+    return x;
+}
+int run_b(int x) {
+    if (g_cfg.fast_mode_enabled)
+        return x * 2;
+    return x;
+}
+void Counter::bump() {
+    count_ += 1;
+}
+int Counter::read() const {
+    return count_;
+}
+int process(int* buf) {
+    int* p = new int[4];
+    p[0] = buf[0];
+    int r = p[0];
+    delete[] p;
+    return r;
+}
+""",
+}
+
+
+def add_pattern_fixture(project):
+    project.write(PATTERN_FILES)
+    project.edit("CMakeLists.txt", "src/handlers.cpp)", "src/handlers.cpp src/codec.cpp)")
+    project.commit("codec")
+    project.configure()
