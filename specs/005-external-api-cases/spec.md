@@ -39,7 +39,8 @@ of `vendor_send` lists that corner case, labelled as coming from the contract fi
 ## Functional Requirements
 
 - **FR-501** A callee on a changed line whose declaration is outside the repository is a *third-party call*;
-  standard-library callees are excluded and counted in `run_notes`.
+  standard-library callees, and third-party calls inside a logging statement (e.g.
+  `LOG << syscall(SYS_gettid)`: only log output can change), are excluded and counted in `run_notes`.
 - **FR-502** From the callee declaration and the call site the advisor derives, deterministically:
   pointer return (null), status-like return (integral / `bool` / enum / `*error*`/`*status*`/`*result*`/
   `optional`/`expected` types: failure value), result discarded at the call site, may throw (C++ linkage and

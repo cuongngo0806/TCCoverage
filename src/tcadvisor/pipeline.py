@@ -408,12 +408,12 @@ def _add_changed_calls(repo: Path, changes: list, roots: dict[str, SymbolRef], g
 
     Callees declared outside the repository (third-party libraries) have no body to trace: they are
     returned as uncertainty flags on the calling root (constitution IV) instead of being dropped, plus one
-    boundary case per root built from their declarations (spec 005). Standard-library calls are only
-    counted in the run notes."""
+    boundary case per root built from their declarations (spec 005). Standard-library calls and third-party
+    calls inside logging statements are only counted in the run notes."""
     from tcadvisor.graph.impact import Dep
     flags: list[UncertaintyFlag] = []
     risks: dict[str, list[RiskClassification]] = {}
-    std_calls = 0
+    std_calls = log_calls = 0
     for ch in changes:
         if ch.node_id not in roots:
             continue
@@ -433,6 +433,8 @@ def _add_changed_calls(repo: Path, changes: list, roots: dict[str, SymbolRef], g
                 if rel is None:  # declared outside the repository
                     if is_standard(qn, decl_file):
                         std_calls += 1
+                    elif call_line in ch.log_lines:  # e.g. `LOG << syscall(SYS_gettid)`: only log output changes
+                        log_calls += 1
                     elif qn not in external:
                         where = "/".join(Path(decl_file).parts[-2:]) if decl_file else "declaration not found"
                         external[qn] = ExternalCall(qn, where, ch.rel_path, call_line, ch.new.call_sigs.get(usr, {}))
@@ -460,6 +462,8 @@ def _add_changed_calls(repo: Path, changes: list, roots: dict[str, SymbolRef], g
                 "ownership of passed/returned pointers and callbacks", roots[ch.node_id]))
     if std_calls:
         notes.append(f"{std_calls} standard-library call(s) on changed lines are not traced into the library")
+    if log_calls:
+        notes.append(f"{log_calls} third-party call(s) inside logging statements on changed lines are not analysed")
     return flags, risks
 
 

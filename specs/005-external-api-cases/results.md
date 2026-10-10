@@ -24,3 +24,6 @@ worktrees in a new environment, identical for all runs below).
   after `ext2`; it only changes hint text (case set and order verified identical on two pairs).
 - RocksDB: no third-party call on any changed line (its 5 cycle-4 "outside the repository" flags were
   `fwrite`/`strstr`/`memcpy`, now classified as C standard library and counted in `run_notes`).
+- After the benchmark, third-party calls inside logging statements were excluded (T509). This only removes
+  cases from the end of the hop-0 block, so no ranked position can get worse. Demo commit vsomeip
+  `07b13fa64`: 20 → 18 cases (the two `syscall(SYS_gettid)` cases inside `VSOMEIP_INFO` are gone).

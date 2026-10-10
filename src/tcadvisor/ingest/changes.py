@@ -81,6 +81,7 @@ class SymbolChange:
     is_header: bool = False
     added_line_numbers: list[int] = field(default_factory=list)
     textual: bool = False  # located by a text scan: the parser did not see it (inactive #if branch, no flags)
+    log_lines: set[int] = field(default_factory=set)  # new-side lines that belong to a logging statement
 
     @property
     def is_template(self) -> bool:
@@ -147,6 +148,22 @@ class ChangeSet:
 
 def strip_comments(text: str) -> str:
     return _COMMENT_RE.sub("", text)
+
+
+def log_statement_lines(lines: list[str], start: int, end: int) -> set[int]:
+    """1-based lines in [start, end] that belong to a logging statement (from its first line to the `;`),
+    including preprocessor lines inside it (``#if defined(__linux__)`` around a streamed field)."""
+    out: set[int] = set()
+    in_log = False
+    for i in range(max(1, start), min(end, len(lines)) + 1):
+        ln = strip_comments(lines[i - 1]).rstrip()
+        if not in_log and _LOG_START.search(ln):
+            in_log = True
+        if in_log:
+            out.add(i)
+            if ln.endswith(";") and not ln.lstrip().startswith("#"):
+                in_log = False
+    return out
 
 
 def conditional_stack(lines: list[str]) -> dict[int, list[str]]:
@@ -486,7 +503,8 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
             cs.changes.append(SymbolChange(
                 node_id=usr, rel_path=fd.new_path or rel, change_kind=kind, name=ref.name, kind=ref.kind,
                 line=ref.start, old=o, new=n, added_lines=added, removed_lines=removed, conditions=conds,
-                is_header=is_header, added_line_numbers=sorted(ln for ln in fd.new_lines if n and n.start <= ln <= n.end)))
+                is_header=is_header, added_line_numbers=sorted(ln for ln in fd.new_lines if n and n.start <= ln <= n.end),
+                log_lines=log_statement_lines(new_lines, n.start, n.end) if n else set()))
 
         res_new = _residual(new_lines, fd.new_lines, new_syms.extents if new_syms else [])
         res_old = _residual(old_lines, fd.old_lines, old_syms.extents if old_syms else [])

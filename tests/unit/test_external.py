@@ -55,3 +55,17 @@ def test_operators_constructors_and_queries_are_not_boundary_cases():
         "Contract: lib::Addr::port: 0 when unbound"]
     p = _call("lib::Tree::get_child", role="const_method", result="pointer", result_type="Node *")
     assert [g for g, _ in signals(p, "f")] == ["ownership_lifetime"]
+
+
+def test_log_statement_lines_cover_multiline_logs_and_preprocessor_lines():
+    from tcadvisor.ingest.changes import log_statement_lines
+    src = ["void f() {",
+           "    int r = vendor_send(b, n);",
+           '    VSOMEIP_INFO << "stopped"',
+           "#if defined(__linux__)",
+           "                 << syscall(SYS_gettid)",
+           "#endif",
+           "            ;",
+           "    vendor_close();",
+           "}"]
+    assert log_statement_lines(src, 1, 9) == {3, 4, 5, 6, 7}

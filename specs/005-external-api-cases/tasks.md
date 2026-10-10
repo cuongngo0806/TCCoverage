@@ -13,3 +13,6 @@
 ## Phase 3: Evaluate
 - [x] T507 Benchmark (spec 004 pairs) before/after; record in `specs/005-external-api-cases/results.md`
 - [x] T508 Full test suite, review diff, commit
+
+## Phase 4: Follow-up from the demo run (vsomeip 07b13fa64)
+- [x] T509 Skip third-party calls inside logging statements (`log_statement_lines` in `src/tcadvisor/ingest/changes.py`); count them in `run_notes`

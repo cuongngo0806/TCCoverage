@@ -189,3 +189,22 @@ def test_contract_file_adds_known_library_behaviour(project):
     assert "Contract: vendor::open_channel: not thread-safe" in hints
     (project.repo / ".tcadvisor" / "external-contracts.json").write_text("{not json")
     project.analyze("--commit-range", "HEAD~1..HEAD", expect=2)
+
+
+def test_third_party_call_inside_a_log_statement_is_only_counted(project):
+    vendor = project.root / "vendor" / "vendorlib"
+    vendor.mkdir(parents=True)
+    (vendor / "api.h").write_text("#pragma once\nextern \"C\" long vendor_tid(void);\n")
+    project.edit("CMakeLists.txt", "target_include_directories(DoorLock PUBLIC include)",
+                 f"target_include_directories(DoorLock PUBLIC include {vendor.parent})")
+    project.edit("src/lock.cpp", '#include "door/util.h"', '#include "door/util.h"\n#include "vendorlib/api.h"\n#include <cstdio>')
+    project.commit()
+    project.configure()
+    project.edit("src/lock.cpp", "    return handleResponse(l, code);",
+                 '    if (code < 0) return -1;\n    printf("dispatch %d tid %ld\\n", code,\n           vendor_tid());\n'
+                 '    return handleResponse(l, code);')
+    project.commit()
+    r = project.analyze("--commit-range", "HEAD~1..HEAD")
+    assert not [c for c in r["test_case_candidates"] if c["sub_reason"] == "external_call"]
+    assert not [f for f in r["uncertainty_flags"] if "outside the repository" in f["reason"]]
+    assert any("1 third-party call(s) inside logging statements" in n for n in r["run_notes"])
