@@ -264,10 +264,30 @@ function showReport() {
     panel = vscode.window.createWebviewPanel("tcCoverageReport", "TC Coverage Report", vscode.ViewColumn.Beside,
       { enableScripts: true, retainContextWhenHidden: true });
     panel.onDidDispose(() => { panel = undefined; });
-    panel.webview.onDidReceiveMessage(m => { if (m?.type === "open") { openEvidence(m.file, m.line); } });
+    panel.webview.onDidReceiveMessage(m => {
+      if (m?.type === "open") { openEvidence(m.file, m.line); }
+      else if (m?.type === "saveReport") { saveFromReport(m.name, Buffer.from(String(m.html), "utf8"), true); }
+      else if (m?.type === "saveFile") { saveFromReport(m.name, Buffer.from(String(m.data), "base64"), false); }
+    });
   }
   panel.webview.html = reportHtml();
   panel.reveal();
+}
+
+// Test results (spec 006): the report webview cannot download files, so saving goes through a save dialog.
+async function saveFromReport(name: string, data: Buffer, isReport: boolean) {
+  const base = reportDir ?? repoRoot() ?? ".";
+  const target = await vscode.window.showSaveDialog({
+    defaultUri: vscode.Uri.file(path.join(base, path.basename(String(name || "report.html")))),
+    filters: isReport ? { "TC Coverage report": ["html"] } : undefined,
+    title: isReport ? "Save TC Coverage report with test results" : "Save evidence file",
+  });
+  if (!target) { return; }
+  await vscode.workspace.fs.writeFile(target, data);
+  if (isReport) {
+    panel?.webview.postMessage({ type: "saved", path: target.fsPath });
+    vscode.window.showInformationMessage(`TC Coverage: report saved to ${target.fsPath}`);
+  }
 }
 
 async function openEvidence(file: string, line: number) {

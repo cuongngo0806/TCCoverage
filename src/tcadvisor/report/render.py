@@ -42,7 +42,8 @@ def summary_line(r: dict[str, Any]) -> str:
         head = "No detected impact"
     else:
         head = f"{len(cases)} test case(s) [P1 {by['P1']} / P2 {by['P2']} / P3 {by['P3']}]"
-    return (f"{head}; {len(r['uncertainty_flags'])} uncertainty flag(s); "
+    tr = _test_summary(r)
+    return (f"{head}; {len(r['uncertainty_flags'])} uncertainty flag(s); {tr}"
             f"{len(r.get('changed_files', []))} changed file(s); targets: {_targets(r['target_scope'])}; "
             f"cache_hit: {str(r['cache_hit']).lower()}; LLM: {llm}; "
             f"{r.get('metrics', {}).get('duration_seconds', 0)}s")
@@ -83,6 +84,25 @@ def mermaid(r: dict[str, Any]) -> str:
     return "\n".join(out)
 
 
+def _test_summary(r: dict[str, Any]) -> str:
+    """'test results: …; ' when the report carries tester results (spec 006), else ''."""
+    if not r.get("test_results"):
+        return ""
+    from tcadvisor.report.results import summary
+    s = summary(r["test_results"], [c["key"] for c in r["test_case_candidates"]])
+    recheck = f" / {s['needs_recheck']} re-check" if s["needs_recheck"] else ""
+    return (f"test results: {s['pass']} pass / {s['fail']} fail / {s['not_testable']} n/t / "
+            f"{s['cannot_occur']} n/o / {s['untested']} untested{recheck}; ")
+
+
+def _verdict_tag(c: dict[str, Any]) -> str:
+    tr = c.get("test_result")
+    if tr is None:
+        return ""
+    from tcadvisor.report.results import VERDICT_LABEL
+    return f" [{VERDICT_LABEL.get(tr.get('verdict'), '—')}]" + (" (re-check)" if tr.get("needs_recheck") else "")
+
+
 def to_markdown(r: dict[str, Any]) -> str:
     L: list[str] = ["# Change Impact & Test Case Report", ""]
     ci = r["change_input"]
@@ -117,13 +137,21 @@ def to_markdown(r: dict[str, Any]) -> str:
                 continue
             L += [f"### {title} ({len(group)})", ""]
             for c in group:
-                L.append(f"- [ ] **{c['id']}** {c['priority']} [{GROUP_LABEL[c['risk_group']]}] "
-                         f"{_md_cell(c['description'])}")
+                tr = c.get("test_result") or {}
+                box = "x" if tr.get("verdict") and not tr.get("needs_recheck") else " "
+                L.append(f"- [{box}] **{c['id']}** {c['priority']} [{GROUP_LABEL[c['risk_group']]}] "
+                         f"{_md_cell(c['description'])}{_verdict_tag(c)}")
                 L.append(f"  - *When*: {_md_cell(c['activation_condition'])}")
                 L.append("  - *Evidence*: " + "; ".join(_ev_label(e) for e in c["evidence"]))
                 if c.get("corner_cases"):
                     L.append("  - *Corner cases*: " + "; ".join(c["corner_cases"][:5]))
                 L.append(f"  - *Targets*: {', '.join(c['related_cmake_targets'])}")
+                if tr.get("verdict"):
+                    names = ", ".join(a["name"] for a in tr.get("attachments", []))
+                    L.append(f"  - *Test result*: {tr['verdict']} by {_md_cell(tr.get('tester', ''))} on "
+                             f"{tr.get('date', '')}{' — ' + _md_cell(tr['comment']) if tr.get('comment') else ''}"
+                             f"{'; defect ' + _md_cell(tr['defect_ref']) if tr.get('defect_ref') else ''}"
+                             f"{'; evidence: ' + _md_cell(names) if names else ''}")
                 v = c.get("verification")
                 if v:
                     L.append(f"  - *AI verification*: **{v['verdict']}**{' — re-check' if v['recheck'] else ''}"
@@ -182,7 +210,8 @@ def to_brief(r: dict[str, Any], limit: int = 80) -> str:
         ev = c["evidence"][0]
         v = c.get("verification")
         tag = f" [AI:{v['verdict']}]" if v else ""
-        L.append(f"{c['id']} {c['priority']} {c['risk_group']} {ev['file_path']}:{ev['line']}{tag} :: {c['description']}")
+        L.append(f"{c['id']} {c['priority']} {c['risk_group']} {ev['file_path']}:{ev['line']}{tag} :: {c['description']}"
+                 f"{_verdict_tag(c)}")
         if c.get("corner_cases"):
             L.append("   corner: " + " | ".join(c["corner_cases"][:3]))
     if len(r["test_case_candidates"]) > limit:
@@ -201,14 +230,44 @@ def to_brief(r: dict[str, Any], limit: int = 80) -> str:
     return "\n".join(L) + "\n"
 
 
-def write_outputs(r: dict[str, Any], out_dir: Path, fmt: str = "both") -> list[Path]:
+def _without_attachment_data(r: dict[str, Any]) -> dict[str, Any]:
+    """report.json lists attachments (name, type, size, sha256) but their bytes stay in report.html only."""
+    tr = r.get("test_results")
+    if not tr or not tr.get("attachments"):
+        return r
+    atts = {k: {f: v for f, v in a.items() if f != "data"} for k, a in tr["attachments"].items()}
+    return {**r, "test_results": {**tr, "attachments": atts}}
+
+
+def write_outputs(r: dict[str, Any], out_dir: Path, fmt: str = "both", same_analysis: bool = False) -> list[Path]:
+    """``same_analysis``: re-rendering an existing analysis (verify / annotate / render) keeps the test results
+    already recorded in ``out_dir/report.html``. A new analysis never merges them silently: a filled report about
+    to be overwritten is first copied to ``report.results-backup-<time>.html`` (use --previous-report to carry
+    results over)."""
     from tcadvisor.report.html import to_html
+    from tcadvisor.report.results import attach_case_results, read_results
 
     out_dir.mkdir(parents=True, exist_ok=True)
     written = []
+    old_html = out_dir / "report.html"
+    existing = None
+    if old_html.is_file():
+        try:
+            existing = read_results(old_html)
+        except Exception:  # noqa: BLE001 - an older report without a results block
+            existing = None
+    if existing and (existing["results"] or existing["orphaned_results"]):
+        if same_analysis:
+            r = {**r, "test_case_candidates": [dict(c) for c in r["test_case_candidates"]], "test_results": existing}
+            attach_case_results(r, existing)
+        elif not (r.get("test_results") or {}).get("results") or r["test_results"] != existing:
+            from datetime import datetime
+            backup = out_dir / f"report.results-backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}.html"
+            backup.write_bytes(old_html.read_bytes())
+            written.append(backup)
     if fmt in ("json", "both", "all"):
         p = out_dir / "report.json"
-        p.write_text(json.dumps(r, indent=2), encoding="utf-8")
+        p.write_text(json.dumps(_without_attachment_data(r), indent=2), encoding="utf-8")
         written.append(p)
     if fmt in ("md", "both", "all"):
         p = out_dir / "report.md"

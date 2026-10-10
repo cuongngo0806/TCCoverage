@@ -28,6 +28,7 @@ from tcadvisor.ingest.changes import ChangeSet, explicit_changes, detect_changes
 from tcadvisor.ingest.symbols import resolve_symbols
 from tcadvisor.classify.external import ExternalCall, external_risk, is_standard, load_contracts
 from tcadvisor.classify.lessons import load_lessons
+from tcadvisor.report.results import carry_over, read_results
 from tcadvisor.models import ChangeInput, ImpactNode, PrerequisiteError, RiskClassification, SymbolRef, UncertaintyFlag, \
     UsageError
 
@@ -94,11 +95,17 @@ def run(opts: Options) -> dict[str, Any]:
         if p is not None and _is_within(p, repo):
             raise UsageError(f"{label} '{p}' resolves inside the analysed repository; the advisor never writes "
                              "into the analysed repo (Principle VIII)")
+    previous = read_results(opts.previous_report) if opts.previous_report else None
     cache = CacheStore(opts.cache_dir or default_cache_dir(repo))
     try:
-        return _run(opts, repo, cache, started, t0)
+        report = _run(opts, repo, cache, started, t0)
     finally:
         cache.close()
+    # tester results (spec 006): applied after the run cache, never part of the analysis itself (FR-613)
+    report.setdefault("metrics", {})["attachment_warn_mb"] = opts.attachment_warn_mb
+    if previous is not None:
+        report["test_results"] = carry_over(previous, report, opts.attachment_warn_mb)
+    return report
 
 
 def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: float) -> dict[str, Any]:

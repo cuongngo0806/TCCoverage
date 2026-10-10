@@ -106,6 +106,10 @@ def build_parser() -> argparse.ArgumentParser:
     r = sub.add_parser("render", help="re-render md/html/brief from an existing report.json")
     r.add_argument("report", type=Path)
     r.add_argument("--output-dir", type=Path)
+    rs = sub.add_parser("results", help="summarise the test results recorded in a filled report.html "
+                                        "(exit 0 complete, 4 incomplete or any fail)")
+    rs.add_argument("report", type=Path)
+    rs.add_argument("--json", action="store_true")
     return p
 
 
@@ -143,6 +147,36 @@ def _analyze(ns: argparse.Namespace) -> int:
     return 0
 
 
+def _results(ns: argparse.Namespace) -> int:
+    from tcadvisor.report.results import VERDICT_LABEL, read_cases, read_results, summary, validate_record
+    block = read_results(ns.report)
+    cases = read_cases(ns.report)
+    s = summary(block, [c["key"] for c in cases])
+    open_items = []
+    for c in cases:
+        rec = block["results"].get(c["key"]) or {}
+        why = validate_record(rec, block["attachments"])
+        if rec.get("verdict") is None:
+            why = ["not tested"]
+        elif rec.get("needs_recheck"):
+            why = ["needs re-check"] + why
+        elif rec.get("verdict") == "fail":
+            why = ["failed"] + why
+        if why:
+            open_items.append({"id": c["id"], "key": c["key"], "verdict": rec.get("verdict"),
+                               "description": c["description"], "issues": why})
+    if ns.json:
+        print(json.dumps({"summary": s, "open": open_items}, indent=2))
+    else:
+        recheck = f" / {s['needs_recheck']} re-check" if s["needs_recheck"] else ""
+        print(f"test results: {s['pass']} pass / {s['fail']} fail / {s['not_testable']} n/t / "
+              f"{s['cannot_occur']} n/o / {s['untested']} untested{recheck}; {s['invalid']} incomplete record(s); "
+              f"{s['attachment_bytes']} bytes of evidence; {'COMPLETE' if s['complete'] else 'INCOMPLETE'}")
+        for o in open_items:
+            print(f"{o['id']} [{VERDICT_LABEL.get(o['verdict'], '—')}] {o['description']} :: {'; '.join(o['issues'])}")
+    return 0 if s["complete"] and s["fail"] == 0 else 4
+
+
 def main(argv: list[str] | None = None) -> int:
     ns = build_parser().parse_args(argv)
     try:
@@ -170,7 +204,8 @@ def main(argv: list[str] | None = None) -> int:
                          verify_model=ns.verify_model, synth_model=ns.synth_model, parallel=ns.parallel,
                          priorities={p.strip() for p in ns.priorities.split(",")}, max_cases=ns.max_cases,
                          budget_usd=ns.budget_usd, progress=lambda m: print(f"[tcadvisor] {m}", file=sys.stderr))
-            write_outputs(json.loads(ns.report.read_text(encoding="utf-8")), ns.report.parent, "all")
+            write_outputs(json.loads(ns.report.read_text(encoding="utf-8")), ns.report.parent, "all",
+                          same_analysis=True)
             u = res["usage"]
             if res["errors"] and not res["verified"]:
                 print("error: AI verification failed: " + "; ".join(res["errors"]), file=sys.stderr)
@@ -185,14 +220,16 @@ def main(argv: list[str] | None = None) -> int:
             for w in annotate_file(ns.report, ns.verdicts):
                 print(f"warning: {w}", file=sys.stderr)
             rep = json.loads(ns.report.read_text(encoding="utf-8"))
-            write_outputs(rep, ns.report.parent, "all")
+            write_outputs(rep, ns.report.parent, "all", same_analysis=True)
             av = rep["ai_verification"]
             print(f"annotated {av['verified_cases']} case(s); {len(av['additional_checks'])} additional check(s)")
             return 0
+        if ns.command == "results":
+            return _results(ns)
         if ns.command == "render":
             from tcadvisor.report.render import write_outputs
             rep = json.loads(ns.report.read_text(encoding="utf-8"))
-            for f in write_outputs(rep, ns.output_dir or ns.report.parent, "all"):
+            for f in write_outputs(rep, ns.output_dir or ns.report.parent, "all", same_analysis=True):
                 print(f"wrote {f}")
             return 0
     except PrerequisiteError as exc:
