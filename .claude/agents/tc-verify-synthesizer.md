@@ -17,4 +17,5 @@ Inputs (given in the prompt): the report path, the verify dir, and the batch ver
    extended. Each must cite a `file:line` that appears in the brief or batches. Do not repeat cases.
 4. Run `python3 -m tcadvisor annotate <report.json> <verify dir>/verdicts.json` and return its output.
 
-Rules: verdicts annotate only — never remove, reorder or re-prioritise cases; no test code; English.
+Rules: verdicts annotate only — never remove, reorder or re-prioritise cases (`pass_by_review` keeps the case,
+listed as closed by code review, with its `proof`); no test code; English.

@@ -53,6 +53,9 @@ Exit codes: `1` prerequisite (compile db / File API missing or stale → explain
 Cheapest path — never read the code base, only packets:
 
 1. `python3 -m tcadvisor verify-pack <out>/report.json` → `<out>/verify/batch-NN.json` (≤8 packets each).
+   For a large change where the user only wants the list of cases to run on the real device, add
+   `--scope review` (only the `REVIEW` cases, the ones code reading can close; add `--priorities P1,P2,P3`
+   to cover all of them).
 2. For each batch launch the `tc-case-verifier` subagent (Haiku) **in parallel** with the batch path.
 3. Launch one `tc-verify-synthesizer` subagent (Sonnet) with the report path, verify dir and the batch
    results; it writes `verdicts.json` and runs `tcadvisor annotate` (report/HTML/VS Code then show verdicts).
@@ -61,7 +64,9 @@ Or run the saved workflow `tc-verify` (Workflow tool, name `tc-verify`) which do
 
 ## 4. Answer
 
-1. One-line summary (cases by priority, uncertain count, targets to rebuild/retest).
+1. One-line summary (cases by priority, uncertain count, targets to rebuild/retest) and the brief's
+   `Test plan:` line (TARGET = test on the device, REVIEW = may be closed by reading code, CLOSED = an AI
+   proved it from the code; CLOSED cases stay listed with their proof, never hidden).
 2. **P1 checklist** — for each P1 case: `TC-id`, symbol `file:line`, *what to test* as concrete scenarios
    (inputs/states, expected result) derived from the corner cases + the evidence code you read.
 3. P2/P3 grouped compactly (one line each, or "N more" with the report path).

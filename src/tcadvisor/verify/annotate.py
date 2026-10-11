@@ -1,6 +1,8 @@
 """Merge AI verification verdicts into report.json (annotation only: constitution III).
 
 Verdicts never add, remove, reorder or re-prioritise cases; they only attach `verification`.
+`pass_by_review` (spec 007) moves a case to "closed by code review" — still listed — and is accepted only for a
+case the deterministic pass marked `verify_by: review`, with a note and a proof `file:line` that resolves.
 """
 from __future__ import annotations
 
@@ -11,10 +13,11 @@ from typing import Any
 
 from tcadvisor.models import UsageError
 
-VERDICTS = {"confirmed", "weak", "needs_info"}
+VERDICTS = {"confirmed", "weak", "needs_info", "pass_by_review"}
 
 
 def merge(report: dict[str, Any], verdicts: dict[str, Any]) -> list[str]:
+    repo = Path(report["change_input"]["target_repo_path"]).resolve()
     by_id = {c["id"]: c for c in report["test_case_candidates"]}
     warnings = []
     for cid, v in (verdicts.get("cases") or {}).items():
@@ -26,14 +29,24 @@ def merge(report: dict[str, Any], verdicts: dict[str, Any]) -> list[str]:
         if verdict not in VERDICTS:
             warnings.append(f"{cid}: invalid verdict {verdict!r} ignored")
             continue
+        note = str(v.get("note", ""))[:600]
+        proof = [str(x)[:200] for x in (v.get("proof") or [])][:3]
+        if verdict == "pass_by_review":
+            if case.get("verify_by") != "review":
+                warnings.append(f"{cid}: pass_by_review not accepted, the case must be tested on the target "
+                                f"({'; '.join(case.get('target_reasons') or ['no deterministic review eligibility'])[:200]})")
+                verdict = "weak"
+            elif not note.strip() or not proof or not all(_resolves(repo, p) for p in proof):
+                warnings.append(f"{cid}: pass_by_review not accepted, it needs a note and proof file:line that resolve")
+                verdict = "needs_info"
         case["verification"] = {
             "verdict": verdict,
-            "note": str(v.get("note", ""))[:600],
+            "note": note,
             "extra_corner_cases": [str(x)[:300] for x in (v.get("extra_corner_cases") or [])][:6],
-            "recheck": True,  # a model never signals exclusion (constitution III); kept for schema compatibility
+            "recheck": verdict != "pass_by_review",
             "by": "ai",
+            **({"proof": proof} if verdict == "pass_by_review" else {}),
         }
-    repo = Path(report["change_input"]["target_repo_path"]).resolve()
     checks = []
     for a in (verdicts.get("additional_checks") or [])[:15]:
         ev = str(a.get("evidence", ""))[:200]
@@ -45,6 +58,8 @@ def merge(report: dict[str, Any], verdicts: dict[str, Any]) -> list[str]:
         "additional_checks": checks,
         "models": verdicts.get("models") or [],
         "verified_cases": sum(1 for c in report["test_case_candidates"] if "verification" in c),
+        "closed_by_review": sum(1 for c in report["test_case_candidates"]
+                                if (c.get("verification") or {}).get("verdict") == "pass_by_review"),
         "warnings": warnings,
     }
     return warnings

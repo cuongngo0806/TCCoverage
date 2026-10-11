@@ -21,8 +21,9 @@ const VERDICTS = {
         type: 'object',
         properties: {
           id: { type: 'string' },
-          verdict: { type: 'string', enum: ['confirmed', 'weak', 'needs_info'] },
+          verdict: { type: 'string', enum: ['confirmed', 'weak', 'needs_info', 'pass_by_review'] },
           note: { type: 'string' },
+          proof: { type: 'array', items: { type: 'string' } },
           extra_corner_cases: { type: 'array', items: { type: 'string' } },
           recheck: { type: 'boolean' },
         },
@@ -91,7 +92,7 @@ phase('Synthesize')
 const synth = await agent(
   `Report: ${m.report}\nVerify dir: ${m.verify_dir}\nBatch verdicts (already merged, id -> verdict):\n` +
   JSON.stringify(merged) +
-  `\nWrite ${m.verify_dir}/verdicts.json as {"cases": {<id>: {verdict, note, extra_corner_cases, recheck}}, ` +
+  `\nWrite ${m.verify_dir}/verdicts.json as {"cases": {<id>: {verdict, note, proof?, extra_corner_cases, recheck}}, ` +
   `"summary", "additional_checks", "models": ["haiku (case verification)", "sonnet (synthesis)"]} and annotate.\n` +
   AGENT_DOC('tc-verify-synthesizer'),
   { label: 'synthesize', phase: 'Synthesize', model: 'sonnet' })

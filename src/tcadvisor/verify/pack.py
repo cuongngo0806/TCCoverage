@@ -47,12 +47,17 @@ def _references(lines: list[str], names: set[str], limit: int = 12) -> str:
     return "\n".join(hits[:limit]) + (f"\n  ... {len(hits) - limit} more" if len(hits) > limit else "")
 
 
-def build_packets(report: dict[str, Any], priorities: set[str], max_cases: int) -> tuple[list[dict], list[str]]:
+def build_packets(report: dict[str, Any], priorities: set[str], max_cases: int, scope: str = "all"
+                  ) -> tuple[list[dict], list[str]]:
+    """scope `review`: only cases that may be closed by reading code. With `all`, those are packed first
+    (they are where a verdict saves a test run on the target), relevance order kept inside each group."""
     repo = Path(report["change_input"]["target_repo_path"])
     changed_names = {s["symbol"]["qualified_name"].split("::")[-1] for s in report.get("changed_symbols", [])
                      if s["symbol"]["kind"] != "file"}
     cache: dict[str, list[str]] = {}
-    chosen = [c for c in report["test_case_candidates"] if c["priority"] in priorities]
+    chosen = [c for c in report["test_case_candidates"] if c["priority"] in priorities
+              and (scope == "all" or c.get("verify_by") == "review")]
+    chosen.sort(key=lambda c: c.get("verify_by") != "review")
     dropped = chosen[max_cases:]
     chosen = chosen[:max_cases]
     packets: dict[str, dict] = {}
@@ -73,15 +78,17 @@ def build_packets(report: dict[str, Any], priorities: set[str], max_cases: int) 
                                 "code": _window(lines, ev["line"]) if ev.get("kind") != "file"
                                 else _references(lines, changed_names), "cases": []}
         p["cases"].append({k: c.get(k) for k in ("id", "priority", "risk_group", "sub_reason", "description",
-                                                    "activation_condition", "corner_cases", "hop_distance")})
+                                                    "activation_condition", "corner_cases", "hop_distance", "verify_by")}
+                           | ({"target_reasons": c["target_reasons"][:3]} if c.get("target_reasons") else {}))
     notes = [f"{len(dropped)} {'/'.join(sorted(priorities))} case(s) beyond --max-cases were not packed: "
              + ", ".join(c["id"] for c in dropped[:20])] if dropped else []
     return list(packets.values()), notes
 
 
-def write_packets(report_path: Path, out_dir: Path, priorities: set[str], max_cases: int, batch: int) -> dict:
+def write_packets(report_path: Path, out_dir: Path, priorities: set[str], max_cases: int, batch: int,
+                  scope: str = "all") -> dict:
     report = json.loads(report_path.read_text(encoding="utf-8"))
-    packets, notes = build_packets(report, priorities, max_cases)
+    packets, notes = build_packets(report, priorities, max_cases, scope)
     out_dir.mkdir(parents=True, exist_ok=True)
     for old in out_dir.glob("batch-*.json"):
         old.unlink()

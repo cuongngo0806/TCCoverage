@@ -541,6 +541,20 @@
         "bug_history": {
           "type": "integer",
           "minimum": 0
+        },
+        "verify_by": {
+          "type": "string",
+          "enum": [
+            "target",
+            "review"
+          ],
+          "description": "spec 007: target = must be run on the real device; review = may be closed by reading code"
+        },
+        "target_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

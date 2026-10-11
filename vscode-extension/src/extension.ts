@@ -10,7 +10,9 @@ interface Case {
   id: string; description: string; activation_condition: string; evidence: (SymbolRef | Edge)[];
   priority: string; risk_group: string; sub_reason?: string; hop_distance: number; corner_cases?: string[];
   related_cmake_targets: string[];
-  verification?: { verdict: "confirmed" | "weak" | "needs_info"; note: string; extra_corner_cases: string[]; recheck: boolean };
+  verify_by?: "target" | "review"; target_reasons?: string[];
+  verification?: { verdict: "confirmed" | "weak" | "needs_info" | "pass_by_review"; note: string; extra_corner_cases: string[];
+    recheck: boolean; proof?: string[] };
 }
 interface Flag { category: string; reason: string; related_symbol: SymbolRef | null }
 interface Report {
@@ -22,7 +24,11 @@ interface Report {
     verified_cases: number; usage?: { cost_usd: number; calls: number } };
   graph_provider?: string;
 }
-const VERDICT_ICON: Record<string, string> = { confirmed: "pass", weak: "info", needs_info: "question" };
+const VERDICT_ICON: Record<string, string> = { confirmed: "pass", weak: "info", needs_info: "question", pass_by_review: "verified" };
+// spec 007: same rule as classify/environment.py action()
+const ACTION_TAG: Record<string, string> = { test_on_target: "TARGET", review: "REVIEW", closed_by_review: "CLOSED" };
+const action = (c: Case): string => (c.verify_by ?? "target") === "target" ? "test_on_target"
+  : c.verification?.verdict === "pass_by_review" ? "closed_by_review" : c.verification ? "test_on_target" : "review";
 
 const isSym = (e: SymbolRef | Edge): e is SymbolRef => (e as SymbolRef).qualified_name !== undefined;
 const RISK: Record<string, string> = {
@@ -65,7 +71,7 @@ class CasesProvider implements vscode.TreeDataProvider<Node> {
     const groups: Node[] = ["P1", "P2", "P3"].map(p => {
       const cs = report!.test_case_candidates.filter(c => c.priority === p);
       if (cfg().get<string>("ai.order") === "ai") {  // stable: relevance order inside each verdict
-        const k = (c: Case) => c.verification ? ({ confirmed: 0, needs_info: 1, weak: 3 } as Record<string, number>)[c.verification.verdict] : 2;
+        const k = (c: Case) => c.verification ? ({ confirmed: 0, needs_info: 1, weak: 3, pass_by_review: 4 } as Record<string, number>)[c.verification.verdict] : 2;
         cs.sort((x, y) => k(x) - k(y));
       }
       return {
@@ -132,7 +138,9 @@ function caseNode(c: Case): Node {
     `${c.description}\n\n*When*: ${c.activation_condition}\n\n` +
     (c.corner_cases?.length ? "*Corner cases*:\n" + c.corner_cases.map(h => `- ${h}`).join("\n") + "\n\n" : "") +
     `*Targets*: ${c.related_cmake_targets.join(", ")}` +
+    (c.target_reasons?.length ? "\n\n*Needs the target*:\n" + c.target_reasons.map(h => `- ${h}`).join("\n") : "") +
     (c.verification ? `\n\n---\n**AI (${c.verification.verdict}${c.verification.recheck ? ", re-check" : ""})**: ${c.verification.note}` +
+      (c.verification.proof?.length ? `\n\n*Proof*: ${c.verification.proof.join(", ")}` : "") +
       c.verification.extra_corner_cases.map(h => `\n- ${h}`).join("") : "");
   const children: Node[] = c.evidence.map(e => isSym(e)
     ? { label: e.qualified_name, kind: "evidence" as const, file: e.file_path, line: e.line }
@@ -140,7 +148,7 @@ function caseNode(c: Case): Node {
         file: e.source_location.file_path, line: e.source_location.line });
   for (const h of c.corner_cases ?? []) { children.push({ label: h, kind: "info" }); }
   for (const h of c.verification?.extra_corner_cases ?? []) { children.push({ label: `AI: ${h}`, kind: "info" }); }
-  return { label: `${c.id} [${RISK[c.risk_group]}] ${first?.qualified_name ?? ""}`, kind: "case", tooltip: tip,
+  return { label: `${c.id} [${ACTION_TAG[action(c)]}] [${RISK[c.risk_group]}] ${first?.qualified_name ?? ""}`, kind: "case", tooltip: tip,
     children, file: first?.file_path, line: first?.line, verdict: c.verification?.verdict };
 }
 

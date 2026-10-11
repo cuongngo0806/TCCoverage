@@ -52,6 +52,27 @@ at runtime.
 `confirmed` / `weak` / `needs_info` are **annotations**. No case is removed, reordered or re-prioritised by a
 model. `weak` + `recheck:false` lets a reviewer skip a case consciously; the deterministic list stays auditable.
 
+### Test on target vs. close by code review (spec 007, constitution 1.1.0)
+
+On embedded code most risks only show up on the device, and a large change produces too many cases to run them
+all. Every case therefore gets a deterministic `verify_by`:
+
+- `target` — must be run on the device. `target_reasons` cite why (file:line): concurrency, memory lifetime,
+  data layout (`member_change`), build configuration, runtime-routed dependency flags, or the impacted code /
+  changed lines touch hardware (volatile, MMIO, HAL/peripherals, ioctl), interrupts, timing/timeouts/watchdog,
+  RTOS/threads/barriers, buses/sockets/CAN, packing/byte order. Add project names with
+  `analyze --target-patterns patterns.json` (`{"own HAL": "\\bbsp_\\w+"}`).
+- `review` — no runtime signal. An AI verifier may answer `pass_by_review` when the code window proves the case
+  cannot fail; `tcadvisor annotate` accepts it only for `review` cases, with a note and 1-3 `proof` file:line
+  that resolve, otherwise it is downgraded (`weak` / `needs_info`) and stays a test.
+
+Report buckets: **Test on target** (target cases + review cases the AI could not close), **Review code** (not
+yet reviewed), **Closed by code review** (listed with proof, never hidden). Cheapest run for a large change:
+
+```bash
+python3 -m tcadvisor verify OUT/report.json --ai-external-approved --scope review --priorities P1,P2,P3
+```
+
 ## 2. Product-development cycle (building the tool itself)
 
 Saved workflow `.claude/workflows/product-cycle.js` (args `{feature}` or `{specDir}`):

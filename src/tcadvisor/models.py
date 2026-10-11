@@ -165,6 +165,8 @@ class TestCaseCandidate:
     path: list[PathStep] | None = None
     lessons: list[str] = field(default_factory=list)
     test_result: dict[str, Any] | None = None  # tester's record (distinct from the AI `verification`)
+    verify_by: str = "target"  # target (needs a real run on the device) | review (may be closed by reading code)
+    target_reasons: list[str] = field(default_factory=list)  # why a run on the target is needed (cites file:line)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -179,6 +181,8 @@ class TestCaseCandidate:
             "node_id": self.node_id,
             "corner_cases": self.hints,
             "bug_history": self.bug_history,
+            "verify_by": self.verify_by,
+            "target_reasons": self.target_reasons,
             "related_cmake_targets": self.related_cmake_targets,
             "key": self.key,
             "code_fingerprint": self.code_fingerprint,

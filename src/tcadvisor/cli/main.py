@@ -68,6 +68,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="max TUs to parse with libclang when the graph provider cannot resolve a root (else flag)")
     a.add_argument("--no-history", dest="history", action="store_false",
                    help="do not use the files' bug-fix history (git log) as a ranking signal")
+    a.add_argument("--target-patterns", type=Path, metavar="JSON",
+                   help='extra regexes that mark a case "test on target", e.g. {"hardware access": "\\bmy_hal_\\w+"}')
     a.add_argument("--jobs", type=int, help="parallel libclang workers for the full index (default: CPU count)")
     a.add_argument("--allow-stale-compile-db", action="store_true")
     a.add_argument("--no-run-cache", action="store_true", help="always recompute the result (index cache still used)")
@@ -86,6 +88,9 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("--priorities", default="P1,P2")
     v.add_argument("--max-cases", type=int, default=60)
     v.add_argument("--batch", type=int, default=8, help="packets per verifier call")
+    v.add_argument("--scope", choices=["all", "review"], default="all",
+                   help="review = only cases that may be closed by reading code (cheapest way to shrink the "
+                        "list of cases to test on the target); all = those first, then target cases")
 
     vf = sub.add_parser("verify", help="AI-verify an existing report with the Claude Code CLI (headless)")
     vf.add_argument("report", type=Path)
@@ -97,6 +102,8 @@ def build_parser() -> argparse.ArgumentParser:
     vf.add_argument("--parallel", type=int, default=4)
     vf.add_argument("--priorities", default="P1,P2")
     vf.add_argument("--max-cases", type=int, default=60)
+    vf.add_argument("--scope", choices=["all", "review"], default="all",
+                    help="review = only AI-review cases that may be closed by reading code")
     vf.add_argument("--budget-usd", type=float, help="per-call spending cap passed to claude --max-budget-usd")
 
     an = sub.add_parser("annotate", help="merge AI verdicts into report.json and re-render")
@@ -121,6 +128,9 @@ def _analyze(ns: argparse.Namespace) -> int:
 
     if ns.max_hop_depth < 1 or ns.split_threshold < 1:
         raise UsageError("--max-hop-depth and --split-threshold must be >= 1")
+    if ns.target_patterns:
+        from tcadvisor.classify.environment import load_patterns
+        load_patterns(ns.target_patterns)  # usage error before any indexing
     if ns.llm:
         check_endpoint(ns.llm_endpoint, ns.llm_external_approved)
     symbols = parse_symbol_args(ns.symbols, ns.symbols_file) if (ns.symbols or ns.symbols_file) else None
@@ -133,7 +143,8 @@ def _analyze(ns: argparse.Namespace) -> int:
         use_run_cache=not ns.no_run_cache, progress=say, graph=ns.graph, graph_bin=ns.graph_bin,
         index=ns.index, jobs=ns.jobs, fallback_max_tus=ns.fallback_max_tus, history=ns.history,
         contracts=ns.contracts, lessons=ns.lessons, previous_report=ns.previous_report,
-        flow_max_tus=ns.flow_max_tus, patterns=ns.patterns, attachment_warn_mb=ns.attachment_warn_mb)
+        flow_max_tus=ns.flow_max_tus, patterns=ns.patterns, attachment_warn_mb=ns.attachment_warn_mb,
+        target_patterns=ns.target_patterns)
     report = run(opts)
     files = write_outputs(report, ns.output_dir, ns.format)
     if ns.print == "json":
@@ -194,22 +205,24 @@ def main(argv: list[str] | None = None) -> int:
         if ns.command == "verify-pack":
             from tcadvisor.verify.pack import write_packets
             m = write_packets(ns.report, ns.out or ns.report.parent / "verify",
-                              {p.strip() for p in ns.priorities.split(",")}, ns.max_cases, ns.batch)
+                              {p.strip() for p in ns.priorities.split(",")}, ns.max_cases, ns.batch, ns.scope)
             print(json.dumps(m, indent=1))
             return 0
         if ns.command == "verify":
-            from tcadvisor.report.render import write_outputs
+            from tcadvisor.report.render import plan_line, write_outputs
             from tcadvisor.verify.runner import verify
             res = verify(ns.report, approved=ns.ai_external_approved, claude=ns.claude_bin,
                          verify_model=ns.verify_model, synth_model=ns.synth_model, parallel=ns.parallel,
                          priorities={p.strip() for p in ns.priorities.split(",")}, max_cases=ns.max_cases,
-                         budget_usd=ns.budget_usd, progress=lambda m: print(f"[tcadvisor] {m}", file=sys.stderr))
+                         budget_usd=ns.budget_usd, scope=ns.scope, progress=lambda m: print(f"[tcadvisor] {m}", file=sys.stderr))
             write_outputs(json.loads(ns.report.read_text(encoding="utf-8")), ns.report.parent, "all",
                           same_analysis=True)
             u = res["usage"]
             if res["errors"] and not res["verified"]:
                 print("error: AI verification failed: " + "; ".join(res["errors"]), file=sys.stderr)
                 return 3
+            rep = json.loads(ns.report.read_text(encoding="utf-8"))
+            print(plan_line(rep))
             print(f"verified {res['verified']} case(s) with {u['calls']} model call(s); tokens in/out "
                   f"{u['input_tokens']}/{u['output_tokens']}; cost ${u['cost_usd']:.4f}"
                   + (f"; errors: {'; '.join(res['errors'])}" if res["errors"] else ""))
@@ -223,6 +236,8 @@ def main(argv: list[str] | None = None) -> int:
             write_outputs(rep, ns.report.parent, "all", same_analysis=True)
             av = rep["ai_verification"]
             print(f"annotated {av['verified_cases']} case(s); {len(av['additional_checks'])} additional check(s)")
+            from tcadvisor.report.render import plan_line
+            print(plan_line(rep))
             return 0
         if ns.command == "results":
             return _results(ns)
