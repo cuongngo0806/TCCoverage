@@ -1,0 +1,552 @@
+[
+ {
+  "proj": "bench-rocksdb",
+  "intro": "062396af1",
+  "det_rank": null,
+  "ai_rank": null,
+  "hit_verdict": null,
+  "named_in_checks": false,
+  "cost": 0.10277575,
+  "calls": 4
+ },
+ {
+  "proj": "bench-rocksdb",
+  "intro": "2acbf386a",
+  "det_rank": 2,
+  "ai_rank": 3,
+  "hit_verdict": "needs_info",
+  "named_in_checks": true,
+  "cost": 0.18169615000000003,
+  "calls": 4
+ },
+ {
+  "proj": "bench-rocksdb",
+  "intro": "3b5cb114e",
+  "det_rank": 296,
+  "ai_rank": 289,
+  "hit_verdict": null,
+  "named_in_checks": false,
+  "cost": 0.15282659999999998,
+  "calls": 3
+ },
+ {
+  "proj": "bench-rocksdb",
+  "intro": "4026c3cc0",
+  "det_rank": 1,
+  "ai_rank": 1,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.10148236,
+  "calls": 4
+ },
+ {
+  "proj": "bench-rocksdb",
+  "intro": "408e8d4c8",
+  "det_rank": 2,
+  "ai_rank": 1,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.15849568,
+  "calls": 5
+ },
+ {
+  "proj": "bench-rocksdb",
+  "intro": "656b734a5",
+  "det_rank": null,
+  "ai_rank": null,
+  "hit_verdict": null,
+  "named_in_checks": true,
+  "cost": 0.19828806000000002,
+  "calls": 4
+ },
+ {
+  "proj": "bench-rocksdb",
+  "intro": "749b849a3",
+  "det_rank": 1,
+  "ai_rank": 1,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.11891246,
+  "calls": 4
+ },
+ {
+  "proj": "bench-rocksdb",
+  "intro": "7c9b58068",
+  "det_rank": 107,
+  "ai_rank": 97,
+  "hit_verdict": null,
+  "named_in_checks": false,
+  "cost": 0.25834263999999996,
+  "calls": 3
+ },
+ {
+  "proj": "bench-rocksdb",
+  "intro": "7d83b4e3e",
+  "det_rank": 1,
+  "ai_rank": 1,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.05908326,
+  "calls": 4
+ },
+ {
+  "proj": "bench-rocksdb",
+  "intro": "8234d67e5",
+  "det_rank": 30,
+  "ai_rank": 22,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.23659146,
+  "calls": 4
+ },
+ {
+  "proj": "bench-rocksdb",
+  "intro": "8f763bdea",
+  "det_rank": 3,
+  "ai_rank": 5,
+  "hit_verdict": "weak",
+  "named_in_checks": true,
+  "cost": 0.17379645999999999,
+  "calls": 4
+ },
+ {
+  "proj": "bench-rocksdb",
+  "intro": "b0ecf86f6",
+  "det_rank": 1,
+  "ai_rank": 1,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.04385332,
+  "calls": 2
+ },
+ {
+  "proj": "bench-rocksdb",
+  "intro": "b1ee19140",
+  "det_rank": 3,
+  "ai_rank": 1,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.12754638000000001,
+  "calls": 5
+ },
+ {
+  "proj": "bench-rocksdb",
+  "intro": "b397dcd39",
+  "det_rank": 1,
+  "ai_rank": 1,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.1362369,
+  "calls": 6
+ },
+ {
+  "proj": "bench-rocksdb",
+  "intro": "c2029f971",
+  "det_rank": 15,
+  "ai_rank": 9,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.11993176,
+  "calls": 4
+ },
+ {
+  "proj": "bench-rocksdb",
+  "intro": "f07c56928",
+  "det_rank": 1,
+  "ai_rank": 1,
+  "hit_verdict": "needs_info",
+  "named_in_checks": true,
+  "cost": 0.07000355999999999,
+  "calls": 4
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "d1e228130",
+  "det_rank": 22,
+  "ai_rank": 52,
+  "hit_verdict": "weak",
+  "named_in_checks": true,
+  "cost": 0.11357556000000002,
+  "calls": 4
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "30f8553c9",
+  "det_rank": 67,
+  "ai_rank": 55,
+  "hit_verdict": null,
+  "named_in_checks": false,
+  "cost": 0.21913327999999999,
+  "calls": 5
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "30f8553c9",
+  "det_rank": 69,
+  "ai_rank": 57,
+  "hit_verdict": null,
+  "named_in_checks": false,
+  "cost": 0.21913327999999999,
+  "calls": 5
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "4062d4c97",
+  "det_rank": 5,
+  "ai_rank": 4,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.11356226000000001,
+  "calls": 4
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "710a8613e",
+  "det_rank": 173,
+  "ai_rank": 160,
+  "hit_verdict": null,
+  "named_in_checks": false,
+  "cost": 1.8473306,
+  "calls": 3
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "7a30a430d",
+  "det_rank": 4,
+  "ai_rank": 2,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.11880408,
+  "calls": 5
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "1a749b7e8",
+  "det_rank": 3,
+  "ai_rank": 3,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.11738175999999999,
+  "calls": 4
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "da754567d",
+  "det_rank": 3,
+  "ai_rank": 2,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.1143584,
+  "calls": 6
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "2a4f05aa2",
+  "det_rank": 60,
+  "ai_rank": 53,
+  "hit_verdict": null,
+  "named_in_checks": true,
+  "cost": 0.11672474,
+  "calls": 3
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "8c97ab91b",
+  "det_rank": 24,
+  "ai_rank": 21,
+  "hit_verdict": "weak",
+  "named_in_checks": true,
+  "cost": 0.20164540000000003,
+  "calls": 6
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "30f8553c9",
+  "det_rank": 267,
+  "ai_rank": 255,
+  "hit_verdict": null,
+  "named_in_checks": false,
+  "cost": 0.21913327999999999,
+  "calls": 5
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "6ef7b4e12",
+  "det_rank": null,
+  "ai_rank": null,
+  "hit_verdict": null,
+  "named_in_checks": true,
+  "cost": 0.16034896,
+  "calls": 4
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "91d3a2198",
+  "det_rank": 3,
+  "ai_rank": 3,
+  "hit_verdict": "weak",
+  "named_in_checks": true,
+  "cost": 0.16854706,
+  "calls": 4
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "46bd8bf17",
+  "det_rank": 6,
+  "ai_rank": 3,
+  "hit_verdict": "needs_info",
+  "named_in_checks": true,
+  "cost": 0.17026564,
+  "calls": 3
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "1695955b0",
+  "det_rank": 1,
+  "ai_rank": 1,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.13340156,
+  "calls": 4
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "9933ad2c1",
+  "det_rank": 14,
+  "ai_rank": 7,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.12349024,
+  "calls": 3
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "11447b294",
+  "det_rank": 22,
+  "ai_rank": 13,
+  "hit_verdict": "confirmed",
+  "named_in_checks": false,
+  "cost": 0.25617396,
+  "calls": 4
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "269e98393",
+  "det_rank": 79,
+  "ai_rank": 76,
+  "hit_verdict": null,
+  "named_in_checks": true,
+  "cost": 0.29363816,
+  "calls": 4
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "cc8c5a943",
+  "det_rank": 49,
+  "ai_rank": 44,
+  "hit_verdict": null,
+  "named_in_checks": true,
+  "cost": 0.12659736,
+  "calls": 4
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "7c3f82cde",
+  "det_rank": 2,
+  "ai_rank": 2,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.0981391,
+  "calls": 6
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "46bd8bf17",
+  "det_rank": 2,
+  "ai_rank": 1,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.17026564,
+  "calls": 3
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "05f8f469b",
+  "det_rank": null,
+  "ai_rank": null,
+  "hit_verdict": null,
+  "named_in_checks": false,
+  "cost": 0.17321393999999998,
+  "calls": 3
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "07b13fa64",
+  "det_rank": 3,
+  "ai_rank": 3,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.046198220000000005,
+  "calls": 2
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "11447b294",
+  "det_rank": 48,
+  "ai_rank": 41,
+  "hit_verdict": null,
+  "named_in_checks": false,
+  "cost": 0.25617396,
+  "calls": 4
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "11447b294",
+  "det_rank": 14,
+  "ai_rank": 8,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.25617396,
+  "calls": 4
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "03f8ed529",
+  "det_rank": null,
+  "ai_rank": null,
+  "hit_verdict": null,
+  "named_in_checks": false,
+  "cost": 0.12013746,
+  "calls": 4
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "30f8553c9",
+  "det_rank": 154,
+  "ai_rank": 142,
+  "hit_verdict": null,
+  "named_in_checks": false,
+  "cost": 0.21913327999999999,
+  "calls": 5
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "1e7a7b044",
+  "det_rank": 143,
+  "ai_rank": 141,
+  "hit_verdict": null,
+  "named_in_checks": false,
+  "cost": 0.21304453999999998,
+  "calls": 3
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "1e7a7b044",
+  "det_rank": 437,
+  "ai_rank": 435,
+  "hit_verdict": null,
+  "named_in_checks": true,
+  "cost": 0.21304453999999998,
+  "calls": 3
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "a5fb6b28f",
+  "det_rank": 8,
+  "ai_rank": 7,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.1031903,
+  "calls": 6
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "710a8613e",
+  "det_rank": 173,
+  "ai_rank": 160,
+  "hit_verdict": null,
+  "named_in_checks": false,
+  "cost": 1.8473306,
+  "calls": 3
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "200815b21",
+  "det_rank": 6,
+  "ai_rank": 4,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.12599746,
+  "calls": 4
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "7f40d9c53",
+  "det_rank": 1,
+  "ai_rank": 1,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.10855186,
+  "calls": 4
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "60c83e0b4",
+  "det_rank": 1,
+  "ai_rank": 1,
+  "hit_verdict": "weak",
+  "named_in_checks": true,
+  "cost": 0.053675139999999996,
+  "calls": 3
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "b1e7bab5d",
+  "det_rank": 126,
+  "ai_rank": 123,
+  "hit_verdict": null,
+  "named_in_checks": false,
+  "cost": 0.238819,
+  "calls": 6
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "200815b21",
+  "det_rank": 218,
+  "ai_rank": 210,
+  "hit_verdict": null,
+  "named_in_checks": true,
+  "cost": 0.12599746,
+  "calls": 4
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "d42407e7d",
+  "det_rank": 10,
+  "ai_rank": 4,
+  "hit_verdict": "confirmed",
+  "named_in_checks": true,
+  "cost": 0.04683154,
+  "calls": 3
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "e772e621e",
+  "det_rank": 86,
+  "ai_rank": 76,
+  "hit_verdict": null,
+  "named_in_checks": false,
+  "cost": 0.15705284,
+  "calls": 3
+ },
+ {
+  "proj": "bench-vsomeip",
+  "intro": "b40e1e894",
+  "det_rank": 1,
+  "ai_rank": 1,
+  "hit_verdict": "weak",
+  "named_in_checks": false,
+  "cost": 0.12874538,
+  "calls": 5
+ }
+]

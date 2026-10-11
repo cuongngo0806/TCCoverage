@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m tcadvisor:*)",
+      "Bash(python -m tcadvisor:*)",
+      "Bash(tcadvisor:*)",
+      "Bash(python3 -m pytest:*)",
+      "Bash(python3 .specify/scripts/python/speckit.py:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git status:*)"
+    ]
+  }
+}
