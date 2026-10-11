@@ -438,6 +438,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
                                                                              kv[1].symbol.line))],
         "existing_tests": [{"test": lbl, "file_path": nodes[nid].symbol.file_path, "line": nodes[nid].symbol.line,
                             "hop_distance": nodes[nid].hop_distance} for nid, lbl in sorted(tests.items(), key=lambda kv: kv[1])],
+        "test_gaps": _test_gaps(changes, roots, nodes, tests, opts.max_hop_depth),
         "affected_targets": affected,
         "test_case_candidates": [c.to_dict() for c in cases],
         "trigger_sources": [{"target": t.target.to_dict(), "reason": "guarded",
@@ -461,6 +462,21 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     if opts.use_run_cache and not llm_degraded:
         cache.put_run(run_key, report["commit_hash"], report)
     return report
+
+
+def _test_gaps(changes: list, roots: dict[str, SymbolRef], nodes: dict, tests: dict[str, str],
+               depth: int) -> list[dict[str, Any]]:
+    """Spec 009 US4: changed symbols that no existing test reaches within the hop depth (a new test is likely
+    needed rather than a re-run)."""
+    covered = {rid for nid in tests for rid in nodes[nid].root_ids}
+    out = []
+    for ch in changes:
+        if ch.node_id not in roots or ch.is_test_code or ch.kind == "file" or ch.change_kind == "removed" \
+                or ch.node_id in covered:
+            continue
+        out.append({"symbol": roots[ch.node_id].to_dict(),
+                    "reason": f"no existing test reaches it within {depth} hop(s)"})
+    return out
 
 
 def _data_paths(opts: Options, repo: Path, cdb: CompileDatabase, facts, cache, graph: Graph, changes: list,

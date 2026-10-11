@@ -17,13 +17,16 @@ analysed repo.
 - Spec 006 (lessons + test report): `index/flow.py` + `graph/dataflow.py` (data paths A→B→C), `graph/sources.py`
   (sibling trigger sources), `classify/patterns.py` + `classify/lessons.py` (patterns, `.tcadvisor/lessons.json`),
   `report/results.py` (fillable report results, `--previous-report`, `tcadvisor results`).
+- Spec 009 (`specs/009-side-effect-corner-cases`, side effects + corner cases): `classify/edits.py` (edit shapes → concrete corner cases, `removed_guard` P1),
+  `classify/patterns.py` `coupling()` (readers of state a change no longer / differently produces), `test_gaps` in the report.
 - `.claude/skills/tc-coverage`, `.claude/agents/{tc-coverage-analyst,tc-case-verifier,tc-verify-synthesizer}.md`,
   `.claude/workflows/{tc-verify,product-cycle}.js` — Claude front-end; see `docs/workflow.md` (models per step).
 - `scripts/eval_real_project.py` — leveldb ground-truth eval (run before release).
 - `scripts/pilot_regressions.py` + `scripts/szz_pairs.py` — SC-005 regression pilot (see `specs/003-pilot-large-projects/pilot.md`);
   `scripts/rank_lab.py` (offline ranking experiments), `scripts/ai_rank_eval.py` (AI view) — `specs/004-ranking-and-recall/results.md`.
   Change ranking/rules only with a benchmark run that shows dev *and* holdout do not get worse.
-- `src/tcadvisor/classify/environment.py` — spec 007: `verify_by` target|review per case; AI `pass_by_review`
+  Rule / hint changes: also run `scripts/seeded_regressions.py` (victims, corners, MRR on dev and holdout).
+- `src/tcadvisor/classify/environment.py` — spec 009 (`specs/007-target-vs-review`): `verify_by` target|review per case; AI `pass_by_review`
   (gated in `verify/annotate.py`) closes review cases with proof — see `docs/workflow.md`.
 - `specs/001-change-impact-test-advisor/` — speckit spec/plan/tasks; `.specify/memory/constitution.md` — rules.
 
@@ -35,6 +38,8 @@ python3 -m pytest -q                          # full suite (~20 s)
 python3 -m pytest -q tests/unit               # fast
 python3 -m tcadvisor analyze --repo R --build-dir B --working-tree --output-dir OUT --print brief
 python3 scripts/eval_real_project.py --quiet   # real-project acceptance (needs network + cmake)
+python3 scripts/seeded_regressions.py          # 31 seeded side-effect regressions: leveldb dev + holdout, yaml-cpp
+python3 scripts/seeded_regressions.py --min-victims yamlcpp=8 --min-corners yamlcpp=9   # CI recall gate (per-set thresholds)
 cd vscode-extension && npm install && npm run compile && npm test
 ```
 

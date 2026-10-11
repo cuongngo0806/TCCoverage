@@ -179,6 +179,11 @@ def to_markdown(r: dict[str, Any]) -> str:
               "`--gtest_filter=" + ":".join(t["test"] for t in r["existing_tests"]) + "`", ""]
         L += [f"- `{t['test']}` ({t['file_path']}:{t['line']}, hop {t['hop_distance']})" for t in r["existing_tests"]]
         L.append("")
+    if r.get("test_gaps"):
+        L += ["## Test gaps (no existing test reaches the change)", ""]
+        L += [f"- [ ] `{g['symbol']['qualified_name']}` ({g['symbol']['file_path']}:{g['symbol']['line']}) — "
+              f"{g['reason']}: a new test is likely needed" for g in r["test_gaps"]]
+        L.append("")
     ts = r.get("trigger_sources") or []
     for t in [t for t in ts if t.get("reason", "guarded") == "guarded"]:
         L += [f"## Trigger sources of `{t['target']['qualified_name']}`", "",
@@ -293,6 +298,9 @@ def to_brief(r: dict[str, Any], limit: int = 80) -> str:
     for f in r["uncertainty_flags"]:
         sym = f["related_symbol"]
         L.append(f"UNCERTAIN {f['category']} {sym['qualified_name'] if sym else '-'} :: {f['reason']}")
+    for g in r.get("test_gaps") or []:
+        L.append(f"TEST-GAP {g['symbol']['qualified_name']} @{g['symbol']['file_path']}:{g['symbol']['line']} "
+                 f"({g['reason']})")
     if r.get("existing_tests"):
         L.append("RERUN --gtest_filter=" + ":".join(t["test"] for t in r["existing_tests"]))
     for a in (r.get("ai_verification") or {}).get("additional_checks", []):

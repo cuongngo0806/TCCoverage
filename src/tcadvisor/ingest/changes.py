@@ -82,6 +82,8 @@ class SymbolChange:
     added_line_numbers: list[int] = field(default_factory=list)
     textual: bool = False  # located by a text scan: the parser did not see it (inactive #if branch, no flags)
     log_lines: set[int] = field(default_factory=set)  # new-side lines that belong to a logging statement
+    old_body: list[str] = field(default_factory=list)  # symbol text on each side (spec 009 edit shapes)
+    new_body: list[str] = field(default_factory=list)
 
     @property
     def is_template(self) -> bool:
@@ -150,6 +152,38 @@ class ChangeSet:
 
 def strip_comments(text: str) -> str:
     return _COMMENT_RE.sub("", text)
+
+
+def mask_literals(text: str) -> str:
+    """Blank the contents of ``"..."`` and ``'...'`` literals (escape-aware, same length) so braces, parentheses
+    and semicolons inside them do not confuse the text scan. An unterminated literal is masked to the line end."""
+    out: list[str] = []
+    quote = ""
+    i, n = 0, len(text)
+    while i < n:
+        ch = text[i]
+        if quote:
+            if ch == "\\" and i + 1 < n:
+                out.append("  ")
+                i += 2
+                continue
+            if ch == quote:
+                quote = ""
+                out.append(ch)
+            else:
+                out.append(" ")
+        else:
+            if ch in "\"'":
+                # a digit separator (1'000) is not a char literal
+                if ch == "'" and out and (out[-1].isalnum()) and i + 1 < n and text[i + 1].isalnum() \
+                        and i > 0 and text[i - 1].isdigit():
+                    out.append(ch)
+                    i += 1
+                    continue
+                quote = ch
+            out.append(ch)
+        i += 1
+    return "".join(out)
 
 
 def log_statement_lines(lines: list[str], start: int, end: int) -> set[int]:
@@ -520,7 +554,8 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
                 node_id=usr, rel_path=fd.new_path or rel, change_kind=kind, name=ref.name, kind=ref.kind,
                 line=ref.start, old=o, new=n, added_lines=added, removed_lines=removed, conditions=conds,
                 is_header=is_header, added_line_numbers=sorted(ln for ln in fd.new_lines if n and n.start <= ln <= n.end),
-                log_lines=log_statement_lines(new_lines, n.start, n.end) if n else set()))
+                log_lines=log_statement_lines(new_lines, n.start, n.end) if n else set(),
+                old_body=old_lines[o.start - 1:o.end] if o else [], new_body=new_lines[n.start - 1:n.end] if n else []))
 
         res_new = _residual(new_lines, fd.new_lines, new_syms.extents if new_syms else [])
         res_old = _residual(old_lines, fd.old_lines, old_syms.extents if old_syms else [])
@@ -543,7 +578,9 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
                     text = strip_comments(lines_[ln - 1]).strip() if 0 < ln <= len(lines_) else ""
                     if fn is None or not text:
                         continue
-                    e = by_fn.setdefault(fn[0], {"start": fn[1], "add": [], "rem": [], "lines": set(), "old": set()})
+                    e = by_fn.setdefault(fn[0], {"start": fn[1], "add": [], "rem": [], "lines": set(), "old": set(),
+                                                 "nb": [], "ob": []})
+                    e["nb" if side == "+" else "ob"] = lines_[fn[1] - 1:fn[2]]
                     (e["add"] if side == "+" else e["rem"]).append(text)
                     (e["lines"] if side == "+" else e["old"]).add(ln)
                     if side == "+":
@@ -557,7 +594,7 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
                     node_id=f"text:{fd.new_path or rel}:{name}", rel_path=fd.new_path or rel, change_kind="modified",
                     name=name, kind="method" if "::" in name else "function", line=e["start"],
                     added_lines=e["add"], removed_lines=e["rem"], conditions=conds, is_header=is_header,
-                    added_line_numbers=sorted(e["lines"]), textual=True))
+                    added_line_numbers=sorted(e["lines"]), textual=True, old_body=e["ob"], new_body=e["nb"]))
                 rest_new -= e["lines"]
                 rest_old -= e["old"]
             res_new = _residual(new_lines, rest_new, cov_new)
@@ -576,7 +613,38 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
     return cs
 
 
-_FN_HEAD = re.compile(r"^[A-Za-z_][\w:<>,\s\*&~]*?\b((?:[A-Za-z_]\w*::)*~?[A-Za-z_]\w*)\s*\([^;]*$")
+_FN_HEAD = re.compile(r"^(?:[A-Za-z_][\w:,\s\*&~]*?(?<![\w:~]))?((?:[A-Za-z_]\w*::)*~?[A-Za-z_]\w*)\s*\([^;]*$")
+
+
+def strip_template_args(s: str) -> str:
+    """``Foo<Bar<T>>::bar(`` -> ``Foo::bar(``: drop balanced ``<...>`` that directly follow an identifier (linear
+    scan; a regex over nested brackets backtracks exponentially)."""
+    out, i, n = [], 0, len(s)
+    while i < n:
+        ch = s[i]
+        if ch == "<" and out and (out[-1].isalnum() or out[-1] == "_") and s[i + 1:i + 2] not in ("<", "="):
+            depth, j = 0, i
+            while j < n:
+                if s[j] == "<":
+                    depth += 1
+                elif s[j] == ">":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                elif s[j] in ";{}":
+                    break
+                j += 1
+            if j < n and s[j] == ">" and depth == 0:
+                i = j + 1
+                continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+# one-line definition with statements: `bool ok() const { return m_ok; }`
+_FN_HEAD_INLINE = re.compile(r"^(?:[A-Za-z_][\w:,\s\*&~]*?(?<![\w:~]))?((?:[A-Za-z_]\w*::)*~?[A-Za-z_]\w*)"
+                             r"\s*\([^;{}]*\)[^;{}()]*\{")
+_RET_ONLY = re.compile(r"^[A-Za-z_][\w:<>,\s\*&]*$")  # a line holding only a return type (GNU layout)
+_CLASS_HEAD = re.compile(r"^(?:template\s*<.*>\s*)?(?:class|struct)\s+(?:\w+\s+)*?(\w+)\s*(?:final\s*)?(?::[^;{]*)?\{?[^;]*$")
 _NOT_FN = {"if", "for", "while", "switch", "return", "sizeof", "catch", "do", "else"}
 
 
@@ -588,18 +656,32 @@ def textual_functions(lines: list[str]) -> list[tuple[str, int, int]]:
     out: list[tuple[str, int, int]] = []
     stack: list[tuple[str, str, int]] = []  # (kind, name, start)
     pending: tuple[str, int] | None = None
+    prev_s = ""  # previous non-blank, non-preprocessor line
+    cls_name = ""  # name of a class/struct whose `{` has not been seen yet
     for i, raw in enumerate(lines, 1):
-        line = strip_comments(raw)
+        line = mask_literals(strip_comments(raw))
         s = line.strip()
         if not s or s.startswith("#"):
             continue
         in_fn = any(k == "fn" for k, _n, _s in stack)
+        cm = None if in_fn else _CLASS_HEAD.match(s)
+        if cm:
+            cls_name = cm.group(1)
         if not in_fn:
-            m = _FN_HEAD.match(s)
-            if m and m.group(1).split("::")[-1] not in _NOT_FN:
+            head = strip_template_args(s[:300])
+            m = None if s[0] in ":," else (_FN_HEAD.match(head) or _FN_HEAD_INLINE.match(head))
+            if m and m.start(1) == 0 and "::" not in m.group(1):
+                # no return type on this line: a definition head only for an in-class constructor / destructor
+                # (innermost scope is the class of that name) or when the previous line is the bare return type
+                nm = m.group(1).lstrip("~")
+                in_class = bool(stack) and stack[-1][0] == "scope" and stack[-1][1] == nm
+                ret_prev = bool(_RET_ONLY.match(prev_s)) and prev_s.split()[-1] not in _NOT_FN
+                if not (in_class or ret_prev):
+                    m = None
+            if m and m.group(1).split("::")[-1] not in _NOT_FN and not (s.endswith(";") and "{" not in s):
                 pending = (m.group(1), i)
             elif s.endswith(";"):
-                pending = None
+                pending = None  # a declaration (`f(int);`, `A(const A&) = delete;`)
         for ch in line:
             if ch == "{":
                 if in_fn:
@@ -609,11 +691,13 @@ def textual_functions(lines: list[str]) -> list[tuple[str, int, int]]:
                     in_fn = True
                     pending = None
                 else:
-                    stack.append(("scope", "", i))
+                    stack.append(("scope", cls_name, i))
+                    cls_name = ""
             elif ch == "}" and stack:
                 kind, name, start = stack.pop()
                 if kind == "fn":
                     out.append((name, start, i))
+        prev_s = s
     return out
 
 

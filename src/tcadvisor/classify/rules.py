@@ -11,6 +11,7 @@ import difflib
 import re
 from collections import Counter
 
+from tcadvisor.classify import edits as E
 from tcadvisor.ingest.changes import SymbolChange
 from tcadvisor.models import RiskClassification
 
@@ -172,6 +173,8 @@ def boundary_hints(lines: list[str], prefix: str = "Boundary") -> list[str]:
     out = []
     for ln in lines:
         for var, op, lit in _CMP.findall(ln):
+            while var.count(")") > var.count("(") and var.endswith(")"):
+                var = var[:-1]  # `(x.size_) == 0`: the closing parenthesis is not part of the operand
             try:
                 v = int(lit, 0) if not ("." in lit) else float(lit)
             except ValueError:
@@ -274,8 +277,9 @@ def classify(ch: SymbolChange, configurations: list[str]) -> list[RiskClassifica
             f"signature of {where} changed: `{' '.join(o.decl_tokens)[:120]}` -> `{' '.join(n.decl_tokens)[:120]}`")
     if ch.change_kind == "removed" and ch.kind != "file":
         add("abi_layout", "signature_change", f"{where} was removed; remaining users must be updated")
+    # a body defined in a class inside a source file is inline only for its own TU: no ODR / rebuild risk
     if ch.kind in ("function", "method") and n and n.is_inline and o and o.tokens != n.tokens \
-            and o.decl_tokens == n.decl_tokens:
+            and o.decl_tokens == n.decl_tokens and ch.is_header:
         add("abi_layout", "inline_change", f"inline body of {where} changed (compiled into every includer)")
     if ch.is_header and ch.change_kind != "explicit" and not any(r.risk_group == "abi_layout" for r in out):
         if ch.kind == "file":
@@ -332,6 +336,20 @@ def classify(ch: SymbolChange, configurations: list[str]) -> list[RiskClassifica
             f"exception flow changed in {where}: {_fmt(delta & (EXCEPTION_TOKENS - {'noexcept'}))}")
 
     # ---- logic -----------------------------------------------------------------------------------
+    # spec 009: concrete corner cases from the shape of the edit (operator, constant, removed guard, reorder, ...)
+    shapes = [] if ch.kind == "file" and is_cmake else E.shapes_of(ch)
+    shape_hints = [x.hint for x in shapes]
+    if n and ch.kind in ("function", "method"):
+        shape_hints += E.input_classes(n.decl_tokens, ch.added_lines + ch.removed_lines)
+    for x in shapes:
+        if x.kind in ("lock_removed", "lock_added"):
+            cur = next((r for r in out if r.risk_group == "thread_safety" and r.sub_reason == "mutex"), None)
+            if cur is not None:
+                cur.hints.insert(0, x.hint)
+            else:
+                add("thread_safety", "mutex", f"lock {x.kind.split('_')[1]} in {where}: `{(x.old or x.new)[:80]}`",
+                    [x.hint])
+    guards = [x for x in shapes if x.kind == "removed_guard"]
     logic_delta = (delta & LOGIC_TOKENS) | {t for t in delta if _NUM.match(t)}
     body_changed = bool(o and n and o.tokens != n.tokens and ch.kind in ("function", "method"))
     if logic_delta or (ch.kind in ("function", "method") and ch.change_kind in ("added", "modified")
@@ -341,5 +359,13 @@ def classify(ch: SymbolChange, configurations: list[str]) -> list[RiskClassifica
                   else f"behaviour of {where} {ch.change_kind}")
         old_b = [h for h in boundary_hints(ch.removed_lines, "Previous boundary")
                  if h.split(":", 1)[1] not in {x.split(":", 1)[1] for x in boundary_hints(ch.added_lines)}]
-        add("logic", None, detail, (boundary_hints(ch.added_lines) + old_b)[:6])
+        if guards:
+            detail = f"condition removed in {where}: " + "; ".join(f"`{g.old[:80]}`" for g in guards[:2])
+        bh = [h for h in boundary_hints(ch.added_lines) + old_b
+              if not any(h.split("`")[1:2] and h.split("`")[1] in x.hint for x in shapes if x.kind == "constant_change")]
+        hints = list(dict.fromkeys(shape_hints + bh))[:8]
+        if guards:
+            out.append(RiskClassification("logic", "removed_guard", detail, hints + HINTS[("logic", None)]))
+        else:
+            add("logic", None, detail, hints)
     return out
