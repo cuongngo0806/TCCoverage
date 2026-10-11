@@ -11,7 +11,10 @@ written down *before* the tool was improved:
   noise     cases ranked before the first victim (lower is better)
 
   python3 scripts/seeded_regressions.py [--workdir DIR] [--only NAME,...] [--json OUT] [--quiet]
-Exit 0 when every victim is named and every corner is hinted on the edited symbol or a victim case.
+                                        [--min-victims SET=N ...] [--min-corners SET=N ...]
+Exit 0 when every victim is named and every corner is hinted on the edited symbol or a victim case. With
+``--min-victims`` / ``--min-corners`` (SET = dev | holdout | yamlcpp, repeatable) a set passes when it reaches that
+many scenarios instead (the CI recall gate); sets without a threshold keep the strict rule.
 """
 import argparse
 import json
@@ -227,6 +230,16 @@ def score(r: dict, victims: list[str], corner: str) -> dict:
             "p1": sum(c["priority"] == "P1" for c in cases)}
 
 
+def _thresholds(items: list[str]) -> dict[str, int]:
+    out = {}
+    for it in items:
+        name, _, n = it.partition("=")
+        if name not in ("dev", "holdout", "yamlcpp") or not n.isdigit():
+            raise ValueError(f"bad threshold {it!r}: expected SET=N with SET in dev, holdout, yamlcpp")
+        out[name] = int(n)
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--workdir", type=Path, default=Path("/tmp/tcadvisor-eval"))
@@ -234,7 +247,16 @@ def main() -> int:
     ap.add_argument("--set", choices=["dev", "holdout", "yamlcpp", "all"], default="all")
     ap.add_argument("--json", type=Path)
     ap.add_argument("--quiet", action="store_true")
+    ap.add_argument("--min-victims", action="append", default=[], metavar="SET=N",
+                    help="minimum scenarios of SET with a named victim (repeatable)")
+    ap.add_argument("--min-corners", action="append", default=[], metavar="SET=N",
+                    help="minimum scenarios of SET with the corner case hinted (repeatable)")
     a = ap.parse_args()
+    try:
+        min_v = _thresholds(a.min_victims)
+        min_c = _thresholds(a.min_corners)
+    except ValueError as e:
+        ap.error(str(e))
     a.workdir.mkdir(parents=True, exist_ok=True)
     only = set(a.only.split(",")) if a.only else None
     rows, ok = [], True
@@ -263,7 +285,8 @@ def main() -> int:
             subprocess.run(["git", "checkout", "-q", "."], cwd=repo, check=True)
         s = score(r, victims, corner) | {"name": name, "set": part, "seconds": round(secs, 1)}
         rows.append(s)
-        ok &= bool(s["victim_rank"]) and s["corner_hit"]
+        if part not in min_v and part not in min_c:
+            ok &= bool(s["victim_rank"]) and s["corner_hit"]
         if not a.quiet:
             print(f"{name:28} cases={s['cases']:4} victim_rank={s['victim_rank']!s:>4} "
                   f"victims={s['victims_named']}/{s['victims_total']} corner={'yes' if s['corner_hit'] else 'NO '} "
@@ -279,6 +302,10 @@ def main() -> int:
         med_cases = sorted(s["cases"] for s in sub)[len(sub) // 2]
         summary[part] = {"victims_found": found, "corner_hits": corners, "n": len(sub), "mrr": round(mrr, 3),
                          "median_cases": med_cases}
+        for label, table, have in (("victims named", min_v, found), ("corners hinted", min_c, corners)):
+            if part in table and have < table[part]:
+                print(f"FAIL {part}: {label} {have} < required {table[part]}", file=sys.stderr)
+                ok = False
         print(f"SEEDED {'yaml-cpp' if part == 'yamlcpp' else 'leveldb ' + part}: victims named {found}/{len(sub)}; corner hinted {corners}/{len(sub)}; "
               f"victim MRR {mrr:.3f}; median cases {med_cases}")
     if a.json and rows:

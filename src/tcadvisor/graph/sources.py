@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from tcadvisor.graph.impact import Graph
-from tcadvisor.ingest.changes import SymbolChange, strip_comments, textual_functions
+from tcadvisor.ingest.changes import SymbolChange, mask_literals, strip_comments, textual_functions
 from tcadvisor.models import SymbolRef
 
 _COND = re.compile(r"\b(if|while|switch)\s*\(|\?[^:]*:|\bassert\s*\(|\bif\s+constexpr\b")
@@ -62,7 +62,7 @@ def guard_scope(lines: list[str], ln: int) -> tuple[int, int] | None:
     """Lines (first, last) protected by the condition on 1-based line ``ln``: an early exit protects the rest
     of the function, a ``{`` block its body, a braceless ``if`` the next statement."""
     def code(i: int) -> str:
-        return strip_comments(lines[i - 1]) if 0 < i <= len(lines) else ""
+        return mask_literals(strip_comments(lines[i - 1])) if 0 < i <= len(lines) else ""
     head = code(ln)
     nxt = code(ln + 1).strip()
     if _EXIT.search(head) or _EXIT.match(nxt) or (nxt == "{" and _EXIT.match(code(ln + 2).strip())):
@@ -135,7 +135,7 @@ def has_guard(repo: Path, source: SymbolRef, ids: set[str], target_name: str, ca
     call = re.compile(rf"\b{re.escape(target_name.split('::')[-1])}\s*\(")
     seen_guard = False
     for n, (_i, raw) in enumerate(body):
-        code = strip_comments(raw)
+        code = mask_literals(strip_comments(raw))
         if n == 0:  # signature line: only what follows the opening brace is body
             code = code.split("{", 1)[1] if "{" in code else ""
         guard_here = bool(_COND.search(code)) and bool(ids & set(_IDENT.findall(code)))

@@ -18,6 +18,7 @@ Spec 007 (lost side effects, "fixed here, broke there"; the readers are neither 
 - ``lock_coupling``          other accessors of the members used under a lock the change added or removed
 - ``changed_default``        readers of a field / constant whose initial value changed
 - ``class_consumer``         same-class methods reading members a modified method writes
+- ``conditional_write``      (spec 008) readers of state written under a condition the edit changed
 - ``guard_removed_callee``   functions called under a condition the change removed or weakened: they are now
                              reached in states the condition used to exclude
 
@@ -80,6 +81,8 @@ def _git_grep(repo: Path, rev: str | None, args: list[str], limit: int = 200) ->
 class _Files:
     def __init__(self, repo: Path, rev: str | None):
         self.repo, self.rev, self.cache = repo, rev, {}
+        self.via: dict[tuple[str, str, int], str] = {}  # reader -> accessor it was reached through (spec 008)
+        self.accessors: set[tuple[str, str]] = set()  # (qualified name, file) of readers that are trivial accessors
 
     def lines(self, rel: str) -> list[str]:
         if rel not in self.cache:
@@ -357,6 +360,12 @@ _MUTATE = re.compile(r"(?:this->)?\b((?:m_)?[A-Za-z]\w*_|m_\w+)\s*(?:\.|->)\s*(?
                      r"emplace\w*|erase|clear|Add|Put|append|Append|reset|assign|resize|pop\w*|Set\w*|set\w*|fetch_\w+|store|"
                      r"exchange|compare_exchange_\w+)\s*\(")
 MAX_READERS = 4
+_COND_SHAPES = {"operator_flip", "constant_change", "logical_flip", "negation_flip", "removed_guard"}
+_COND_LINE = re.compile(r"\b(?:if|while)\s*\(|\?")
+_DECL_LINE = re.compile(r"^\s*(?:const\s+|static\s+|auto\b|unsigned\b|int\b|bool\b|char\b|long\b|short\b|double\b|"
+                        r"float\b|size_t\b|u?int\d+_t\b|std::\w+[<\w:,\s>]*\s+[A-Za-z_]\w*\s*[=({;])")
+_FIELD_WRITE = re.compile(r"((?:[A-Za-z_]\w*|\)|\])\s*(?:->|\.)\s*)?([A-Za-z_]\w*)\s*(?:\[[^\]]*\]\s*)?"
+                          r"(?:[+\-*/%|&^]|<<|>>)?=(?!=)")
 MAX_ITEMS = 3
 
 
@@ -402,7 +411,27 @@ def _readers(repo: Path, rev: str | None, files: _Files, name: str, root: Symbol
         if re.search(rf"\b{re.escape(name)}\s*(?:\[[^\]]*\]\s*)?(?:[+\-*/%|&^]|<<|>>)?=(?!=)", code) \
                 and not re.search(r"\b(if|while|return|assert)\b", code) and not writers:
             continue  # another writer
+        if not writers and re.search(rf"\b{re.escape(name)}\s*(?:\.|->)\s*(?:push_back|push_front|emplace\w*|insert|"
+                                     r"erase|clear|reset|assign|resize|reserve|pop_\w+|swap|append)\s*\(", code) \
+                and not re.search(r"\b(if|while|return|assert)\b|[=<>!]=|[<>?]", code):
+            continue  # a mutating call: another writer, not a consumer of the stored value
         ref = files.function_at(f, line)
+        acc = _trivial_accessor(files, ref, f, line, code, name)
+        if acc is not None and graph is not None:
+            # the accessor itself stays a reader (when found); its callers are the ones that see the value
+            if ref is not None and not (_same(ref, root) or _short(ref.qualified_name) in root_names
+                                        or any(_same(ref, r[0]) for r in out)):
+                q = _qualify(ref, graph)
+                files.accessors.add((q.qualified_name, f))
+                out.append((q, f, line))
+            callers, extra = _accessor_callers(graph, files, acc, f, name, root, root_names)
+            for cref, cf, cl in callers:
+                if not any(_same(cref, r[0]) for r in out):
+                    out.append((cref, cf, cl))
+                    files.via[(cref.qualified_name, cf, cl)] = \
+                        f"through the accessor `{acc}` that returns `{name}`" + \
+                        (f" (+{extra} more caller(s) of it not listed)" if extra else "")
+            continue
         if ref is not None and re.search(rf"(?<![\w.>]){re.escape(name)}\s*[({{]", code) and "::" in ref.qualified_name \
                 and _short(ref.qualified_name) == ref.qualified_name.split("::")[-2].split("<")[0]:
             continue  # constructor initialiser list: a writer
@@ -411,7 +440,82 @@ def _readers(repo: Path, rev: str | None, files: _Files, name: str, root: Symbol
             continue
         out.append((_qualify(ref, graph), f, line))
     # product code first: tests, benchmarks and examples only fill the remaining slots
-    return sorted(out, key=lambda r: (is_test_path(r[1]), bool(re.search(r"(?i)bench|example|sample|demo", r[1]))))
+    return sorted(out, key=lambda r: _proximity(r, root))
+
+
+MAX_ACCESSOR_CALLERS = 4
+_ONE_LINE_GETTER = re.compile(r"(~?[A-Za-z_]\w*)\s*\([^()]*\)\s*(?:const\s*)?(?:noexcept\s*)?(?:override\s*)?"
+                              r"\{\s*return\b[^;{}]*;\s*\}")
+
+
+def _trivial_accessor(files: _Files, ref: SymbolRef | None, f: str, line: int, code: str, name: str) -> str | None:
+    """Short name of the accessor when the hit is a trivial one (a body of one ``return <expr using name>;``)."""
+    m = _ONE_LINE_GETTER.search(code)
+    if m and re.search(rf"\breturn\b[^;]*\b{re.escape(name)}\b", code):
+        return m.group(1)
+    if ref is None:
+        return None
+    body = [strip_comments(t).strip() for _i, t in files.body(ref)]
+    inner = " ".join(b for b in body[1:-1] if b)
+    sig = body[0] if body else ""
+    if "{" in sig and sig.split("{", 1)[1].strip().rstrip("}").strip():
+        inner = (sig.split("{", 1)[1] + " " + inner).strip()
+    inner = inner.rstrip("}").strip()
+    if re.fullmatch(rf"return\b[^;]*\b{re.escape(name)}\b[^;]*;", inner):
+        return _short(ref.qualified_name)
+    return None
+
+
+def _forwards(files: _Files, ref: SymbolRef, callee: str) -> bool:
+    """``ref`` only returns the result of calling ``callee`` (a forwarding accessor: ``return m_p->is_defined();``)."""
+    body = [strip_comments(t).strip() for _i, t in files.body(ref)]
+    if not body:
+        return False
+    text = " ".join(body)
+    inner = text.split("{", 1)[1].rsplit("}", 1)[0].strip() if "{" in text and "}" in text else ""
+    # the whole return expression is the call, reached through members only: `return m_p->f();`, `return d.f();`
+    return bool(re.fullmatch(rf"return\s+(?:\*?\s*[A-Za-z_]\w*(?:\(\))?\s*(?:\.|->|::)\s*)*{re.escape(callee)}"
+                             rf"\s*\([^;{{}}()]*\)\s*;", inner))
+
+
+def _accessor_callers(graph, files: _Files, acc: str, f: str, name: str, root: SymbolRef, root_names: set[str]
+                      ) -> tuple[list[tuple[SymbolRef, str, int]], int]:
+    """Graph callers of the accessor ``acc`` declared in file ``f`` (capped); second value = callers not listed."""
+    if graph is None:
+        return [], 0
+    usrs = [u for _n, u in _by_short(graph).get(acc, [])
+            if (r := graph.symbol_ref(u)) is not None and r.file_path == f]
+    found: list[tuple[SymbolRef, str, int]] = []
+    seen: set[str] = set(usrs)
+    frontier = [(u, acc) for u in usrs]
+    for _depth in range(3):  # forwarding chains (pimpl: node::f -> node_ref::f -> node_data::f -> m_x)
+        nxt = []
+        for u, name_ in frontier:
+            for dep in graph.callers(u):
+                if dep.dependent in seen:
+                    continue
+                seen.add(dep.dependent)
+                ref = graph.symbol_ref(dep.dependent)
+                if ref is None or ref.kind == "file" or _same(ref, root) or _short(ref.qualified_name) in root_names \
+                        or any(_same(ref, r[0]) for r in found):
+                    continue
+                if _forwards(files, ref, name_):
+                    nxt.append((dep.dependent, _short(ref.qualified_name)))
+                    continue
+                found.append((ref, ref.file_path, dep.line))
+        frontier = nxt
+        if not frontier:
+            break
+    found.sort(key=lambda r: _proximity(r, root))
+    return found[:MAX_ACCESSOR_CALLERS], max(0, len(found) - MAX_ACCESSOR_CALLERS)
+
+
+def _proximity(r: tuple[SymbolRef, str, int], root: SymbolRef) -> tuple:
+    """Which readers fill the capped slots: product code before tests / benchmarks, then the changed file, then its
+    directory, then the rest (stable: graph / grep order inside a bucket)."""
+    f = r[1]
+    return (is_test_path(f), bool(re.search(r"(?i)bench|example|sample|demo", f)), f != root.file_path,
+            str(Path(f).parent) != str(Path(root.file_path).parent))
 
 
 def _more(n: int) -> str:
@@ -429,7 +533,8 @@ def coupling(repo: Path, rev: str | None, ch, root: SymbolRef, root_names: set[s
 
     def emit(kind: str, name: str, readers, desc, act, hints, group="logic", cap=MAX_READERS):
         for ref, f, line in readers[:cap]:
-            out.append(_case(ref, ch.node_id, kind, desc(ref) + _more(len(readers) - cap),
+            via = files.via.get((ref.qualified_name, f, line))
+            out.append(_case(ref, ch.node_id, kind, desc(ref) + (f", {via}" if via else "") + _more(len(readers) - cap),
                              f"{act} (read at {f}:{line})", hints(ref), targets, group=group))
 
     is_fn = ch.kind in ("function", "method")
@@ -520,6 +625,43 @@ def coupling(repo: Path, rev: str | None, ch, root: SymbolRef, root_names: set[s
                  lambda r, n=name: [f"Run `{r.qualified_name}` with the new default of `{n}` and with the old one "
                                     "(configs that set it explicitly)", f"Limits derived from `{n}` (minimum, maximum, "
                                     "clipping, division)"])
+    # spec 008: state written under a condition the edit changed -> its readers see the write in other states
+    if is_fn and ch.new is not None and items < MAX_ITEMS:
+        from tcadvisor.graph.sources import guard_scope
+        done_fields: set[str] = set()
+        for x in [y for y in shapes if y.kind in _COND_SHAPES and y.new and _COND_LINE.search(y.new)][:2]:
+            idx = next((i for i, t in enumerate(ch.new_body) if E.norm(t) == x.new), None)
+            if idx is None:
+                continue
+            first, last = guard_scope(ch.new_body, idx + 1)
+            for k in range(first, min(last, len(ch.new_body)) + 1):
+                code = strip_comments(ch.new_body[k - 1])
+                if k == idx + 1:
+                    code = code.rsplit(")", 1)[-1]  # braceless `if (c) x = y;`: only what follows the condition
+                elif _DECL_LINE.match(code):
+                    continue
+                for m in _FIELD_WRITE.finditer(code):
+                    access, fld = m.group(1), m.group(2)
+                    if fld in done_fields or len(fld) < 3 or fld in ("return", "else", "case") \
+                            or not (access or _MEMBERISH.match(fld)):
+                        continue
+                    done_fields.add(fld)
+                    if items >= MAX_ITEMS or len(done_fields) > 2:
+                        break
+                    items += 1
+                    member = bool(access) and not _MEMBERISH.match(fld)
+                    glob = fld.startswith(("g_", "s_")) or fld.isupper()
+                    readers = _readers(repo, rev, files, fld, root, root_names, None if (glob or member) else stem,
+                                       member_access=member, graph=graph)
+                    cond = x.new[:80]
+                    emit("conditional_write", fld, readers,
+                         lambda r, n=fld, c=cond: f"`{r.qualified_name}` reads `{n}`, which {rn} writes only under the "
+                                                  f"changed condition `{c}`: check it in the states where the write "
+                                                  "now happens or no longer happens",
+                         f"{rn}: condition `{x.old[:60]}` → `{x.new[:60]}` guards a write to `{fld}`",
+                         lambda r, n=fld: [f"Drive {rn} with inputs on both sides of the changed condition, then "
+                                           f"`{r.qualified_name}`: the value of `{n}` it sees must stay valid",
+                                           "Boundary value of the condition (exactly at the limit)"])
     # callees protected by a removed / weakened condition are now reached in the states it excluded
     for x in [y for y in shapes if y.kind == "removed_guard" and y.new and ch.new is not None][:1]:
         from tcadvisor.graph.sources import guard_scope
@@ -559,11 +701,12 @@ def coupling(repo: Path, rev: str | None, ch, root: SymbolRef, root_names: set[s
                     written.append(mem)
         done = {c.evidence[0].qualified_name for c in out}
         for mem in written[:2]:
-            readers = [r for r in _readers(repo, rev, files, mem, root, root_names, stem, graph=graph)
+            readers = [r for r in sorted(_readers(repo, rev, files, mem, root, root_names, stem, graph=graph),
+                                         key=lambda r: (r[0].qualified_name, r[1]) in files.accessors)
                        if (r[0].qualified_name.rsplit("::", 1)[0].split("::")[-1] == cls
                            or "::" not in r[0].qualified_name)  # defined inside the class body (same file stem)
-                       and r[0].qualified_name
-                       not in done]
+                       and (r[0].qualified_name, r[1], r[2]) not in files.via  # accessor callers: other code
+                       and r[0].qualified_name not in done]
             if not readers:
                 continue
             emit("class_consumer", mem, readers[:2],

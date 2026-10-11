@@ -154,6 +154,38 @@ def strip_comments(text: str) -> str:
     return _COMMENT_RE.sub("", text)
 
 
+def mask_literals(text: str) -> str:
+    """Blank the contents of ``"..."`` and ``'...'`` literals (escape-aware, same length) so braces, parentheses
+    and semicolons inside them do not confuse the text scan. An unterminated literal is masked to the line end."""
+    out: list[str] = []
+    quote = ""
+    i, n = 0, len(text)
+    while i < n:
+        ch = text[i]
+        if quote:
+            if ch == "\\" and i + 1 < n:
+                out.append("  ")
+                i += 2
+                continue
+            if ch == quote:
+                quote = ""
+                out.append(ch)
+            else:
+                out.append(" ")
+        else:
+            if ch in "\"'":
+                # a digit separator (1'000) is not a char literal
+                if ch == "'" and out and (out[-1].isalnum()) and i + 1 < n and text[i + 1].isalnum() \
+                        and i > 0 and text[i - 1].isdigit():
+                    out.append(ch)
+                    i += 1
+                    continue
+                quote = ch
+            out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def log_statement_lines(lines: list[str], start: int, end: int) -> set[int]:
     """1-based lines in [start, end] that belong to a logging statement (from its first line to the `;`),
     including preprocessor lines inside it (``#if defined(__linux__)`` around a streamed field)."""
@@ -608,6 +640,11 @@ def strip_template_args(s: str) -> str:
         out.append(ch)
         i += 1
     return "".join(out)
+# one-line definition with statements: `bool ok() const { return m_ok; }`
+_FN_HEAD_INLINE = re.compile(r"^(?:[A-Za-z_][\w:,\s\*&~]*?(?<![\w:~]))?((?:[A-Za-z_]\w*::)*~?[A-Za-z_]\w*)"
+                             r"\s*\([^;{}]*\)[^;{}()]*\{")
+_RET_ONLY = re.compile(r"^[A-Za-z_][\w:<>,\s\*&]*$")  # a line holding only a return type (GNU layout)
+_CLASS_HEAD = re.compile(r"^(?:template\s*<.*>\s*)?(?:class|struct)\s+(?:\w+\s+)*?(\w+)\s*(?:final\s*)?(?::[^;{]*)?\{?[^;]*$")
 _NOT_FN = {"if", "for", "while", "switch", "return", "sizeof", "catch", "do", "else"}
 
 
@@ -619,18 +656,32 @@ def textual_functions(lines: list[str]) -> list[tuple[str, int, int]]:
     out: list[tuple[str, int, int]] = []
     stack: list[tuple[str, str, int]] = []  # (kind, name, start)
     pending: tuple[str, int] | None = None
+    prev_s = ""  # previous non-blank, non-preprocessor line
+    cls_name = ""  # name of a class/struct whose `{` has not been seen yet
     for i, raw in enumerate(lines, 1):
-        line = strip_comments(raw)
+        line = mask_literals(strip_comments(raw))
         s = line.strip()
         if not s or s.startswith("#"):
             continue
         in_fn = any(k == "fn" for k, _n, _s in stack)
+        cm = None if in_fn else _CLASS_HEAD.match(s)
+        if cm:
+            cls_name = cm.group(1)
         if not in_fn:
-            m = _FN_HEAD.match(strip_template_args(s[:300]))
-            if m and m.group(1).split("::")[-1] not in _NOT_FN:
+            head = strip_template_args(s[:300])
+            m = None if s[0] in ":," else (_FN_HEAD.match(head) or _FN_HEAD_INLINE.match(head))
+            if m and m.start(1) == 0 and "::" not in m.group(1):
+                # no return type on this line: a definition head only for an in-class constructor / destructor
+                # (innermost scope is the class of that name) or when the previous line is the bare return type
+                nm = m.group(1).lstrip("~")
+                in_class = bool(stack) and stack[-1][0] == "scope" and stack[-1][1] == nm
+                ret_prev = bool(_RET_ONLY.match(prev_s)) and prev_s.split()[-1] not in _NOT_FN
+                if not (in_class or ret_prev):
+                    m = None
+            if m and m.group(1).split("::")[-1] not in _NOT_FN and not (s.endswith(";") and "{" not in s):
                 pending = (m.group(1), i)
             elif s.endswith(";"):
-                pending = None
+                pending = None  # a declaration (`f(int);`, `A(const A&) = delete;`)
         for ch in line:
             if ch == "{":
                 if in_fn:
@@ -640,11 +691,13 @@ def textual_functions(lines: list[str]) -> list[tuple[str, int, int]]:
                     in_fn = True
                     pending = None
                 else:
-                    stack.append(("scope", "", i))
+                    stack.append(("scope", cls_name, i))
+                    cls_name = ""
             elif ch == "}" and stack:
                 kind, name, start = stack.pop()
                 if kind == "fn":
                     out.append((name, start, i))
+        prev_s = s
     return out
 
 

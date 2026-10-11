@@ -46,10 +46,13 @@ PATTERN_LOW_SUBS = {"sibling_source_guarded", "sibling_source_more", "data_path_
                     "shared_state", "config_reader",
                     # spec 007 US2: readers of state a change no longer / differently produces
                     "removed_write", "setter_readers", "lock_coupling", "changed_default", "class_consumer",
-                    "guard_removed_callee"}
+                    "guard_removed_callee",
+                    # spec 008: readers of state written under a changed condition
+                    "conditional_write"}
 SEVERITY = {"thread_safety": 3, "ownership_lifetime": 3, "exception_safety": 3, "abi_layout": 2, "logic": 2,
             "build_config": 1}
-STATE_READER_SUBS = {"removed_write", "setter_readers", "lock_coupling", "changed_default", "class_consumer"}
+STATE_READER_SUBS = {"removed_write", "setter_readers", "lock_coupling", "changed_default", "class_consumer",
+                     "conditional_write"}
 # For *impacted* symbols, a changed signature is checked by the compiler at every call site.
 IMPACT_LOW_SUBS = {"signature_change"}
 

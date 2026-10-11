@@ -36,7 +36,8 @@ python3 -m pytest -q                          # full suite (~20 s)
 python3 -m pytest -q tests/unit               # fast
 python3 -m tcadvisor analyze --repo R --build-dir B --working-tree --output-dir OUT --print brief
 python3 scripts/eval_real_project.py --quiet   # real-project acceptance (needs network + cmake)
-python3 scripts/seeded_regressions.py          # 22 seeded side-effect regressions on leveldb (dev + holdout)
+python3 scripts/seeded_regressions.py          # 31 seeded side-effect regressions: leveldb dev + holdout, yaml-cpp
+python3 scripts/seeded_regressions.py --min-victims yamlcpp=8 --min-corners yamlcpp=9   # CI recall gate (per-set thresholds)
 cd vscode-extension && npm install && npm run compile && npm test
 ```
 
