@@ -360,12 +360,27 @@ MAX_READERS = 4
 MAX_ITEMS = 3
 
 
+def _by_short(graph) -> dict[str, list[tuple[str, str]]]:
+    """short name -> [(qualified name, usr)], built once per graph (the by_name table can hold 100k names)."""
+    idx = getattr(graph, "_tc_short_index", None)
+    if idx is None:
+        idx = {}
+        for n, us in graph.by_name.items():
+            for u in us:
+                idx.setdefault(_short(n), []).append((n, u))
+        try:
+            graph._tc_short_index = idx
+        except AttributeError:
+            pass
+    return idx
+
+
 def _qualify(ref: SymbolRef, graph) -> SymbolRef:
     """A text-found function defined inside a class body has no class in its name: take the graph's symbol of the
     same short name in the same file when there is exactly one."""
     if graph is None or "::" in ref.qualified_name:
         return ref
-    hits = [r for n, us in graph.by_name.items() if _short(n) == ref.qualified_name for u in us
+    hits = [r for _n, u in _by_short(graph).get(ref.qualified_name, [])
             if (r := graph.symbol_ref(u)) is not None and r.file_path == ref.file_path]
     return hits[0] if len({h.qualified_name for h in hits}) == 1 else ref
 
@@ -451,11 +466,11 @@ def coupling(repo: Path, rev: str | None, ch, root: SymbolRef, root_names: set[s
                      "Is" + base, "is_" + base.lower()]
             scope = callee.rsplit("::", 1)[0] if "::" in callee else ""
             # getters of the class that owns the setter (``obj.SetX`` has no scope: the classes that declare SetX)
-            owners = {scope} if scope else {n.rsplit("::", 1)[0] for n in graph.by_name if "::" in n
-                                            and _short(n) == short}
-            getters = [u for n, us in graph.by_name.items() for u in us
-                       if _short(n) in cands and "::" in n and n.rsplit("::", 1)[0] in owners
-                       or (not owners and n in cands)]
+            idx = _by_short(graph)
+            owners = {scope} if scope else {n.rsplit("::", 1)[0] for n, _u in idx.get(short, []) if "::" in n}
+            getters = [u for c in cands for n, u in idx.get(c, [])
+                       if ("::" in n and any(n.rsplit("::", 1)[0] == o or n.rsplit("::", 1)[0].endswith("::" + o)
+                                             for o in owners)) or (not owners and n == c)]
             readers = []
             for g in getters[:3]:
                 for dep in graph.callers(g):
