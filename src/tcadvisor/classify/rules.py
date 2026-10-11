@@ -337,8 +337,7 @@ def classify(ch: SymbolChange, configurations: list[str]) -> list[RiskClassifica
 
     # ---- logic -----------------------------------------------------------------------------------
     # spec 007: concrete corner cases from the shape of the edit (operator, constant, removed guard, reorder, ...)
-    shapes = [] if ch.kind == "file" and is_cmake else E.analyse(ch.old_body, ch.new_body, ch.removed_lines,
-                                                                 ch.added_lines)
+    shapes = [] if ch.kind == "file" and is_cmake else E.shapes_of(ch)
     shape_hints = [x.hint for x in shapes]
     if n and ch.kind in ("function", "method"):
         shape_hints += E.input_classes(n.decl_tokens, ch.added_lines + ch.removed_lines)

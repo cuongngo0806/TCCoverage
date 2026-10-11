@@ -581,7 +581,8 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
     return cs
 
 
-_FN_HEAD = re.compile(r"^(?:[A-Za-z_][\w:<>,\s\*&~]*?(?<![\w:~]))?((?:[A-Za-z_]\w*::)*~?[A-Za-z_]\w*)\s*\([^;]*$")
+_FN_HEAD = re.compile(r"^(?:[A-Za-z_][\w:<>,\s\*&~]*?(?<![\w:~]))?((?:[A-Za-z_]\w*(?:<[^()]*?>)?::)*~?[A-Za-z_]\w*)"
+                      r"\s*\([^;]*$")
 _NOT_FN = {"if", "for", "while", "switch", "return", "sizeof", "catch", "do", "else"}
 
 
@@ -602,7 +603,7 @@ def textual_functions(lines: list[str]) -> list[tuple[str, int, int]]:
         if not in_fn:
             m = _FN_HEAD.match(s)
             if m and m.group(1).split("::")[-1] not in _NOT_FN:
-                pending = (m.group(1), i)
+                pending = (re.sub(r"<[^()]*?>", "", m.group(1)), i)  # `Foo<T>::bar` -> `Foo::bar`
             elif s.endswith(";"):
                 pending = None
         for ch in line:

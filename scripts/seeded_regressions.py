@@ -91,6 +91,53 @@ SCENARIOS = [
      r"concurren|thread|race"),
 ]
 
+# Holdout: written after the spec 007 implementation, never used to tune it (reported separately).
+HOLDOUT = [
+    ("arena_quarter_threshold", "util/arena.cc",
+     "  if (bytes > kBlockSize / 4) {", "  if (bytes >= kBlockSize / 4) {",
+     ["Arena::Allocate", "Arena::AllocateAligned"],
+     r"bytes == kBlockSize"),
+    ("cache_ref_conjunct_dropped", "util/cache.cc",
+     "  if (e->refs == 1 && e->in_cache) {", "  if (e->refs == 1) {",
+     ["LRUCache::Lookup", "LRUCache::Insert"],
+     r"in_cache"),
+    ("cache_usage_not_reduced", "util/cache.cc",
+     "    usage_ -= e->charge;\n", "",
+     ["LRUCache::Insert", "LRUCache::TotalCharge", "LRUCache::SetCapacity"],
+     r"usage_"),
+    ("footer_magic_check_removed", "table/format.cc",
+     "  if (magic != kTableMagicNumber) {\n    return Status::Corruption(\"not an sstable (bad magic number)\");\n  }\n",
+     "",
+     ["Table::Open", "TableCache::FindTable"],
+     r"magic|kTableMagicNumber|not an sstable"),
+    ("arena_usage_term_dropped", "util/arena.cc",
+     "memory_usage_.fetch_add(block_bytes + sizeof(char*),", "memory_usage_.fetch_add(block_bytes,",
+     ["Arena::MemoryUsage", "MemTable::ApproximateMemoryUsage", "DBImpl::MakeRoomForWrite"],
+     r"sizeof\(char\*\)|memory_usage_|MemoryUsage"),
+    ("level_bytes_constant", "db/version_set.cc",
+     "  double result = 10. * 1048576.0;", "  double result = 5. * 1048576.0;",
+     ["VersionSet::Finalize"],
+     r"\b10\b|\b5\b|1048576"),
+    ("versionedit_tag_dropped", "db/version_edit.cc",
+     "    PutVarint32(dst, kComparator);\n    PutLengthPrefixedSlice(dst, comparator_);",
+     "    PutLengthPrefixedSlice(dst, comparator_);",
+     ["VersionEdit::DecodeFrom", "VersionSet::Recover", "VersionSet::LogAndApply"],
+     r"round trip|decod|kComparator|PutVarint32"),
+    ("write_queue_conjunct_dropped", "db/db_impl.cc",
+     "  while (!w.done && &w != writers_.front()) {", "  while (!w.done) {",
+     ["DBImpl::Put", "DB::Put", "DBImpl::Delete", "DB::Delete"],
+     r"writers_\.front\(\)|&w != writers_"),
+    ("block_restart_offset", "table/block.cc",
+     "restart_offset_ = size_ - (1 + NumRestarts()) * sizeof(uint32_t);",
+     "restart_offset_ = size_ - NumRestarts() * sizeof(uint32_t);",
+     ["Block::NewIterator", "Block::Iter"],
+     r"restart_offset_|NumRestarts"),
+    ("log_header_size", "db/log_format.h",
+     "static const int kHeaderSize = 4 + 2 + 1;", "static const int kHeaderSize = 4 + 2 + 2;",
+     ["Writer::EmitPhysicalRecord", "Writer::AddRecord", "Reader::ReadPhysicalRecord"],
+     r"kHeaderSize"),
+]
+
 
 def run(repo: Path, build: Path, out: Path) -> tuple[dict, float]:
     t = time.time()
@@ -123,6 +170,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--workdir", type=Path, default=Path("/tmp/tcadvisor-eval"))
     ap.add_argument("--only", help="comma-separated scenario names")
+    ap.add_argument("--set", choices=["dev", "holdout", "all"], default="all")
     ap.add_argument("--json", type=Path)
     ap.add_argument("--quiet", action="store_true")
     a = ap.parse_args()
@@ -130,7 +178,9 @@ def main() -> int:
     repo, build = setup(a.workdir)
     only = set(a.only.split(",")) if a.only else None
     rows, ok = [], True
-    for name, rel, old, new, victims, corner in SCENARIOS:
+    chosen = ([("dev", x) for x in SCENARIOS] if a.set in ("dev", "all") else []) + \
+        ([("holdout", x) for x in HOLDOUT] if a.set in ("holdout", "all") else [])
+    for part, (name, rel, old, new, victims, corner) in chosen:
         if only and name not in only:
             continue
         subprocess.run(["git", "checkout", "-q", "."], cwd=repo, check=True)
@@ -145,23 +195,28 @@ def main() -> int:
             r, secs = run(repo, build, a.workdir / "seeded" / name)
         finally:
             subprocess.run(["git", "checkout", "-q", "."], cwd=repo, check=True)
-        s = score(r, victims, corner) | {"name": name, "seconds": round(secs, 1)}
+        s = score(r, victims, corner) | {"name": name, "set": part, "seconds": round(secs, 1)}
         rows.append(s)
         ok &= bool(s["victim_rank"]) and s["corner_hit"]
         if not a.quiet:
             print(f"{name:28} cases={s['cases']:4} victim_rank={s['victim_rank']!s:>4} "
                   f"victims={s['victims_named']}/{s['victims_total']} corner={'yes' if s['corner_hit'] else 'NO '} "
                   f"P1={s['p1']:3} {s['seconds']}s")
-    if rows:
-        found = sum(bool(s["victim_rank"]) for s in rows)
-        mrr = sum(1 / s["victim_rank"] for s in rows if s["victim_rank"]) / len(rows)
-        corners = sum(s["corner_hit"] for s in rows)
-        med_cases = sorted(s["cases"] for s in rows)[len(rows) // 2]
-        print(f"SEEDED leveldb: victims named {found}/{len(rows)}; corner hinted {corners}/{len(rows)}; "
+    summary = {}
+    for part in ("dev", "holdout"):
+        sub = [s for s in rows if s["set"] == part]
+        if not sub:
+            continue
+        found = sum(bool(s["victim_rank"]) for s in sub)
+        mrr = sum(1 / s["victim_rank"] for s in sub if s["victim_rank"]) / len(sub)
+        corners = sum(s["corner_hit"] for s in sub)
+        med_cases = sorted(s["cases"] for s in sub)[len(sub) // 2]
+        summary[part] = {"victims_found": found, "corner_hits": corners, "n": len(sub), "mrr": round(mrr, 3),
+                         "median_cases": med_cases}
+        print(f"SEEDED leveldb {part}: victims named {found}/{len(sub)}; corner hinted {corners}/{len(sub)}; "
               f"victim MRR {mrr:.3f}; median cases {med_cases}")
-        if a.json:
-            a.json.write_text(json.dumps({"rows": rows, "victims_found": found, "corner_hits": corners,
-                                          "mrr": round(mrr, 3), "median_cases": med_cases}, indent=1))
+    if a.json and rows:
+        a.json.write_text(json.dumps({"rows": rows, "summary": summary}, indent=1))
     return 0 if ok else 1
 
 

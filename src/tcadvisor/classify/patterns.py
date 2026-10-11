@@ -18,6 +18,8 @@ Spec 007 (lost side effects, "fixed here, broke there"; the readers are neither 
 - ``lock_coupling``          other accessors of the members used under a lock the change added or removed
 - ``changed_default``        readers of a field / constant whose initial value changed
 - ``class_consumer``         same-class methods reading members a modified method writes
+- ``guard_removed_callee``   functions called under a condition the change removed or weakened: they are now
+                             reached in states the condition used to exclude
 
 Deterministic; every case points to concrete code. Team lessons (``lessons.json``) are matched afterwards.
 """
@@ -349,15 +351,28 @@ def detect(repo: Path, rev: str | None, changes: list, roots: dict[str, SymbolRe
 
 # ---- spec 007 US2: lost side effects and state coupling ---------------------------------------------------
 _MEMBERISH = re.compile(r"^(?:m_\w+|m[A-Z]\w*|[a-z]\w*_|g_\w+|s_\w+|k[A-Z]\w*|[A-Z][A-Z0-9_]{2,})$")
-_SETTER = re.compile(r"^(?:Set|set_?|Update|update_?|Increment|increment_?|Inc|Mark|mark_?)([A-Za-z]\w*)$")
+_SETTER = re.compile(r"^(?:Set|Update|Increment|Inc|Mark)([A-Z]\w*)$|^(?:set|update|increment|mark)(?:_([a-z]\w*)|"
+                     r"([A-Z]\w*))$")
 _MUTATE = re.compile(r"(?:this->)?\b((?:m_)?[A-Za-z]\w*_|m_\w+)\s*(?:\.|->)\s*(?:Insert|insert|push_back|push_front|"
-                     r"emplace\w*|erase|clear|Add|Put|append|Append|reset|assign|resize|pop\w*|Set\w*|set\w*)\s*\(")
+                     r"emplace\w*|erase|clear|Add|Put|append|Append|reset|assign|resize|pop\w*|Set\w*|set\w*|fetch_\w+|store|"
+                     r"exchange|compare_exchange_\w+)\s*\(")
 MAX_READERS = 4
 MAX_ITEMS = 3
 
 
+def _qualify(ref: SymbolRef, graph) -> SymbolRef:
+    """A text-found function defined inside a class body has no class in its name: take the graph's symbol of the
+    same short name in the same file when there is exactly one."""
+    if graph is None or "::" in ref.qualified_name:
+        return ref
+    hits = [r for n, us in graph.by_name.items() if _short(n) == ref.qualified_name for u in us
+            if (r := graph.symbol_ref(u)) is not None and r.file_path == ref.file_path]
+    return hits[0] if len({h.qualified_name for h in hits}) == 1 else ref
+
+
 def _readers(repo: Path, rev: str | None, files: _Files, name: str, root: SymbolRef, root_names: set[str],
-             stem: str | None, member_access: bool = False, writers: bool = False) -> list[tuple[SymbolRef, str, int]]:
+             stem: str | None, member_access: bool = False, writers: bool = False,
+             graph=None) -> list[tuple[SymbolRef, str, int]]:
     """Functions reading ``name`` (not writing it unless ``writers``), bounded; ``stem`` restricts to the class's
     own files."""
     if member_access:
@@ -372,13 +387,14 @@ def _readers(repo: Path, rev: str | None, files: _Files, name: str, root: Symbol
         if re.search(rf"\b{re.escape(name)}\s*(?:\[[^\]]*\]\s*)?(?:[+\-*/%|&^]|<<|>>)?=(?!=)", code) \
                 and not re.search(r"\b(if|while|return|assert)\b", code) and not writers:
             continue  # another writer
-        if re.search(rf"(?<![\w.>]){re.escape(name)}\s*[({{]", code) and not re.search(r"\b(if|while|return)\b", code):
-            continue  # constructor initialiser list: a writer
         ref = files.function_at(f, line)
+        if ref is not None and re.search(rf"(?<![\w.>]){re.escape(name)}\s*[({{]", code) and "::" in ref.qualified_name \
+                and _short(ref.qualified_name) == ref.qualified_name.split("::")[-2].split("<")[0]:
+            continue  # constructor initialiser list: a writer
         if ref is None or _same(ref, root) or _short(ref.qualified_name) in root_names \
                 or any(_same(ref, r[0]) for r in out):
             continue
-        out.append((ref, f, line))
+        out.append((_qualify(ref, graph), f, line))
     # product code first: tests, benchmarks and examples only fill the remaining slots
     return sorted(out, key=lambda r: (is_test_path(r[1]), bool(re.search(r"(?i)bench|example|sample|demo", r[1]))))
 
@@ -392,7 +408,7 @@ def coupling(repo: Path, rev: str | None, ch, root: SymbolRef, root_names: set[s
     from tcadvisor.classify import edits as E
     rn = f"`{root.qualified_name}`"
     stem = Path(ch.rel_path).stem
-    shapes = E.analyse(ch.old_body, ch.new_body, ch.removed_lines, ch.added_lines)
+    shapes = E.shapes_of(ch)
     out: list[TestCaseCandidate] = []
     items = 0
 
@@ -411,8 +427,8 @@ def coupling(repo: Path, rev: str | None, ch, root: SymbolRef, root_names: set[s
             if not _MEMBERISH.match(name):
                 continue
             items += 1
-            glob = name.startswith(("g_", "s_", "k")) or name.isupper()
-            readers = _readers(repo, rev, files, name, root, root_names, None if glob else stem)
+            glob = name.startswith(("g_", "s_")) or bool(re.match(r"k[A-Z]", name)) or name.isupper()
+            readers = _readers(repo, rev, files, name, root, root_names, None if glob else stem, graph=graph)
             verb = "no longer writes" if x.kind == "removed_assignment" else "now writes differently"
             emit("removed_write", name, readers,
                  lambda r, n=name, v=verb: f"`{r.qualified_name}` reads `{n}`, which {rn} {v}: check it still "
@@ -429,12 +445,17 @@ def coupling(repo: Path, rev: str | None, ch, root: SymbolRef, root_names: set[s
             if not sm:
                 continue
             items += 1
-            base = sm.group(1)
+            base = next(g for g in sm.groups() if g)
+            base = base[:1].upper() + base[1:] if sm.group(2) is None else base
             cands = [base, "Get" + base, "get" + base, "get_" + base.lower(), base[:1].lower() + base[1:],
                      "Is" + base, "is_" + base.lower()]
             scope = callee.rsplit("::", 1)[0] if "::" in callee else ""
+            # getters of the class that owns the setter (``obj.SetX`` has no scope: the classes that declare SetX)
+            owners = {scope} if scope else {n.rsplit("::", 1)[0] for n in graph.by_name if "::" in n
+                                            and _short(n) == short}
             getters = [u for n, us in graph.by_name.items() for u in us
-                       if _short(n) in cands and (not scope or n.endswith(scope + "::" + _short(n)))]
+                       if _short(n) in cands and "::" in n and n.rsplit("::", 1)[0] in owners
+                       or (not owners and n in cands)]
             readers = []
             for g in getters[:3]:
                 for dep in graph.callers(g):
@@ -460,7 +481,7 @@ def coupling(repo: Path, rev: str | None, ch, root: SymbolRef, root_names: set[s
                 if items >= MAX_ITEMS:
                     break
                 items += 1
-                readers = _readers(repo, rev, files, mem, root, root_names, stem, writers=True)
+                readers = _readers(repo, rev, files, mem, root, root_names, stem, writers=True, graph=graph)
                 emit("lock_coupling", mem, readers,
                      lambda r, mm=mem: f"`{r.qualified_name}` also accesses `{mm}`, which {rn} uses with the lock on "
                                        f"`{lk}` {'removed' if x.kind == 'lock_removed' else 'added'}: check concurrent "
@@ -476,7 +497,7 @@ def coupling(repo: Path, rev: str | None, ch, root: SymbolRef, root_names: set[s
                 continue
             items += 1
             member = ch.kind in ("class", "struct") and not _MEMBERISH.match(name)
-            readers = _readers(repo, rev, files, name, root, root_names, None, member_access=member)
+            readers = _readers(repo, rev, files, name, root, root_names, None, member_access=member, graph=graph)
             emit("changed_default", name, readers,
                  lambda r, n=name: f"`{r.qualified_name}` reads `{n}`, whose initial value changed in {rn}: check it "
                                    "with the new default",
@@ -484,6 +505,32 @@ def coupling(repo: Path, rev: str | None, ch, root: SymbolRef, root_names: set[s
                  lambda r, n=name: [f"Run `{r.qualified_name}` with the new default of `{n}` and with the old one "
                                     "(configs that set it explicitly)", f"Limits derived from `{n}` (minimum, maximum, "
                                     "clipping, division)"])
+    # callees protected by a removed / weakened condition are now reached in the states it excluded
+    for x in [y for y in shapes if y.kind == "removed_guard" and y.new and ch.new is not None][:1]:
+        from tcadvisor.graph.sources import guard_scope
+        idx = next((i for i, t in enumerate(ch.new_body) if E.norm(t) == x.new), None)
+        if idx is None:
+            continue
+        first, last = guard_scope(ch.new_body, idx + 1)
+        cond = x.hint.split("`")[1] if x.hint.count("`") >= 2 else x.old
+        seen: set[str] = set()
+        for usr, _qn, _k, _df, _dl, line in ch.new.calls:
+            local = line - ch.new.start + 1
+            ref = graph.symbol_ref(usr)
+            if not (first <= local <= last) or usr in seen or usr == ch.node_id or ref is None or ref.kind == "file":
+                continue
+            seen.add(usr)
+            c = _case(ref, ch.node_id, "guard_removed_callee",
+                      f"`{ref.qualified_name}` is now called from {rn} also when `{cond[:60]}` is false: check it "
+                      "handles that state",
+                      f"Condition removed in {rn}: `{x.old[:80]}` (call at {ch.rel_path}:{line})", [
+                          f"Call {rn} with `{cond[:60]}` false and check `{ref.qualified_name}` (no crash, no corrupted "
+                          "state, correct result)",
+                          f"`{ref.qualified_name}`'s own preconditions (asserts, documented assumptions) still hold"],
+                      targets)
+            out.append(c)
+            if len(seen) >= 3:
+                break
     # producer / consumer within the class: members a modified method writes, read by its class mates
     if is_fn and ch.change_kind == "modified" and items < MAX_ITEMS and "::" in root.qualified_name:
         cls = root.qualified_name.rsplit("::", 1)[0].split("::")[-1]
@@ -496,8 +543,10 @@ def coupling(repo: Path, rev: str | None, ch, root: SymbolRef, root_names: set[s
                     written.append(mem)
         done = {c.evidence[0].qualified_name for c in out}
         for mem in written[:2]:
-            readers = [r for r in _readers(repo, rev, files, mem, root, root_names, stem)
-                       if (r[0].qualified_name.rsplit("::", 1)[0].split("::")[-1] == cls) and r[0].qualified_name
+            readers = [r for r in _readers(repo, rev, files, mem, root, root_names, stem, graph=graph)
+                       if (r[0].qualified_name.rsplit("::", 1)[0].split("::")[-1] == cls
+                           or "::" not in r[0].qualified_name)  # defined inside the class body (same file stem)
+                       and r[0].qualified_name
                        not in done]
             if not readers:
                 continue

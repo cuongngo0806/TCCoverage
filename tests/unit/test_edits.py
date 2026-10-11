@@ -29,7 +29,7 @@ def test_constant_change_lists_old_and_new_limits():
 def test_removed_guard_and_reject_input():
     h = kinds(fn("  if (opt.snap != nullptr) {", "    s = opt.snap->seq();", "  }"),
               fn("  {", "    s = opt.snap->seq();", "  }"))["removed_guard"]
-    assert "opt.snap != nullptr" in h and "nullptr (null)" in h
+    assert "opt.snap != nullptr" in h and "`opt.snap` == nullptr" in h
     # a dropped conjunct is a removed guard too
     h = kinds(fn("  if (p && p->ok()) {", "    use(p);", "  }"), fn("  if (p->ok()) {", "    use(p);", "  }"))
     assert "removed_guard" in h
@@ -126,3 +126,47 @@ def test_loop_condition_tweak_is_not_a_guard():
     lines[1] = "  if (ready_) {"
     ch.added_lines, ch.removed_lines = ["  if (ready_) {"], []
     assert [c[1] for c in guarded_calls(ch, lines)] == ["g"]
+
+
+# ---- review findings (spec 007 T726) ----------------------------------------------------------------------
+def test_removed_early_exit_names_the_input_that_used_to_leave():
+    h = kinds(fn("  if (!p) return;", "  p->x();"), fn("  p->x();"))["removed_guard"]
+    assert "early exit" in h and "make `p` false / null" in h
+    h = kinds(fn("  if (p == nullptr) return false;", "  use(p);"), fn("  use(p);"))["removed_guard"]
+    assert "`p` == nullptr" in h
+
+
+def test_equivalent_refactors_are_not_removed_guards():
+    assert "removed_guard" not in kinds(fn("  if (p == nullptr) return false;"), fn("  if (!IsValid(p)) return false;"))
+    assert "removed_guard" not in kinds(fn("  if (x.size() > 0) {", "  }"), fn("  if (!x.empty()) {", "  }"))
+    assert "removed_guard" not in kinds(fn("  if (p != nullptr) {", "  }"), fn("  if (p) {", "  }"))
+
+
+def test_removed_assert_is_a_check_not_a_p1_guard():
+    k = kinds(fn("  DCHECK(x > 0);", "  g();"), fn("  g();"))
+    assert "removed_guard" not in k and "x <= 0" in k["removed_assert"]
+    assert "a != b" in kinds(fn("  CHECK_EQ(a, b);", "  g();"), fn("  g();"))["removed_assert"]
+
+
+def test_operands_digit_separators_unbalanced_and_function_pointers():
+    assert "`x <= n`" in kinds(fn("  return x < n;"), fn("  return x <= n;"))["operator_flip"]
+    assert "`f(x) - 1 <= y`" in kinds(fn("  if (f(x) - 1 < y) {", "  }"), fn("  if (f(x) - 1 <= y) {", "  }"))["operator_flip"]
+    assert "999999, 1000000, 1000001" in kinds(fn("  x = 1'000'000;"), fn("  x = 2'000'000;"))["constant_change"]
+    assert "removed_guard" not in kinds(fn("  if ((a"), fn("  if ((b"))
+    assert input_classes(tokens("void f(int (*cb)(int), int n)"), ["cb(n) int"]) == \
+        ["Input `n` (int): negative, 0 and the maximum value"]
+
+
+def test_long_lines_and_big_bodies_stay_fast():
+    import time
+    t = time.time()
+    analyse([], [], ['x = "' + "A" * 20000 + '";'], ["y();"])
+    analyse(fn(*[f"  a{i} = b{i} + {i};" for i in range(1600)]), fn(*[f"  a{i} = c{i} + {i};" for i in range(1600)]))
+    assert time.time() - t < 2
+
+
+def test_textual_function_names_templates_and_destructors():
+    from tcadvisor.ingest.changes import textual_functions
+    got = textual_functions(["void Foo<T>::bar(int x) {", "}", "DBImpl::~DBImpl() {", "}", "static int foo(int a) {",
+                             "}", "std::vector<int> ns::A::f() const {", "}"])
+    assert [g[0] for g in got] == ["Foo::bar", "DBImpl::~DBImpl", "foo", "ns::A::f"]

@@ -91,7 +91,7 @@ def guarded_calls(ch: SymbolChange, lines: list[str]) -> list[tuple[str, str, in
     # spec 007: a loop condition does not reject a state, and a condition reading only identifiers an old condition
     # already read is a boundary tweak (`<` -> `<=`), covered by the edit-shape hints — neither is a new guard
     old_ids = [set(_IDENT.findall(strip_comments(t))) - _NOISE for t in ch.removed_lines
-               if _COND.search(strip_comments(t))]
+               if re.search(r"\bif\s*\(|\?", strip_comments(t))]
 
     def is_guard(t: str) -> bool:
         code = strip_comments(t)
