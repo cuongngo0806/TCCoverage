@@ -43,9 +43,12 @@ PATTERN_LOW_SUBS = {"sibling_source_guarded", "sibling_source_more", "data_path_
                     "data_path_emitter_checked", "new_early_exit",
                     # US4 heuristics: listed after the substantive cases of the same distance
                     "symmetric_counterpart", "same_code_elsewhere", "new_enum_value", "return_meaning",
-                    "shared_state", "config_reader"}
+                    "shared_state", "config_reader",
+                    # spec 007 US2: readers of state a change no longer / differently produces
+                    "removed_write", "setter_readers", "lock_coupling", "changed_default", "class_consumer"}
 SEVERITY = {"thread_safety": 3, "ownership_lifetime": 3, "exception_safety": 3, "abi_layout": 2, "logic": 2,
             "build_config": 1}
+STATE_READER_SUBS = {"removed_write", "setter_readers", "lock_coupling", "changed_default", "class_consumer"}
 # For *impacted* symbols, a changed signature is checked by the compiler at every call site.
 IMPACT_LOW_SUBS = {"signature_change"}
 
@@ -53,6 +56,10 @@ IMPACT_LOW_SUBS = {"signature_change"}
 def priority(hop: int, group: str, sub: str | None = None) -> str:
     if sub in ("logging", "test_code"):
         return "P3"
+    if sub == "removed_guard" and hop == 0:
+        return "P1"  # spec 007: a removed condition is the classic "fixed here, broke there" edit
+    if sub in STATE_READER_SUBS:
+        return "P2" if hop <= 1 else "P3"  # readers found by a bounded text search: never above P2
     direct = hop <= 1
     high = group in HIGH_SEVERITY and sub not in LOW_SUBS and not (hop > 0 and sub in IMPACT_LOW_SUBS)
     if direct and high:

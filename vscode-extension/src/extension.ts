@@ -17,6 +17,7 @@ interface Report {
   test_case_candidates: Case[]; uncertainty_flags: Flag[]; affected_targets?: { name: string; relation: string }[];
   no_detected_impact?: boolean; change_input: { target_repo_path: string };
   existing_tests?: { test: string; file_path: string; line: number; hop_distance: number }[];
+  test_gaps?: { symbol: SymbolRef; reason: string }[];
   ai_verification?: { summary: string; additional_checks: { title: string; why: string; evidence: string }[];
     verified_cases: number; usage?: { cost_usd: number; calls: number } };
   graph_provider?: string;
@@ -75,6 +76,11 @@ class CasesProvider implements vscode.TreeDataProvider<Node> {
     if (report.existing_tests?.length) {
       groups.push({ label: `Existing tests to re-run (${report.existing_tests.length})`, kind: "group",
         children: report.existing_tests.map(t => ({ label: t.test, kind: "evidence" as const, file: t.file_path, line: t.line })) });
+    }
+    if (report.test_gaps?.length) {
+      groups.push({ label: `Test gaps: new test likely needed (${report.test_gaps.length})`, kind: "group",
+        children: report.test_gaps.map(g => ({ label: `${g.symbol.qualified_name} — ${g.reason}`, kind: "evidence" as const,
+          file: g.symbol.file_path, line: g.symbol.line })) });
     }
     if (report.ai_verification) {
       const av = report.ai_verification;

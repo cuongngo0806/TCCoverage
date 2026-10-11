@@ -82,6 +82,8 @@ class SymbolChange:
     added_line_numbers: list[int] = field(default_factory=list)
     textual: bool = False  # located by a text scan: the parser did not see it (inactive #if branch, no flags)
     log_lines: set[int] = field(default_factory=set)  # new-side lines that belong to a logging statement
+    old_body: list[str] = field(default_factory=list)  # symbol text on each side (spec 007 edit shapes)
+    new_body: list[str] = field(default_factory=list)
 
     @property
     def is_template(self) -> bool:
@@ -520,7 +522,8 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
                 node_id=usr, rel_path=fd.new_path or rel, change_kind=kind, name=ref.name, kind=ref.kind,
                 line=ref.start, old=o, new=n, added_lines=added, removed_lines=removed, conditions=conds,
                 is_header=is_header, added_line_numbers=sorted(ln for ln in fd.new_lines if n and n.start <= ln <= n.end),
-                log_lines=log_statement_lines(new_lines, n.start, n.end) if n else set()))
+                log_lines=log_statement_lines(new_lines, n.start, n.end) if n else set(),
+                old_body=old_lines[o.start - 1:o.end] if o else [], new_body=new_lines[n.start - 1:n.end] if n else []))
 
         res_new = _residual(new_lines, fd.new_lines, new_syms.extents if new_syms else [])
         res_old = _residual(old_lines, fd.old_lines, old_syms.extents if old_syms else [])
@@ -543,7 +546,9 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
                     text = strip_comments(lines_[ln - 1]).strip() if 0 < ln <= len(lines_) else ""
                     if fn is None or not text:
                         continue
-                    e = by_fn.setdefault(fn[0], {"start": fn[1], "add": [], "rem": [], "lines": set(), "old": set()})
+                    e = by_fn.setdefault(fn[0], {"start": fn[1], "add": [], "rem": [], "lines": set(), "old": set(),
+                                                 "nb": [], "ob": []})
+                    e["nb" if side == "+" else "ob"] = lines_[fn[1] - 1:fn[2]]
                     (e["add"] if side == "+" else e["rem"]).append(text)
                     (e["lines"] if side == "+" else e["old"]).add(ln)
                     if side == "+":
@@ -557,7 +562,7 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
                     node_id=f"text:{fd.new_path or rel}:{name}", rel_path=fd.new_path or rel, change_kind="modified",
                     name=name, kind="method" if "::" in name else "function", line=e["start"],
                     added_lines=e["add"], removed_lines=e["rem"], conditions=conds, is_header=is_header,
-                    added_line_numbers=sorted(e["lines"]), textual=True))
+                    added_line_numbers=sorted(e["lines"]), textual=True, old_body=e["ob"], new_body=e["nb"]))
                 rest_new -= e["lines"]
                 rest_old -= e["old"]
             res_new = _residual(new_lines, rest_new, cov_new)
@@ -576,7 +581,7 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
     return cs
 
 
-_FN_HEAD = re.compile(r"^[A-Za-z_][\w:<>,\s\*&~]*?\b((?:[A-Za-z_]\w*::)*~?[A-Za-z_]\w*)\s*\([^;]*$")
+_FN_HEAD = re.compile(r"^(?:[A-Za-z_][\w:<>,\s\*&~]*?(?<![\w:~]))?((?:[A-Za-z_]\w*::)*~?[A-Za-z_]\w*)\s*\([^;]*$")
 _NOT_FN = {"if", "for", "while", "switch", "return", "sizeof", "catch", "do", "else"}
 
 

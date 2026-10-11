@@ -11,6 +11,14 @@ whose evidence is the *other* code a reviewer must look at:
 - ``new_early_exit``         an added return / throw / break in the middle of a changed function
 - ``config_reader``          other readers of a setting / flag the change reads
 
+Spec 007 (lost side effects, "fixed here, broke there"; the readers are neither callers nor callees):
+
+- ``removed_write``          readers of a member / global the change no longer writes (or writes differently)
+- ``setter_readers``         callers of the getter paired with a setter call the change removed
+- ``lock_coupling``          other accessors of the members used under a lock the change added or removed
+- ``changed_default``        readers of a field / constant whose initial value changed
+- ``class_consumer``         same-class methods reading members a modified method writes
+
 Deterministic; every case points to concrete code. Team lessons (``lessons.json``) are matched afterwards.
 """
 from __future__ import annotations
@@ -19,7 +27,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from tcadvisor.ingest.changes import strip_comments, textual_functions
+from tcadvisor.ingest.changes import is_test_path, strip_comments, textual_functions
 from tcadvisor.models import SymbolRef, TestCaseCandidate
 
 PAIRS = [("encode", "decode"), ("serialize", "deserialize"), ("pack", "unpack"), ("marshal", "unmarshal"),
@@ -334,7 +342,172 @@ def detect(repo: Path, rev: str | None, changes: list, roots: dict[str, SymbolRe
                                            "silent `default:`",
                                            "Serialized / persisted values and tables indexed by the enum still line up"],
                                        targets, group="abi_layout"))
+        found += coupling(repo, rev, ch, root, root_names, graph, files, targets)
         out.extend(found[:MAX_PER_ROOT * 2])
+    return out
+
+
+# ---- spec 007 US2: lost side effects and state coupling ---------------------------------------------------
+_MEMBERISH = re.compile(r"^(?:m_\w+|m[A-Z]\w*|[a-z]\w*_|g_\w+|s_\w+|k[A-Z]\w*|[A-Z][A-Z0-9_]{2,})$")
+_SETTER = re.compile(r"^(?:Set|set_?|Update|update_?|Increment|increment_?|Inc|Mark|mark_?)([A-Za-z]\w*)$")
+_MUTATE = re.compile(r"(?:this->)?\b((?:m_)?[A-Za-z]\w*_|m_\w+)\s*(?:\.|->)\s*(?:Insert|insert|push_back|push_front|"
+                     r"emplace\w*|erase|clear|Add|Put|append|Append|reset|assign|resize|pop\w*|Set\w*|set\w*)\s*\(")
+MAX_READERS = 4
+MAX_ITEMS = 3
+
+
+def _readers(repo: Path, rev: str | None, files: _Files, name: str, root: SymbolRef, root_names: set[str],
+             stem: str | None, member_access: bool = False, writers: bool = False) -> list[tuple[SymbolRef, str, int]]:
+    """Functions reading ``name`` (not writing it unless ``writers``), bounded; ``stem`` restricts to the class's
+    own files."""
+    if member_access:
+        hits = _git_grep(repo, rev, ["-E", "-e", rf"(\.|->)[[:space:]]*{re.escape(name)}([^A-Za-z0-9_]|$)"], limit=200)
+    else:
+        hits = _git_grep(repo, rev, ["-w", "-e", name], limit=200)
+    if stem is not None:
+        hits = [h for h in hits if Path(h[0]).stem == stem]
+    out: list[tuple[SymbolRef, str, int]] = []
+    for f, line, t in hits:
+        code = strip_comments(t)
+        if re.search(rf"\b{re.escape(name)}\s*(?:\[[^\]]*\]\s*)?(?:[+\-*/%|&^]|<<|>>)?=(?!=)", code) \
+                and not re.search(r"\b(if|while|return|assert)\b", code) and not writers:
+            continue  # another writer
+        if re.search(rf"(?<![\w.>]){re.escape(name)}\s*[({{]", code) and not re.search(r"\b(if|while|return)\b", code):
+            continue  # constructor initialiser list: a writer
+        ref = files.function_at(f, line)
+        if ref is None or _same(ref, root) or _short(ref.qualified_name) in root_names \
+                or any(_same(ref, r[0]) for r in out):
+            continue
+        out.append((ref, f, line))
+    # product code first: tests, benchmarks and examples only fill the remaining slots
+    return sorted(out, key=lambda r: (is_test_path(r[1]), bool(re.search(r"(?i)bench|example|sample|demo", r[1]))))
+
+
+def _more(n: int) -> str:
+    return f" (+{n} more reader(s) not listed)" if n > 0 else ""
+
+
+def coupling(repo: Path, rev: str | None, ch, root: SymbolRef, root_names: set[str], graph, files: _Files,
+             targets) -> list[TestCaseCandidate]:
+    from tcadvisor.classify import edits as E
+    rn = f"`{root.qualified_name}`"
+    stem = Path(ch.rel_path).stem
+    shapes = E.analyse(ch.old_body, ch.new_body, ch.removed_lines, ch.added_lines)
+    out: list[TestCaseCandidate] = []
+    items = 0
+
+    def emit(kind: str, name: str, readers, desc, act, hints, group="logic", cap=MAX_READERS):
+        for ref, f, line in readers[:cap]:
+            out.append(_case(ref, ch.node_id, kind, desc(ref) + _more(len(readers) - cap),
+                             f"{act} (read at {f}:{line})", hints(ref), targets, group=group))
+
+    is_fn = ch.kind in ("function", "method")
+    for x in shapes:
+        if items >= MAX_ITEMS:
+            break
+        if x.kind in ("removed_assignment", "value_change") and is_fn:
+            m = re.match(r"^(?:this->)?([A-Za-z_]\w*)", x.old)
+            name = m.group(1) if m else ""
+            if not _MEMBERISH.match(name):
+                continue
+            items += 1
+            glob = name.startswith(("g_", "s_", "k")) or name.isupper()
+            readers = _readers(repo, rev, files, name, root, root_names, None if glob else stem)
+            verb = "no longer writes" if x.kind == "removed_assignment" else "now writes differently"
+            emit("removed_write", name, readers,
+                 lambda r, n=name, v=verb: f"`{r.qualified_name}` reads `{n}`, which {rn} {v}: check it still "
+                                          "behaves when the old update does not happen",
+                 f"{rn}: `{x.old[:80]}`" + (f" → `{x.new[:60]}`" if x.new else " removed"),
+                 lambda r, n=name: [f"Run `{r.qualified_name}` after {rn} on the changed path and check the value of "
+                                    f"`{n}` it sees", "Concurrent / repeated calls: two calls in a row, interleaved "
+                                    "with the reader"])
+        elif x.kind == "removed_call":
+            m = re.match(r"^`([^`(]+)\(", x.hint)
+            callee = m.group(1) if m else ""
+            short = re.split(r"::|\.|->", callee)[-1]
+            sm = _SETTER.match(short)
+            if not sm:
+                continue
+            items += 1
+            base = sm.group(1)
+            cands = [base, "Get" + base, "get" + base, "get_" + base.lower(), base[:1].lower() + base[1:],
+                     "Is" + base, "is_" + base.lower()]
+            scope = callee.rsplit("::", 1)[0] if "::" in callee else ""
+            getters = [u for n, us in graph.by_name.items() for u in us
+                       if _short(n) in cands and (not scope or n.endswith(scope + "::" + _short(n)))]
+            readers = []
+            for g in getters[:3]:
+                for dep in graph.callers(g):
+                    ref = graph.symbol_ref(dep.dependent)
+                    if ref is None or ref.kind == "file" or _short(ref.qualified_name) in root_names \
+                            or any(_same(ref, r[0]) for r in readers):
+                        continue
+                    readers.append((ref, ref.file_path, dep.line))
+            gname = next((graph.symbol_ref(g).qualified_name for g in getters[:1] if graph.symbol_ref(g)), base)
+            emit("setter_readers", base, readers,
+                 lambda r, c=callee, gn=gname: f"`{r.qualified_name}` reads `{gn}`, but {rn} no longer calls "
+                                               f"`{c}`: check the value it now sees",
+                 f"{rn} no longer calls `{callee}`",
+                 lambda r, gn=gname: [f"Drive {rn} on the changed path, then `{r.qualified_name}`: `{gn}` must still "
+                                      "be what it expects (counts, sizes, state flags)",
+                                      "Mismatch checks / asserts on that value in the reader"])
+        elif x.kind in ("lock_removed", "lock_added") and is_fn:
+            lk = E.lock_name(x.old or x.new) or ""
+            body = " ".join(E.norm(t) for t in (ch.new_body or ch.old_body))
+            members = [m for m in dict.fromkeys(re.findall(r"(?<![\w.>])((?:m_)?[a-z]\w*_|m_\w+)(?!\w)", body))
+                       if m != lk and not lk.endswith(m)][:2]
+            for mem in members:
+                if items >= MAX_ITEMS:
+                    break
+                items += 1
+                readers = _readers(repo, rev, files, mem, root, root_names, stem, writers=True)
+                emit("lock_coupling", mem, readers,
+                     lambda r, mm=mem: f"`{r.qualified_name}` also accesses `{mm}`, which {rn} uses with the lock on "
+                                       f"`{lk}` {'removed' if x.kind == 'lock_removed' else 'added'}: check concurrent "
+                                       "access",
+                     f"{rn}: `{(x.old or x.new)[:80]}` {'removed' if x.kind == 'lock_removed' else 'added'}",
+                     lambda r, mm=mem: [f"Call {rn} and `{r.qualified_name}` from two threads at once (data race on "
+                                        f"`{mm}`)", "Lock order: does the reader hold another lock while taking "
+                                        f"`{lk}`?"], group="thread_safety", cap=2)
+        elif x.kind in ("value_change", "constant_change") and not is_fn:
+            m = re.search(r"\b([A-Za-z_]\w*)\s*(?:=|\{)", x.old) or re.match(r"^#\s*define\s+(\w+)", x.old)
+            name = m.group(1) if m else ""
+            if len(name) < 4 or name in ("return", "const", "static"):
+                continue
+            items += 1
+            member = ch.kind in ("class", "struct") and not _MEMBERISH.match(name)
+            readers = _readers(repo, rev, files, name, root, root_names, None, member_access=member)
+            emit("changed_default", name, readers,
+                 lambda r, n=name: f"`{r.qualified_name}` reads `{n}`, whose initial value changed in {rn}: check it "
+                                   "with the new default",
+                 f"{rn}: `{x.old[:70]}` → `{x.new[:70]}`",
+                 lambda r, n=name: [f"Run `{r.qualified_name}` with the new default of `{n}` and with the old one "
+                                    "(configs that set it explicitly)", f"Limits derived from `{n}` (minimum, maximum, "
+                                    "clipping, division)"])
+    # producer / consumer within the class: members a modified method writes, read by its class mates
+    if is_fn and ch.change_kind == "modified" and items < MAX_ITEMS and "::" in root.qualified_name:
+        cls = root.qualified_name.rsplit("::", 1)[0].split("::")[-1]
+        written = []
+        for t in ch.new_body:
+            code = strip_comments(t)
+            for m in list(_MUTATE.finditer(code)) + list(_MEMBER_W.finditer(code)):
+                mem = m.group(1)
+                if mem and mem not in written and (mem.endswith("_") or mem.startswith("m_")):
+                    written.append(mem)
+        done = {c.evidence[0].qualified_name for c in out}
+        for mem in written[:2]:
+            readers = [r for r in _readers(repo, rev, files, mem, root, root_names, stem)
+                       if (r[0].qualified_name.rsplit("::", 1)[0].split("::")[-1] == cls) and r[0].qualified_name
+                       not in done]
+            if not readers:
+                continue
+            emit("class_consumer", mem, readers[:2],
+                 lambda r, mm=mem: f"`{r.qualified_name}` reads `{mm}`, which the modified {rn} writes: check it still "
+                                   "understands what is stored there",
+                 f"{rn} writes `{mem}`",
+                 lambda r: [f"Round trip: store through {rn}, read back through `{r.qualified_name}` (boundary and "
+                            "empty values)", "Data stored by the old version (compatibility)"])
+            done |= {r[0].qualified_name for r in readers[:2]}
     return out
 
 

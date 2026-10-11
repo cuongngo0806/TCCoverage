@@ -108,7 +108,8 @@ def score(r: dict, victims: list[str], corner: str) -> dict:
         return any(name.endswith(v) or name.endswith("::" + v) or v in name.split("::") for v in victims)
 
     rank = next((i for i, c in enumerate(cases, 1) if is_victim(c["evidence"][0]["qualified_name"])), None)
-    named = sorted({c["evidence"][0]["qualified_name"] for c in cases if is_victim(c["evidence"][0]["qualified_name"])})
+    names = {c["evidence"][0]["qualified_name"] for c in cases}
+    named = [v for v in victims if any(n.endswith(v) or n.endswith("::" + v) or v in n.split("::") for n in names)]
     rx = re.compile(corner, re.I)
     corner_hit = any(rx.search(h) for c in cases
                      if c["evidence"][0]["qualified_name"] in roots or is_victim(c["evidence"][0]["qualified_name"])

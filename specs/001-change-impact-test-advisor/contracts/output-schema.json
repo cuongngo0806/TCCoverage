@@ -253,6 +253,16 @@
         "gitnexus"
       ]
     },
+    "test_gaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "symbol",
+          "reason"
+        ]
+      }
+    },
     "existing_tests": {
       "type": "array",
       "items": {
