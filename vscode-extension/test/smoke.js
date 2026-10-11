@@ -1,10 +1,11 @@
 // Headless smoke test: loads out/extension.js against a stub `vscode` module (no VS Code download needed),
 // activates it on an existing report and checks commands, tree, status bar and inline hints.
-// usage: node test/smoke.js <dir containing report.json> <repo>
+// usage: node test/smoke.js [<dir containing report.json> <repo>]  (default: the bundled test/fixture report)
 const Module = require("module");
 const path = require("path");
 const assert = require("assert");
-const [reportDir, repo] = process.argv.slice(2);
+const fixture = path.join(__dirname, "fixture");
+const [reportDir, repo] = process.argv.length > 3 ? process.argv.slice(2) : [fixture, fixture];
 const registered = {}, diags = new Map(), messages = [];
 let treeProvider, status = {};
 class EventEmitter { constructor() { this.event = () => {}; } fire() {} }
@@ -60,5 +61,8 @@ if (report.ai_verification) {
 if ((report.existing_tests || []).length) {
   assert.ok(labels.some(l => l.startsWith("Existing tests")), "tests group");
   registered["tcCoverage.copyTestFilter"]().then(() => assert.ok(messages.some(m => m.startsWith("clip:--gtest_filter="))));
+}
+if ((report.test_gaps || []).length) {
+  assert.ok(labels.some(l => l.startsWith("Test gaps")), "test gaps group");
 }
 console.log(`SMOKE OK: ${Object.keys(registered).length} commands, groups=[${labels.join(" | ")}], hints in ${diags.size} file(s)`);
