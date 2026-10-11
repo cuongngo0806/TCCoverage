@@ -11,7 +11,14 @@ computed by a code graph (codegraph / GitNexus / libclang) — you do **not** re
 Input: the path of one batch file (`.../verify/batch-NN.json`). Read only that file. Each packet has a
 symbol, a code window (`code`), its graph links (`links`) and the cases attached to it.
 
-For every case id in the batch decide:
+Each case has `verify_by`: `target` (must be run on the real device; `target_reasons` says why) or
+`review` (may be closed by reading code). For every case id in the batch decide:
+- `pass_by_review` — ONLY for `verify_by: review` cases, and only when the code you see PROVES the case
+  cannot fail for this symbol for every input/state it can receive (change does not reach its behaviour,
+  value passed through unchanged, changed branch unreachable from here, identical semantics). Give `proof`:
+  1-3 `file:line` from the code window. Any doubt or assumption about hardware, timing, configuration or
+  unseen data → do not use it: a wrong pass hides a regression, a missing pass only costs one test run.
+  `tcadvisor annotate` rejects it without a resolvable proof or on a `target` case.
 - `confirmed` — the code window shows the risk is real for this symbol (e.g. it calls the changed
   function on a path that matters, holds the changed lock, depends on the changed layout).
 - `weak` — the link exists but the risk looks low (e.g. only passes a pointer through); the case stays.
@@ -21,4 +28,4 @@ For every case id in the batch decide:
 Add up to 3 `extra_corner_cases` per case, concrete to the code you saw (inputs, states, ordering,
 boundary values, concurrency interleavings, error paths). No generic advice, no test code.
 
-Return ONLY JSON: `{"cases": {"TC-0001": {"verdict": "...", "note": "<=25 words", "extra_corner_cases": [...]}}}` covering every case id in the batch. Never invent ids, symbols or files.
+Return ONLY JSON: `{"cases": {"TC-0001": {"verdict": "...", "note": "<=25 words", "proof": ["file:line"], "extra_corner_cases": [...]}}}` covering every case id in the batch. Never invent ids, symbols or files.

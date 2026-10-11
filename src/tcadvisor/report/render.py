@@ -6,6 +6,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from tcadvisor.classify.environment import action
+
 PRIO_ORDER = ("P1", "P2", "P3")
 GROUP_LABEL = {
     "logic": "Logic",
@@ -47,6 +49,19 @@ def summary_line(r: dict[str, Any]) -> str:
             f"{len(r.get('changed_files', []))} changed file(s); targets: {_targets(r['target_scope'])}; "
             f"cache_hit: {str(r['cache_hit']).lower()}; LLM: {llm}; "
             f"{r.get('metrics', {}).get('duration_seconds', 0)}s")
+
+
+ACTION_LABEL = {"test_on_target": "Test on target", "review": "Review code",
+                "closed_by_review": "Closed by code review"}
+ACTION_TAG = {"test_on_target": "TARGET", "review": "REVIEW", "closed_by_review": "CLOSED"}
+
+
+def plan_line(r: dict[str, Any]) -> str:
+    n = {a: 0 for a in ACTION_LABEL}
+    for c in r["test_case_candidates"]:
+        n[action(c)] += 1
+    return (f"Test plan: {n['test_on_target']} to test on target, {n['review']} to review (code reading may close "
+            f"them), {n['closed_by_review']} closed by code review")
 
 
 def _mermaid_id(i: int) -> str:
@@ -126,43 +141,30 @@ def to_markdown(r: dict[str, Any]) -> str:
               "(red = changed, orange = direct, blue = indirect).", "", "```mermaid", mermaid(r), "```", ""]
     cases = r["test_case_candidates"]
     if cases:
-        L += ["## Test cases to check", "",
-              "Listed in relevance order (closest to the change, substantive before recompile-only, larger changes "
-              "first); the P1/P2/P3 label is the deterministic priority.", ""]
-        for title, sel in (("Changed code", lambda c: c["hop_distance"] == 0),
-                           ("Direct impact (1 hop)", lambda c: c["hop_distance"] == 1),
-                           ("Indirect impact", lambda c: c["hop_distance"] > 1)):
-            group = [c for c in cases if sel(c)]
-            if not group:
-                continue
-            L += [f"### {title} ({len(group)})", ""]
-            for c in group:
-                tr = c.get("test_result") or {}
-                box = "x" if tr.get("verdict") and not tr.get("needs_recheck") else " "
-                L.append(f"- [{box}] **{c['id']}** {c['priority']} [{GROUP_LABEL[c['risk_group']]}] "
-                         f"{_md_cell(c['description'])}{_verdict_tag(c)}")
-                L.append(f"  - *When*: {_md_cell(c['activation_condition'])}")
-                L.append("  - *Evidence*: " + "; ".join(_ev_label(e) for e in c["evidence"]))
-                if c.get("path"):
-                    L.append("  - *Path*: " + " → ".join(
-                        f"`{x['symbol']['qualified_name']}` ({x['role']}{', checked' if x['checked'] else ''})"
-                        for x in c["path"]))
-                if c.get("corner_cases"):
-                    L.append("  - *Corner cases*: " + "; ".join(c["corner_cases"][:5]))
-                L.append(f"  - *Targets*: {', '.join(c['related_cmake_targets'])}")
-                if tr.get("verdict"):
-                    names = ", ".join(a["name"] for a in tr.get("attachments", []))
-                    L.append(f"  - *Test result*: {tr['verdict']} by {_md_cell(tr.get('tester', ''))} on "
-                             f"{tr.get('date', '')}{' — ' + _md_cell(tr['comment']) if tr.get('comment') else ''}"
-                             f"{'; defect ' + _md_cell(tr['defect_ref']) if tr.get('defect_ref') else ''}"
-                             f"{'; evidence: ' + _md_cell(names) if names else ''}")
-                v = c.get("verification")
-                if v:
-                    L.append(f"  - *AI verification*: **{v['verdict']}**{' — re-check' if v['recheck'] else ''}"
-                             f"{': ' + _md_cell(v['note']) if v['note'] else ''}")
-                    if v["extra_corner_cases"]:
-                        L.append("  - *AI corner cases*: " + "; ".join(_md_cell(x) for x in v["extra_corner_cases"]))
-            L.append("")
+        L += ["## Test cases to check", "", plan_line(r) + ".", "",
+              "- **Test on target**: the risk only shows up when running on the device (concurrency, lifetime, data "
+              "layout, build configuration, hardware / interrupt / timing / RTOS / bus code), or an AI reviewer "
+              "read the code and could not close it.",
+              "- **Review code**: no runtime signal — reading the code may close it without a run "
+              "(`tcadvisor verify --scope review`); test it on the target if nobody can.",
+              "- **Closed by code review**: an AI reviewer proved from the code that it cannot fail (proof "
+              "file:line); listed so the decision stays auditable.", "",
+              "Inside each group: relevance order (closest to the change, substantive before recompile-only, larger "
+              "changes first); the P1/P2/P3 label is the deterministic priority.", ""]
+        hops = (("changed code", lambda c: c["hop_distance"] == 0), ("direct impact", lambda c: c["hop_distance"] == 1),
+                ("indirect impact", lambda c: c["hop_distance"] > 1))
+        for a, label in ACTION_LABEL.items():
+            in_a = [c for c in cases if action(c) == a]
+            if in_a:
+                L += [f"### {label} ({len(in_a)})", ""]
+            for title, sel in hops:
+                group = [c for c in in_a if sel(c)]
+                if not group:
+                    continue
+                L += [f"#### {label} — {title} ({len(group)})", ""]
+                for c in group:
+                    L += _md_case(c)
+                L.append("")
     av = r.get("ai_verification")
     if av:
         L += ["## AI verification (annotations only — cases are never removed)", "",
@@ -231,9 +233,41 @@ def to_markdown(r: dict[str, Any]) -> str:
     return "\n".join(L)
 
 
+def _md_case(c: dict[str, Any]) -> list[str]:
+    tr = c.get("test_result") or {}
+    box = "x" if tr.get("verdict") and not tr.get("needs_recheck") else " "
+    L = [f"- [{box}] **{c['id']}** {c['priority']} [{GROUP_LABEL[c['risk_group']]}] "
+         f"{_md_cell(c['description'])}{_verdict_tag(c)}",
+         f"  - *When*: {_md_cell(c['activation_condition'])}",
+         "  - *Evidence*: " + "; ".join(_ev_label(e) for e in c["evidence"])]
+    if c.get("path"):
+        L.append("  - *Path*: " + " → ".join(
+            f"`{x['symbol']['qualified_name']}` ({x['role']}{', checked' if x['checked'] else ''})" for x in c["path"]))
+    if c.get("corner_cases"):
+        L.append("  - *Corner cases*: " + "; ".join(c["corner_cases"][:5]))
+    L.append(f"  - *Targets*: {', '.join(c['related_cmake_targets'])}")
+    if c.get("target_reasons"):
+        L.append("  - *Needs the target*: " + "; ".join(_md_cell(x) for x in c["target_reasons"]))
+    if tr.get("verdict"):
+        names = ", ".join(a["name"] for a in tr.get("attachments", []))
+        L.append(f"  - *Test result*: {tr['verdict']} by {_md_cell(tr.get('tester', ''))} on "
+                 f"{tr.get('date', '')}{' — ' + _md_cell(tr['comment']) if tr.get('comment') else ''}"
+                 f"{'; defect ' + _md_cell(tr['defect_ref']) if tr.get('defect_ref') else ''}"
+                 f"{'; evidence: ' + _md_cell(names) if names else ''}")
+    v = c.get("verification")
+    if v:
+        L.append(f"  - *AI verification*: **{v['verdict']}**{' — re-check' if v['recheck'] else ''}"
+                 f"{': ' + _md_cell(v['note']) if v['note'] else ''}")
+        if v.get("proof"):
+            L.append("  - *Proof*: " + ", ".join(v["proof"]))
+        if v["extra_corner_cases"]:
+            L.append("  - *AI corner cases*: " + "; ".join(_md_cell(x) for x in v["extra_corner_cases"]))
+    return L
+
+
 def to_brief(r: dict[str, Any], limit: int = 80) -> str:
     """Token-lean summary meant for an AI assistant (Claude) or a PR comment."""
-    L = [summary_line(r)]
+    L = [summary_line(r), plan_line(r)]
     for s in r.get("changed_symbols", []):
         L.append(f"CHANGED {s['symbol']['qualified_name']} @{s['symbol']['file_path']}:{s['symbol']['line']} "
                  f"[{','.join(sorted({x['risk_group'] for x in s['risks']}))}]")
@@ -241,8 +275,10 @@ def to_brief(r: dict[str, Any], limit: int = 80) -> str:
         ev = c["evidence"][0]
         v = c.get("verification")
         tag = f" [AI:{v['verdict']}]" if v else ""
-        L.append(f"{c['id']} {c['priority']} {c['risk_group']} {ev['file_path']}:{ev['line']}{tag} :: {c['description']}"
+        L.append(f"{c['id']} {c['priority']} {ACTION_TAG[action(c)]} {c['risk_group']} {ev['file_path']}:{ev['line']}{tag} :: {c['description']}"
                  f"{_verdict_tag(c)}")
+        if c.get("target_reasons"):
+            L.append("   target: " + " | ".join(c["target_reasons"][:2]))
         if c.get("corner_cases"):
             L.append("   corner: " + " | ".join(c["corner_cases"][:3]))
     if len(r["test_case_candidates"]) > limit:

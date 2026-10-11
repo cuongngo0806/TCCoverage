@@ -15,6 +15,7 @@ from typing import Any, Callable
 
 from tcadvisor import __version__
 from tcadvisor.cache.store import CacheStore
+from tcadvisor.classify import environment
 from tcadvisor.classify.cases import assign_keys, build_cases
 from tcadvisor.classify.rules import classify
 from tcadvisor.evidence import uncertainty
@@ -62,6 +63,7 @@ class Options:
     flow_max_tus: int = 4  # spec 006: TUs parsed for data-path facts
     patterns: bool = True  # spec 006: data paths, trigger sources, lesson patterns
     attachment_warn_mb: int = 50
+    target_patterns: Path | None = None  # extra "needs the target" regexes (spec 007), JSON {category: regex}
     progress: Callable[[str], None] | None = None
 
 
@@ -175,7 +177,9 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         "targets": sorted(opts.targets or []), "cdb": cdb.digest, "index": index_state,
         "llm": opts.llm, "llm_model": opts.llm_model if opts.llm else None,
         "graph": provider.name if provider else "clang", "contracts": contracts,
-        "lessons": lessons.to_key(), "patterns": opts.patterns, "flow_tus": opts.flow_max_tus}).encode()).hexdigest()
+        "lessons": lessons.to_key(), "patterns": opts.patterns, "flow_tus": opts.flow_max_tus,
+        "target_patterns": opts.target_patterns.read_text(encoding="utf-8", errors="replace")
+        if opts.target_patterns and opts.target_patterns.is_file() else None}).encode()).hexdigest()
     if opts.use_run_cache:
         cached = cache.get_run(run_key)
         if cached is not None:
@@ -377,6 +381,18 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
              | {c.evidence[0].qualified_name for c in pattern_cases})  # text-found code, file checked by the gate
     cases = gate(cases, repo, known)
     assign_keys(cases, nodes, repo)
+    root_lines: dict[str, list[tuple[str, int, str]]] = {}
+    sources: dict[str, list[str]] = {}
+    for ch in changes:
+        if ch.rel_path not in sources:
+            sources[ch.rel_path] = (_new_source(repo, ctx.new_rev if opts.commit_range else None, ch.rel_path)
+                                    or "").splitlines()
+        src = sources[ch.rel_path]
+        lines = [(ch.rel_path, n, src[n - 1]) for n in ch.added_line_numbers if 0 < n <= len(src)] \
+            or [(ch.rel_path, ch.line, t) for t in ch.added_lines]
+        root_lines.setdefault(ch.node_id, []).extend(lines + [(ch.rel_path, ch.line, t) for t in ch.removed_lines])
+    environment.assign(cases, repo, root_lines, {nid: n.root_ids for nid, n in nodes.items()}, flags,
+                       environment.load_patterns(opts.target_patterns))
 
     # -- affected targets (FR-005) ---------------------------------------------------------------
     direct_targets = sorted({t for n in nodes.values() for t in n.targets})
@@ -574,6 +590,13 @@ def _definition_site(repo: Path, rel: str, qn: str, line: int) -> tuple[str, int
                     if needle in text.replace(" ", ""):
                         return base.as_posix(), i
     return rel, line
+
+
+def _new_source(repo: Path, rev: str | None, rel: str) -> str | None:
+    if rev:
+        return G.show(repo, rev, rel)
+    p = repo / rel
+    return p.read_text(encoding="utf-8", errors="replace") if p.is_file() else None
 
 
 def _code_digest() -> str:

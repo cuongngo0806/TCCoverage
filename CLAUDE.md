@@ -23,6 +23,8 @@ analysed repo.
 - `scripts/pilot_regressions.py` + `scripts/szz_pairs.py` — SC-005 regression pilot (see `specs/003-pilot-large-projects/pilot.md`);
   `scripts/rank_lab.py` (offline ranking experiments), `scripts/ai_rank_eval.py` (AI view) — `specs/004-ranking-and-recall/results.md`.
   Change ranking/rules only with a benchmark run that shows dev *and* holdout do not get worse.
+- `src/tcadvisor/classify/environment.py` — spec 007: `verify_by` target|review per case; AI `pass_by_review`
+  (gated in `verify/annotate.py`) closes review cases with proof — see `docs/workflow.md`.
 - `specs/001-change-impact-test-advisor/` — speckit spec/plan/tasks; `.specify/memory/constitution.md` — rules.
 
 ## Commands
