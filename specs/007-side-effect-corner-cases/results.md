@@ -14,7 +14,7 @@ Ground truth (victims + corner regex) was written before each set was first run.
 | total seconds, 22 scenarios (2 interleaved runs) | 76.1 / 78.7 | 77.8 / 78.4 | | |
 
 Gate SC-701..SC-704: **passed** (victims ≥ 11/12, corners ≥ 10/12, MRR not lower, median cases +≤50 %, time
-+≤15 %, `scripts/eval_real_project.py` passes, full suite 137 passed).
++≤15 %, `scripts/eval_real_project.py` passes, full suite 140 passed).
 
 ## What the evaluation found (and what changed)
 
@@ -42,11 +42,16 @@ A review subagent probed the diff with adversarial input; all confirmed findings
 (`tests/unit/test_edits.py`, "review findings"): template members in the text scan, inverted advice for removed early
 exits, false P1 on equivalent refactors and removed asserts, quadratic regex on long literal lines, O(n·m) pairing on
 huge rewrites, operand extraction, digit separators, function-pointer parameters, setter / global heuristics.
+A second round on the fixes found and we fixed: exponential backtracking in the new template-aware head regex
+(replaced by a linear bracket scan), nested template names, "still checked" filters that looked at unrelated
+conditions in the body (now only the paired / added lines), narrowing `a || b` → `a` reported as a removed guard,
+and the `guard_removed_callee` wording for early exits. Benchmark and eval numbers above are after both rounds.
 
 ## Known limitations
 
 - The spec 004 RocksDB / vsomeip pilot was not re-run (prepared worktrees unavailable here). New case kinds sit in the
   low pattern tier (ranked after substantive cases of the same distance) and US2 readers are capped at P2; the only
   change to existing order is `removed_guard` raising the changed symbol's own case to P1.
+- A guard deleted outright (no paired new line) gets the corner hint and P1 but no `guard_removed_callee` cases.
 - Readers of members are found by bounded text search in the class's own files (constitution V); members with very
   generic names may produce a false reader (ranked low, stated as "read at file:line").

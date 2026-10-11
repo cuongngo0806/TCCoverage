@@ -581,8 +581,33 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
     return cs
 
 
-_FN_HEAD = re.compile(r"^(?:[A-Za-z_][\w:<>,\s\*&~]*?(?<![\w:~]))?((?:[A-Za-z_]\w*(?:<[^()]*?>)?::)*~?[A-Za-z_]\w*)"
-                      r"\s*\([^;]*$")
+_FN_HEAD = re.compile(r"^(?:[A-Za-z_][\w:,\s\*&~]*?(?<![\w:~]))?((?:[A-Za-z_]\w*::)*~?[A-Za-z_]\w*)\s*\([^;]*$")
+
+
+def strip_template_args(s: str) -> str:
+    """``Foo<Bar<T>>::bar(`` -> ``Foo::bar(``: drop balanced ``<...>`` that directly follow an identifier (linear
+    scan; a regex over nested brackets backtracks exponentially)."""
+    out, i, n = [], 0, len(s)
+    while i < n:
+        ch = s[i]
+        if ch == "<" and out and (out[-1].isalnum() or out[-1] == "_") and s[i + 1:i + 2] not in ("<", "="):
+            depth, j = 0, i
+            while j < n:
+                if s[j] == "<":
+                    depth += 1
+                elif s[j] == ">":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                elif s[j] in ";{}":
+                    break
+                j += 1
+            if j < n and s[j] == ">" and depth == 0:
+                i = j + 1
+                continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
 _NOT_FN = {"if", "for", "while", "switch", "return", "sizeof", "catch", "do", "else"}
 
 
@@ -601,9 +626,9 @@ def textual_functions(lines: list[str]) -> list[tuple[str, int, int]]:
             continue
         in_fn = any(k == "fn" for k, _n, _s in stack)
         if not in_fn:
-            m = _FN_HEAD.match(s)
+            m = _FN_HEAD.match(strip_template_args(s[:300]))
             if m and m.group(1).split("::")[-1] not in _NOT_FN:
-                pending = (re.sub(r"<[^()]*?>", "", m.group(1)), i)  # `Foo<T>::bar` -> `Foo::bar`
+                pending = (m.group(1), i)
             elif s.endswith(";"):
                 pending = None
         for ch in line:

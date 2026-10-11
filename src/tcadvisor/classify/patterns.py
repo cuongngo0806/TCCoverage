@@ -528,6 +528,7 @@ def coupling(repo: Path, rev: str | None, ch, root: SymbolRef, root_names: set[s
             continue
         first, last = guard_scope(ch.new_body, idx + 1)
         cond = x.hint.split("`")[1] if x.hint.count("`") >= 2 else x.old
+        state = f"`{cond[:60]}` holds" if x.hint.startswith("Removed early exit") else f"`{cond[:60]}` is false"
         seen: set[str] = set()
         for usr, _qn, _k, _df, _dl, line in ch.new.calls:
             local = line - ch.new.start + 1
@@ -536,11 +537,11 @@ def coupling(repo: Path, rev: str | None, ch, root: SymbolRef, root_names: set[s
                 continue
             seen.add(usr)
             c = _case(ref, ch.node_id, "guard_removed_callee",
-                      f"`{ref.qualified_name}` is now called from {rn} also when `{cond[:60]}` is false: check it "
-                      "handles that state",
+                      f"`{ref.qualified_name}` is now called from {rn} also when {state}: check it handles that "
+                      "state",
                       f"Condition removed in {rn}: `{x.old[:80]}` (call at {ch.rel_path}:{line})", [
-                          f"Call {rn} with `{cond[:60]}` false and check `{ref.qualified_name}` (no crash, no corrupted "
-                          "state, correct result)",
+                          f"Call {rn} so that {state} and check `{ref.qualified_name}` (no crash, no corrupted state, "
+                          "correct result)",
                           f"`{ref.qualified_name}`'s own preconditions (asserts, documented assumptions) still hold"],
                       targets)
             out.append(c)

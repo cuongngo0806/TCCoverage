@@ -170,3 +170,30 @@ def test_textual_function_names_templates_and_destructors():
     got = textual_functions(["void Foo<T>::bar(int x) {", "}", "DBImpl::~DBImpl() {", "}", "static int foo(int a) {",
                              "}", "std::vector<int> ns::A::f() const {", "}"])
     assert [g[0] for g in got] == ["Foo::bar", "DBImpl::~DBImpl", "foo", "ns::A::f"]
+
+
+# ---- review round 2 ----------------------------------------------------------------------------------------
+def test_text_scan_heads_are_linear_and_balance_templates():
+    import time
+    from tcadvisor.ingest.changes import textual_functions
+    t = time.time()
+    for line in ["A<x>::" * 40 + "make<T>(a,", "Foo<A>::" * 40 + "("]:
+        textual_functions([line, "{", "}"])
+    assert time.time() - t < 1
+    got = textual_functions(["void Foo<Bar<T>>::bar(int x) {", "}", "Map<K, std::pair<A,B>>::Map() {", "}",
+                             "std::function<void(int)> F<T>::cb() {", "}"])
+    assert [g[0] for g in got] == ["Foo::bar", "Map::Map", "F::cb"]
+
+
+def test_unrelated_conditions_do_not_hide_a_removed_guard():
+    assert "removed_guard" in kinds(fn("  if (idx >= n) return;", "  a[idx] = 1;", "  while (idx < n) {", "  }"),
+                                    fn("  a[idx] = 1;", "  while (idx < n) {", "  }"))
+    assert "removed_guard" in kinds(fn("  if (!p) return;", "  g(p);", "  if (Check(p, q)) {", "  }"),
+                                    fn("  g(p);", "  if (Check(p, q)) {", "  }"))
+
+
+def test_narrowing_a_condition_is_not_a_removed_guard():
+    assert "removed_guard" not in kinds(fn("  if (a || b) {", "    go();", "  }"), fn("  if (a) {", "    go();", "  }"))
+    assert "removed_guard" not in kinds(fn("  if (a && b) return;", "  go();"), fn("  if (a) return;", "  go();"))
+    assert "`b`" in kinds(fn("  if (a || b) return;", "  go();"), fn("  if (a) return;", "  go();"))["removed_guard"]
+    assert "`b`" in kinds(fn("  if (a && b) {", "    go();", "  }"), fn("  if (a) {", "    go();", "  }"))["removed_guard"]

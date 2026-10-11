@@ -63,7 +63,7 @@ _STOP = {"&&", "||", ",", ";", "?", ":", "=", "+=", "-=", "*=", "/=", "%=", "&="
 def _join(toks: list[str]) -> str:
     out = ""
     for t in toks:
-        tight = t in (".", "->", "::", "(", ")", "[", "]") or out in ("*", "&") or (out[-1:] in ("(", "[", ".", ">", ":") and
+        tight = t in (".", "->", "::", "(", ")", "[", "]", ",") or out in ("*", "&") or (out[-1:] in ("(", "[", ".", ">", ":") and
                                                                (out.endswith(("->", "::", "(", "[", ".")))) or not out
         out += t if tight else " " + t
     return out.strip()
@@ -118,13 +118,13 @@ def _cond_exprs(line: str) -> list[str]:
     return [c for c in out if c]
 
 
-def conjuncts(cond: str) -> list[str]:
+def conjuncts(cond: str, ops: tuple[str, ...] = ("&&", "||")) -> list[str]:
     parts, depth, cur = [], 0, ""
     i = 0
     while i < len(cond):
         ch = cond[i]
         depth += {"(": 1, ")": -1}.get(ch, 0)
-        if depth == 0 and cond[i:i + 2] in ("&&", "||"):
+        if depth == 0 and cond[i:i + 2] in ops:
             parts.append(cur.strip())
             cur = ""
             i += 2
@@ -168,8 +168,10 @@ def _input_making(c: str, value: bool) -> str:
         return f"make `{m.group(1)}` false / null / zero"
     if re.match(r"^[\w.\->:]+$", c):
         return f"make `{c}` true / non-null"
-    if re.search(r"(<=|>=|<|>)", c):
+    if re.search(r"(<=|>=)", c):
         return f"make `{c}` hold (including the equality edge)"
+    if re.search(r"[<>]", c):
+        return f"make `{c}` hold (and test the equality edge just outside it)"
     return f"make `{c}` hold"
 
 
@@ -316,31 +318,51 @@ def _null_var(c: str) -> str | None:
     return m.group(1) if m else None
 
 
-def _removed_guards(pairs: list[tuple[str, str]], rem: list[str], new_conds: list[str], old: list[str],
+def _removed_guards(pairs: list[tuple[str, str]], rem: list[str], add: list[str], old: list[str],
                     out: list[EditShape]) -> None:
-    new_roots = [_root_ids(c) for c in new_conds]
+    """Conditions that no longer keep inputs away from code. For a wrapping ``if (a && b) {code}`` a dropped ``&&``
+    part widens it (a dropped ``||`` part narrows it: not reported); for an early exit ``if (a || b) return;`` it is
+    the other way round. A part counts as still checked only on the paired new line or on lines the change added
+    (never on unrelated conditions elsewhere in the body)."""
+    added_conds = [c for x in add for e in _cond_exprs(x) for c in conjuncts(e)]
     candidates = [(o, n) for o, n in pairs] + [(o, None) for o in rem]
     for o, n in candidates:
-        is_assert = bool(_ASSERT.search(o)) and not _COND_HEAD.search(o)
-        oc = [c for e in _cond_exprs(o) for c in conjuncts(e)]
-        if not oc:
+        exprs = _cond_exprs(o)
+        if not exprs:
             continue
-        nc = {norm(c) for e in (_cond_exprs(n) if n else []) for c in conjuncts(e)}
+        is_assert = bool(_ASSERT.search(o)) and not _COND_HEAD.search(o)
         k = old.index(o) if o in old else -1
         nxt = old[k + 1] if 0 <= k < len(old) - 1 else ""
         early = bool(_EXIT_KW.search(o.split(")", 1)[-1] if ")" in o else "")) or bool(_EXIT_KW.match(nxt)) \
             or (nxt == "{" and k + 2 < len(old) and bool(_EXIT_KW.match(old[k + 2])))
-        for c in oc:
-            if norm(c) in nc:
+        n_exprs = _cond_exprs(n) if n else []
+        if not n_exprs:
+            parts = exprs  # the whole condition is gone
+        else:
+            op = ("||",) if early else ("&&",)
+            parts = [c for e in exprs for c in conjuncts(e, op)]
+        kept = [c for e in n_exprs for c in conjuncts(e)] + added_conds
+        kept_norm = {norm(c) for e in n_exprs for c in conjuncts(e, ("||",) if early else ("&&",))} | \
+            {norm(c) for c in kept}
+        kept_roots = [_root_ids(c) for c in kept]
+        for c in parts:
+            c = c.strip()
+            while c.startswith("(") and c.endswith(")") and c.count("(") == 1:
+                c = c[1:-1].strip()
+            if not c or norm(c) in kept_norm:
                 continue
+            other = ("&&",) if early else ("||",)
+            subs = conjuncts(c, other)
+            if n_exprs and len(subs) > 1 and any(norm(x) in kept_norm for x in subs):
+                continue  # `a || b` -> `a` around code (or `a && b` -> `a` before an exit): fewer states reach it
             roots = _root_ids(c)
             nv = _null_var(c)
             if nv is not None:  # a null check is only kept by another null check of the same pointer
-                if any(_null_var(x) == nv or re.search(rf"\w\s*\([^()]*(?<![\w.>]){re.escape(nv)}\b(?!\s*(?:\.|->))", x)
-                       for x in new_conds):
-                    continue  # still null-checked, or handed to a helper that checks it (`IsValid(p)`)
-            # the same state is still checked (operator tweak, `size() > 0` -> `!empty()`, moved into a helper)
-            elif roots and any(roots <= r for r in new_roots):
+                if any(_null_var(x) == nv or re.search(rf"^!?\s*\w*(?:Valid|Null|Check|Ok|OK)\w*\s*\(\s*{re.escape(nv)}\s*\)$",
+                                                       x.strip()) for x in kept):
+                    continue  # still null-checked, or handed to a validity helper (`IsValid(p)`)
+            # the same state is still checked on the paired / added line (operator tweak, `size() > 0` -> `!empty()`)
+            elif roots and any(roots <= r for r in kept_roots):
                 continue
             if is_assert:
                 out.append(EditShape("removed_assert", o, n or "",
@@ -445,8 +467,7 @@ def analyse(old_body: list[str], new_body: list[str], removed_lines: list[str] |
     add = [x for x in add if x not in moved]
     for o, n in pairs:
         _pair_shapes(o, n, out)
-    new_conds = [c for x in new for e in _cond_exprs(x) for c in conjuncts(e)]
-    _removed_guards(pairs, rem, new_conds, old, out)
+    _removed_guards(pairs, rem, add, old, out)
     _removed_statements(rem, moved, add, out)
     order = ["removed_guard", "lock_removed", "removed_assert", "operator_flip", "constant_change", "return_change", "reorder", "logical_flip",
              "negation_flip", "lock_added", "value_change", "removed_term", "removed_call",
