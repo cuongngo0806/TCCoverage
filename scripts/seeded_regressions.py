@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seeded side-effect regressions on google/leveldb (spec 007, SC-701..SC-704).
+"""Seeded side-effect regressions on google/leveldb and jbeder/yaml-cpp (spec 007 SC-701..SC-704, spec 008).
 
 Each scenario applies one small, realistic edit to a pinned leveldb checkout (the kind of change that "fixes one
 place and breaks another"), runs ``tcadvisor analyze --working-tree`` and scores the report against a ground truth
@@ -138,6 +138,67 @@ HOLDOUT = [
      r"kHeaderSize"),
 ]
 
+# Second project (spec 008): google-unrelated code base with `m_` members, accessors in headers and string
+# literals full of braces. Written before the spec 008 implementation; scored as its own set.
+YAML_URL = "https://github.com/jbeder/yaml-cpp.git"
+YAML_COMMIT = "1e0876c"
+YAMLCPP = [
+    ("yaml_col_not_reset", "src/ostream_wrapper.cpp",
+     "    m_row++;\n    m_col = 0;\n", "    m_row++;\n",
+     ["Emitter::EmitBeginDoc", "Emitter::EmitEndDoc", "WriteComment"],
+     r"m_col|newline|\\n"),
+    ("yaml_anchor_flag_kept", "src/emitterstate.cpp",
+     "  m_hasAnchor = false;\n  m_hasAlias = false;", "  m_hasAlias = false;",
+     ["Emitter::EmitBeginDoc", "Emitter::EmitEndDoc", "EmitterState::EndedGroup"],
+     r"m_hasAnchor"),
+    ("yaml_indent_bound", "src/emitterstate.cpp",
+     "  if (value <= 1)\n    return false;\n\n  _Set(m_indent", "  if (value < 1)\n    return false;\n\n  _Set(m_indent",
+     ["Emitter::SetIndent", "EmitterState::StartedGroup"],
+     r"value == 1"),
+    ("yaml_null_empty_dropped", "src/null.cpp",
+     "  return size == 0 || same(str, size, \"~\")", "  return same(str, size, \"~\")",
+     ["IsValidPlainScalar", "SingleDocParser::HandleNode"],
+     r"size == 0|empty"),
+    ("yaml_size_guard_removed", "src/node_data.cpp",
+     "  if (!m_isDefined)\n    return 0;\n\n  switch (m_type) {\n    case NodeType::Sequence:",
+     "  switch (m_type) {\n    case NodeType::Sequence:",
+     ["node_ref::size", "node::size", "Node::size"],
+     r"m_isDefined"),
+    ("yaml_mark_defined_flag", "src/node_data.cpp",
+     "    m_type = NodeType::Null;\n  m_isDefined = true;\n}", "    m_type = NodeType::Null;\n}",
+     ["node_data::compute_seq_size", "node_data::compute_map_size", "node_data::insert_map_pair", "node::is_defined"],
+     r"m_isDefined"),
+    ("yaml_last_indent_default", "src/emitterstate.cpp",
+     "std::size_t lastIndent = (m_groups.empty() ? 0 : m_groups.back()->indent);",
+     "std::size_t lastIndent = (m_groups.empty() ? 1 : m_groups.back()->indent);",
+     ["Emitter::EmitEndSeq", "Emitter::EmitEndMap"],
+     r"m_curIndent|empty|\b0, 1\b"),
+    ("yaml_longkey_parity", "src/emitterstate.cpp",
+     "    if (m_groups.back()->childCount % 2 == 0) {", "    if (m_groups.back()->childCount % 2 == 1) {",
+     ["Emitter::FlowMapPrepareNode", "Emitter::BlockMapPrepareNode", "EmitterState::CurGroupLongKey"],
+     r"childCount|% 2"),
+    ("yaml_buffer_terminator", "src/ostream_wrapper.cpp",
+     "    m_buffer.resize(std::max(m_buffer.size(), m_pos + str.size() + 1));",
+     "    m_buffer.resize(std::max(m_buffer.size(), m_pos + str.size()));",
+     ["ostream_wrapper::str", "Emitter::c_str"],
+     r"m_buffer|\+ 1"),
+]
+
+
+def setup_yaml(work: Path) -> tuple[Path, Path]:
+    repo, build = work / "yaml-cpp", work / "yaml-build"
+    if not (repo / ".git").exists():
+        subprocess.run(["git", "clone", "-q", "--filter=blob:none", YAML_URL, str(repo)], check=True)
+    subprocess.run(["git", "checkout", "-q", YAML_COMMIT], cwd=repo, check=True)
+    if not (build / "compile_commands.json").exists():
+        q = build / ".cmake" / "api" / "v1" / "query"
+        q.mkdir(parents=True, exist_ok=True)
+        (q / "codemodel-v2").touch()
+        subprocess.run(["cmake", "-S", str(repo), "-B", str(build), "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+                        "-DYAML_CPP_BUILD_TESTS=OFF", "-DYAML_CPP_BUILD_TOOLS=OFF", "-DCMAKE_CXX_COMPILER=clang++"],
+                       check=True, capture_output=True)
+    return repo, build
+
 
 def run(repo: Path, build: Path, out: Path) -> tuple[dict, float]:
     t = time.time()
@@ -170,19 +231,24 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--workdir", type=Path, default=Path("/tmp/tcadvisor-eval"))
     ap.add_argument("--only", help="comma-separated scenario names")
-    ap.add_argument("--set", choices=["dev", "holdout", "all"], default="all")
+    ap.add_argument("--set", choices=["dev", "holdout", "yamlcpp", "all"], default="all")
     ap.add_argument("--json", type=Path)
     ap.add_argument("--quiet", action="store_true")
     a = ap.parse_args()
     a.workdir.mkdir(parents=True, exist_ok=True)
-    repo, build = setup(a.workdir)
     only = set(a.only.split(",")) if a.only else None
     rows, ok = [], True
     chosen = ([("dev", x) for x in SCENARIOS] if a.set in ("dev", "all") else []) + \
-        ([("holdout", x) for x in HOLDOUT] if a.set in ("holdout", "all") else [])
+        ([("holdout", x) for x in HOLDOUT] if a.set in ("holdout", "all") else []) + \
+        ([("yamlcpp", x) for x in YAMLCPP] if a.set in ("yamlcpp", "all") else [])
+    chosen = [c for c in chosen if not only or c[1][0] in only]
+    projects = {}
+    if any(p != "yamlcpp" for p, _x in chosen):
+        projects["leveldb"] = setup(a.workdir)
+    if any(p == "yamlcpp" for p, _x in chosen):
+        projects["yamlcpp"] = setup_yaml(a.workdir)
     for part, (name, rel, old, new, victims, corner) in chosen:
-        if only and name not in only:
-            continue
+        repo, build = projects["yamlcpp" if part == "yamlcpp" else "leveldb"]
         subprocess.run(["git", "checkout", "-q", "."], cwd=repo, check=True)
         path = repo / rel
         text = path.read_text()
@@ -203,7 +269,7 @@ def main() -> int:
                   f"victims={s['victims_named']}/{s['victims_total']} corner={'yes' if s['corner_hit'] else 'NO '} "
                   f"P1={s['p1']:3} {s['seconds']}s")
     summary = {}
-    for part in ("dev", "holdout"):
+    for part in ("dev", "holdout", "yamlcpp"):
         sub = [s for s in rows if s["set"] == part]
         if not sub:
             continue
@@ -213,7 +279,7 @@ def main() -> int:
         med_cases = sorted(s["cases"] for s in sub)[len(sub) // 2]
         summary[part] = {"victims_found": found, "corner_hits": corners, "n": len(sub), "mrr": round(mrr, 3),
                          "median_cases": med_cases}
-        print(f"SEEDED leveldb {part}: victims named {found}/{len(sub)}; corner hinted {corners}/{len(sub)}; "
+        print(f"SEEDED {'yaml-cpp' if part == 'yamlcpp' else 'leveldb ' + part}: victims named {found}/{len(sub)}; corner hinted {corners}/{len(sub)}; "
               f"victim MRR {mrr:.3f}; median cases {med_cases}")
     if a.json and rows:
         a.json.write_text(json.dumps({"rows": rows, "summary": summary}, indent=1))
