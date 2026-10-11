@@ -1,4 +1,4 @@
-# Implementation Plan: spec 008
+# Implementation Plan: spec 010
 
 **Branch**: `ccr-f43a06ec-6132n5` | **Date**: 2026-10-11 | **Spec**: [spec.md](spec.md)
 
@@ -28,7 +28,7 @@ overflow stated; bounded greps; local-first (CI only runs the tool on public rep
   expansion).
 - Benchmark: `--min-victims SET=N`, `--min-corners SET=N` (repeatable); default = all.
 - CI: ubuntu-latest, Python 3.11, `pip install -e .[dev]`, apt clang + cmake, pytest, eval, seeded with thresholds
-  from `specs/008-accessor-readers-ci/results.md`.
+  from `specs/010-accessor-readers-ci/results.md`.
 
 ## Project Structure
 ```text

@@ -1,4 +1,4 @@
-# Contract — report additions (spec 007)
+# Contract — report additions (spec 009)
 
 ```json
 "test_gaps": [

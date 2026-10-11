@@ -1,4 +1,4 @@
-# Tasks: Side-effect and corner-case completeness (spec 007)
+# Tasks: Side-effect and corner-case completeness (spec 009)
 
 **Input**: spec.md, plan.md, research.md, data-model.md, contracts/
 **Tests**: included (unit per shape/detector, integration on the synthetic fixture, seeded benchmark gate).

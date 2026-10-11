@@ -82,7 +82,7 @@ class SymbolChange:
     added_line_numbers: list[int] = field(default_factory=list)
     textual: bool = False  # located by a text scan: the parser did not see it (inactive #if branch, no flags)
     log_lines: set[int] = field(default_factory=set)  # new-side lines that belong to a logging statement
-    old_body: list[str] = field(default_factory=list)  # symbol text on each side (spec 007 edit shapes)
+    old_body: list[str] = field(default_factory=list)  # symbol text on each side (spec 009 edit shapes)
     new_body: list[str] = field(default_factory=list)
 
     @property

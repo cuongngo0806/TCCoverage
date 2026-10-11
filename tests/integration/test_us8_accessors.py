@@ -1,4 +1,4 @@
-"""Spec 008 US2: a reader hidden behind an inline accessor is reported as the accessor's callers."""
+"""Spec 010 US2: a reader hidden behind an inline accessor is reported as the accessor's callers."""
 FILES = {
     "include/door/gate.h": """#pragma once
 class Gate {

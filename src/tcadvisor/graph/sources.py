@@ -88,7 +88,7 @@ def guarded_calls(ch: SymbolChange, lines: list[str]) -> list[tuple[str, str, in
     if ch.new is None or ch.is_test_code or ch.kind not in ("function", "method") or not lines:
         return []
     added = dict(zip(ch.added_line_numbers, ch.added_lines))
-    # spec 007: a loop condition does not reject a state, and a condition reading only identifiers an old condition
+    # spec 009: a loop condition does not reject a state, and a condition reading only identifiers an old condition
     # already read is a boundary tweak (`<` -> `<=`), covered by the edit-shape hints — neither is a new guard
     old_ids = [set(_IDENT.findall(strip_comments(t))) - _NOISE for t in ch.removed_lines
                if re.search(r"\bif\s*\(|\?", strip_comments(t))]

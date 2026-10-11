@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seeded side-effect regressions on google/leveldb and jbeder/yaml-cpp (spec 007 SC-701..SC-704, spec 008).
+"""Seeded side-effect regressions on google/leveldb and jbeder/yaml-cpp (spec 009 SC-701..SC-704, spec 010).
 
 Each scenario applies one small, realistic edit to a pinned leveldb checkout (the kind of change that "fixes one
 place and breaks another"), runs ``tcadvisor analyze --working-tree`` and scores the report against a ground truth
@@ -94,7 +94,7 @@ SCENARIOS = [
      r"concurren|thread|race"),
 ]
 
-# Holdout: written after the spec 007 implementation, never used to tune it (reported separately).
+# Holdout: written after the spec 009 implementation, never used to tune it (reported separately).
 HOLDOUT = [
     ("arena_quarter_threshold", "util/arena.cc",
      "  if (bytes > kBlockSize / 4) {", "  if (bytes >= kBlockSize / 4) {",
@@ -141,8 +141,8 @@ HOLDOUT = [
      r"kHeaderSize"),
 ]
 
-# Second project (spec 008): google-unrelated code base with `m_` members, accessors in headers and string
-# literals full of braces. Written before the spec 008 implementation; scored as its own set.
+# Second project (spec 010): google-unrelated code base with `m_` members, accessors in headers and string
+# literals full of braces. Written before the spec 010 implementation; scored as its own set.
 YAML_URL = "https://github.com/jbeder/yaml-cpp.git"
 YAML_COMMIT = "1e0876c"
 YAMLCPP = [

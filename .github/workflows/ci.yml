@@ -21,7 +21,7 @@ jobs:
       - name: leveldb ground-truth eval
         run: python3 scripts/eval_real_project.py --quiet
       - name: Seeded side-effect regressions (recall gate)
-        # thresholds: specs/008-accessor-readers-ci/results.md; raise them when recall improves, never lower silently
+        # thresholds: specs/010-accessor-readers-ci/results.md; raise them when recall improves, never lower silently
         run: >
           python3 scripts/seeded_regressions.py --quiet
           --min-victims dev=12 --min-corners dev=12

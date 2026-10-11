@@ -1,4 +1,4 @@
-"""Spec 008 US3: state written under a condition the edit changed -> readers of that state."""
+"""Spec 010 US3: state written under a condition the edit changed -> readers of that state."""
 FILES = {
     "include/door/cfg.h": """#pragma once
 struct Config {

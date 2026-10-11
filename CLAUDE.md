@@ -17,7 +17,7 @@ analysed repo.
 - Spec 006 (lessons + test report): `index/flow.py` + `graph/dataflow.py` (data paths A→B→C), `graph/sources.py`
   (sibling trigger sources), `classify/patterns.py` + `classify/lessons.py` (patterns, `.tcadvisor/lessons.json`),
   `report/results.py` (fillable report results, `--previous-report`, `tcadvisor results`).
-- Spec 007 (`specs/007-side-effect-corner-cases`, side effects + corner cases): `classify/edits.py` (edit shapes → concrete corner cases, `removed_guard` P1),
+- Spec 009 (`specs/009-side-effect-corner-cases`, side effects + corner cases): `classify/edits.py` (edit shapes → concrete corner cases, `removed_guard` P1),
   `classify/patterns.py` `coupling()` (readers of state a change no longer / differently produces), `test_gaps` in the report.
 - `.claude/skills/tc-coverage`, `.claude/agents/{tc-coverage-analyst,tc-case-verifier,tc-verify-synthesizer}.md`,
   `.claude/workflows/{tc-verify,product-cycle}.js` — Claude front-end; see `docs/workflow.md` (models per step).
@@ -26,7 +26,7 @@ analysed repo.
   `scripts/rank_lab.py` (offline ranking experiments), `scripts/ai_rank_eval.py` (AI view) — `specs/004-ranking-and-recall/results.md`.
   Change ranking/rules only with a benchmark run that shows dev *and* holdout do not get worse.
   Rule / hint changes: also run `scripts/seeded_regressions.py` (victims, corners, MRR on dev and holdout).
-- `src/tcadvisor/classify/environment.py` — spec 007 (`specs/007-target-vs-review`): `verify_by` target|review per case; AI `pass_by_review`
+- `src/tcadvisor/classify/environment.py` — spec 009 (`specs/007-target-vs-review`): `verify_by` target|review per case; AI `pass_by_review`
   (gated in `verify/annotate.py`) closes review cases with proof — see `docs/workflow.md`.
 - `specs/001-change-impact-test-advisor/` — speckit spec/plan/tasks; `.specify/memory/constitution.md` — rules.
 

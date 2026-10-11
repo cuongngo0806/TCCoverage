@@ -1,4 +1,4 @@
-"""Corner cases derived from the shape of an edit (spec 007 US1, research R1-R3).
+"""Corner cases derived from the shape of an edit (spec 009 US1, research R1-R3).
 
 A reviewer who reads "test boundary values" does not know which value; the edit says which one. This module
 pairs the old and new lines of one changed symbol and recognises a few edit shapes — an operator or constant that

@@ -1,4 +1,4 @@
-# Results: spec 008
+# Results: spec 010
 
 Seeded benchmark (`python3 scripts/seeded_regressions.py`), leveldb + yaml-cpp:
 
@@ -10,7 +10,7 @@ Seeded benchmark (`python3 scripts/seeded_regressions.py`), leveldb + yaml-cpp:
 
 Gate: SC-801 passed (8 / 9 victims, corners 9 / 9, MRR 0.343 >= 0.287); SC-802 passed (no measure worse);
 SC-803: full suite (152 passed, 3 skipped) and leveldb eval (`all expectations hold`) pass. Per-scenario times
-are in the same range as spec 007 (about 2-8 s each).
+are in the same range as spec 009 (about 2-8 s each).
 
 CI thresholds (`.github/workflows/ci.yml`): dev 12 / 12, holdout 10 / 10, yaml-cpp victims >= 8 and corners >= 9.
 Remaining miss: `yaml_mark_defined_flag` (victim not named).

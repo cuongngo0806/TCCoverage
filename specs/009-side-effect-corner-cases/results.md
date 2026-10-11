@@ -1,11 +1,11 @@
-# Spec 007 — results (T724)
+# Spec 009 — results (T724)
 
 Harness: `scripts/seeded_regressions.py` on google/leveldb `bb74ef7`, clang graph, one edit per scenario,
 `--working-tree`, no run cache. *dev* = the 12 scenarios written before implementation (used while building);
 *holdout* = 10 scenarios written after the first implementation and never used to tune hints or rules.
 Ground truth (victims + corner regex) was written before each set was first run.
 
-| | baseline f0e2fb3 dev | spec 007 dev | baseline holdout | spec 007 holdout |
+| | baseline f0e2fb3 dev | spec 009 dev | baseline holdout | spec 009 holdout |
 |---|---|---|---|---|
 | victim named | 8 / 12 | **12 / 12** | 9 / 10 | **10 / 10** |
 | concrete corner case hinted | 3 / 12 | **12 / 12** | 2 / 10 | **10 / 10** |

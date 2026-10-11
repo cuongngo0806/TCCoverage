@@ -44,10 +44,10 @@ PATTERN_LOW_SUBS = {"sibling_source_guarded", "sibling_source_more", "data_path_
                     # US4 heuristics: listed after the substantive cases of the same distance
                     "symmetric_counterpart", "same_code_elsewhere", "new_enum_value", "return_meaning",
                     "shared_state", "config_reader",
-                    # spec 007 US2: readers of state a change no longer / differently produces
+                    # spec 009 US2: readers of state a change no longer / differently produces
                     "removed_write", "setter_readers", "lock_coupling", "changed_default", "class_consumer",
                     "guard_removed_callee",
-                    # spec 008: readers of state written under a changed condition
+                    # spec 010: readers of state written under a changed condition
                     "conditional_write"}
 SEVERITY = {"thread_safety": 3, "ownership_lifetime": 3, "exception_safety": 3, "abi_layout": 2, "logic": 2,
             "build_config": 1}
@@ -61,7 +61,7 @@ def priority(hop: int, group: str, sub: str | None = None) -> str:
     if sub in ("logging", "test_code"):
         return "P3"
     if sub == "removed_guard" and hop == 0:
-        return "P1"  # spec 007: a removed condition is the classic "fixed here, broke there" edit
+        return "P1"  # spec 009: a removed condition is the classic "fixed here, broke there" edit
     if sub in STATE_READER_SUBS:
         return "P2" if hop <= 1 else "P3"  # readers found by a bounded text search: never above P2
     direct = hop <= 1

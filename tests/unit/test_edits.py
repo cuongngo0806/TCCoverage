@@ -1,4 +1,4 @@
-"""Spec 007 US1/US3: edit shapes -> concrete corner cases; noise fixes."""
+"""Spec 009 US1/US3: edit shapes -> concrete corner cases; noise fixes."""
 from tcadvisor.classify.edits import analyse, input_classes, tokens
 from tcadvisor.classify.rules import classify
 from tcadvisor.graph.sources import guarded_calls
@@ -128,7 +128,7 @@ def test_loop_condition_tweak_is_not_a_guard():
     assert [c[1] for c in guarded_calls(ch, lines)] == ["g"]
 
 
-# ---- review findings (spec 007 T726) ----------------------------------------------------------------------
+# ---- review findings (spec 009 T726) ----------------------------------------------------------------------
 def test_removed_early_exit_names_the_input_that_used_to_leave():
     h = kinds(fn("  if (!p) return;", "  p->x();"), fn("  p->x();"))["removed_guard"]
     assert "early exit" in h and "make `p` false / null" in h

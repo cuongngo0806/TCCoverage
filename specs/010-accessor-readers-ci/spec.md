@@ -6,15 +6,15 @@
 
 **Status**: Draft
 
-**Input**: "Continue" (cycle after spec 007): keep the goal — never miss the test cases where a change breaks code
-elsewhere — and check that spec 007 generalises beyond the project it was tuned on.
+**Input**: "Continue" (cycle after spec 009): keep the goal — never miss the test cases where a change breaks code
+elsewhere — and check that spec 009 generalises beyond the project it was tuned on.
 
 ## Evaluation that motivates this spec
 
 `scripts/seeded_regressions.py --set yamlcpp`: 9 seeded side-effect edits on jbeder/yaml-cpp `1e0876c` (a second code
 base: `m_` members, accessors in headers, string literals full of braces), ground truth written before any change.
 
-| Measure (commit 6d03510) | yaml-cpp | leveldb dev / holdout (spec 007) |
+| Measure (commit 6d03510) | yaml-cpp | leveldb dev / holdout (spec 009) |
 |---|---|---|
 | victim named | **6 / 9** | 12 / 12, 10 / 10 |
 | concrete corner hinted | 9 / 9 | 12 / 12, 10 / 10 |
@@ -27,7 +27,7 @@ Corner cases generalise; finding the code that breaks does not. Causes, each con
    `node_data::is_defined()` and `EmitterState::CurGroupLongKey()`.
 2. **Text scan broken by string literals**: `m_stream << "{";` shifts the brace count, so every function after line
    ~240 of `emitter.cpp` is invisible to the text scan that resolves readers, guard scopes and textual changes.
-3. **Text scan regression from spec 007**: constructor initialiser lines (`m_comment(false) {}`) are taken as function
+3. **Text scan regression from spec 009**: constructor initialiser lines (`m_comment(false) {}`) are taken as function
    heads, producing readers named `m_comment` / `m_type`.
 4. **State written under a changed condition**: `if (childCount % 2 == 0) longKey = false;` with `0` → `1`; the
    readers of `longKey` are not looked for because the write itself did not change.

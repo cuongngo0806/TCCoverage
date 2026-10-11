@@ -1,4 +1,4 @@
-# Tasks: spec 008 — readers behind accessors, robust text scan, CI recall gate
+# Tasks: spec 010 — readers behind accessors, robust text scan, CI recall gate
 
 ## Phase 1: Setup
 - [x] T801 yaml-cpp set (9 scenarios) in `scripts/seeded_regressions.py`; baseline recorded in spec.md

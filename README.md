@@ -78,15 +78,15 @@ practice (spec 006, all deterministic, off with `--no-patterns`):
 | `shared_state` | new value / timing of a member | readers of the member / global |
 | `new_early_exit` | new `return` leaked a lock | the changed function (what was acquired before the exit) |
 | `config_reader` | setting read differently in two places | other readers of the setting |
-| `removed_write` | a flag / counter is no longer set on one path | readers of the member / global (spec 007) |
+| `removed_write` | a flag / counter is no longer set on one path | readers of the member / global (spec 009) |
 | `setter_readers` | `SetCount(...)` call dropped | callers of the paired getter (`Count`) |
 | `lock_coupling` | lock removed from one accessor | other accessors of the members used under the lock |
 | `changed_default` | default of an option / constant changed | readers of that field / constant |
 | `class_consumer` | encoder changed, decoder in the same class not | same-class methods reading the members it writes |
-| `conditional_write` | condition around a write changed (`%` → `/`, `<` → `<=`, …) | readers of the written field (`->field` too), incl. readers behind trivial accessors (spec 008) |
+| `conditional_write` | condition around a write changed (`%` → `/`, `<` → `<=`, …) | readers of the written field (`->field` too), incl. readers behind trivial accessors (spec 010) |
 | `guard_removed_callee` | condition removed / weakened before a call | the callee, now reached in the excluded state |
 
-### Corner cases from the edit itself (spec 007)
+### Corner cases from the edit itself (spec 009)
 
 Every changed symbol's case lists the concrete inputs the edit makes behave differently, quoting the code:
 `left <= right` now also holds when `left == right`; constant `64` → `8`: test 7, 8, 9, 63, 64, 65; removed
@@ -97,7 +97,7 @@ parameters used on changed lines (null, empty, 0 / max, NaN, ...). Changed symbo
 listed as **test gaps** (report, brief `TEST-GAP`, HTML, VS Code).
 
 Measured with `scripts/seeded_regressions.py` (31 seeded "fixed here, broke there" edits on leveldb and yaml-cpp; see
-`specs/007-side-effect-corner-cases/results.md`, `specs/008-accessor-readers-ci/results.md`). Readers hidden behind
+`specs/009-side-effect-corner-cases/results.md`, `specs/010-accessor-readers-ci/results.md`). Readers hidden behind
 a trivial accessor (`bool Ready() const { return ready_; }`) are reported as the accessor's callers. CI
 (`.github/workflows/ci.yml`) runs the suite, the leveldb eval and this benchmark with per-set minimum thresholds
 (`--min-victims SET=N`, `--min-corners SET=N`).

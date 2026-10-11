@@ -11,14 +11,14 @@ whose evidence is the *other* code a reviewer must look at:
 - ``new_early_exit``         an added return / throw / break in the middle of a changed function
 - ``config_reader``          other readers of a setting / flag the change reads
 
-Spec 007 (lost side effects, "fixed here, broke there"; the readers are neither callers nor callees):
+Spec 009 (lost side effects, "fixed here, broke there"; the readers are neither callers nor callees):
 
 - ``removed_write``          readers of a member / global the change no longer writes (or writes differently)
 - ``setter_readers``         callers of the getter paired with a setter call the change removed
 - ``lock_coupling``          other accessors of the members used under a lock the change added or removed
 - ``changed_default``        readers of a field / constant whose initial value changed
 - ``class_consumer``         same-class methods reading members a modified method writes
-- ``conditional_write``      (spec 008) readers of state written under a condition the edit changed
+- ``conditional_write``      (spec 010) readers of state written under a condition the edit changed
 - ``guard_removed_callee``   functions called under a condition the change removed or weakened: they are now
                              reached in states the condition used to exclude
 
@@ -81,7 +81,7 @@ def _git_grep(repo: Path, rev: str | None, args: list[str], limit: int = 200) ->
 class _Files:
     def __init__(self, repo: Path, rev: str | None):
         self.repo, self.rev, self.cache = repo, rev, {}
-        self.via: dict[tuple[str, str, int], str] = {}  # reader -> accessor it was reached through (spec 008)
+        self.via: dict[tuple[str, str, int], str] = {}  # reader -> accessor it was reached through (spec 010)
         self.accessors: set[tuple[str, str]] = set()  # (qualified name, file) of readers that are trivial accessors
 
     def lines(self, rel: str) -> list[str]:
@@ -352,7 +352,7 @@ def detect(repo: Path, rev: str | None, changes: list, roots: dict[str, SymbolRe
     return out
 
 
-# ---- spec 007 US2: lost side effects and state coupling ---------------------------------------------------
+# ---- spec 009 US2: lost side effects and state coupling ---------------------------------------------------
 _MEMBERISH = re.compile(r"^(?:m_\w+|m[A-Z]\w*|[a-z]\w*_|g_\w+|s_\w+|k[A-Z]\w*|[A-Z][A-Z0-9_]{2,})$")
 _SETTER = re.compile(r"^(?:Set|Update|Increment|Inc|Mark)([A-Z]\w*)$|^(?:set|update|increment|mark)(?:_([a-z]\w*)|"
                      r"([A-Z]\w*))$")
@@ -625,7 +625,7 @@ def coupling(repo: Path, rev: str | None, ch, root: SymbolRef, root_names: set[s
                  lambda r, n=name: [f"Run `{r.qualified_name}` with the new default of `{n}` and with the old one "
                                     "(configs that set it explicitly)", f"Limits derived from `{n}` (minimum, maximum, "
                                     "clipping, division)"])
-    # spec 008: state written under a condition the edit changed -> its readers see the write in other states
+    # spec 010: state written under a condition the edit changed -> its readers see the write in other states
     if is_fn and ch.new is not None and items < MAX_ITEMS:
         from tcadvisor.graph.sources import guard_scope
         done_fields: set[str] = set()

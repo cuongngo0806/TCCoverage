@@ -466,7 +466,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
 
 def _test_gaps(changes: list, roots: dict[str, SymbolRef], nodes: dict, tests: dict[str, str],
                depth: int) -> list[dict[str, Any]]:
-    """Spec 007 US4: changed symbols that no existing test reaches within the hop depth (a new test is likely
+    """Spec 009 US4: changed symbols that no existing test reaches within the hop depth (a new test is likely
     needed rather than a re-run)."""
     covered = {rid for nid in tests for rid in nodes[nid].root_ids}
     out = []

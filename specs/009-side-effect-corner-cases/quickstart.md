@@ -1,4 +1,4 @@
-# Quickstart — validate spec 007
+# Quickstart — validate spec 009
 
 ```bash
 pip install -e '.[dev]'

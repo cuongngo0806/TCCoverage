@@ -1,4 +1,4 @@
-"""Spec 007 fixture: state written in one place and read in another (neither caller nor callee)."""
+"""Spec 009 fixture: state written in one place and read in another (neither caller nor callee)."""
 
 STATE_FILES = {
     "include/door/store.h": """#pragma once

@@ -1,4 +1,4 @@
-# Data model — spec 007
+# Data model — spec 009
 
 ## EditShape (in memory, classify/edits.py)
 | field | type | note |

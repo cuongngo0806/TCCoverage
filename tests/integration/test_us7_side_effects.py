@@ -1,4 +1,4 @@
-"""Spec 007 US2/US1: lost side effects reach the readers of the state; edit shapes give concrete corner cases."""
+"""Spec 009 US2/US1: lost side effects reach the readers of the state; edit shapes give concrete corner cases."""
 import pytest
 from fixtures_us7 import add_state_fixture
 
