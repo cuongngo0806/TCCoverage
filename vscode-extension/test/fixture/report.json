@@ -1,0 +1,494 @@
+{
+ "tool": {
+  "name": "tcadvisor",
+  "version": "0.1.0"
+ },
+ "run_id": "bafa32bc-61bb-4448-9bd3-74e7cb49d545",
+ "change_input": {
+  "mode": "git_diff",
+  "target_repo_path": ".",
+  "commit_range": null,
+  "working_tree": true,
+  "symbols": null
+ },
+ "commit_hash": "bb74ef739973a70ca9f0d90788a1da89b788c0ad",
+ "started_at": "2026-10-11T07:29:30.750930+00:00",
+ "completed_at": "2026-10-11T07:29:38.463026+00:00",
+ "cache_hit": false,
+ "split_into_modules": null,
+ "llm_enabled": false,
+ "llm_degraded": false,
+ "llm_token_usage": null,
+ "target_scope": [
+  "leveldb"
+ ],
+ "no_detected_impact": false,
+ "changed_files": [
+  "db/db_impl.cc"
+ ],
+ "changed_symbols": [
+  {
+   "id": "c:@N@leveldb@S@DBImpl@F@Get#&1$@N@leveldb@S@ReadOptions#&1$@N@leveldb@S@Slice#*$@N@std@N@__cxx11@S@basic_string>#C#$@N@std@S@char_traits>#C#$@N@std@S@allocator>#C#",
+   "symbol": {
+    "qualified_name": "leveldb::DBImpl::Get",
+    "kind": "method",
+    "file_path": "db/db_impl.cc",
+    "line": 1121
+   },
+   "change_kind": "modified",
+   "conditions": [],
+   "changed_lines": 5,
+   "risks": [
+    {
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "detail": "pointer ownership changed in `leveldb::DBImpl::Get` (db/db_impl.cc:1121): `nullptr`",
+     "hints": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "affected_build_configs": null
+    },
+    {
+     "risk_group": "logic",
+     "sub_reason": "removed_guard",
+     "detail": "condition removed in `leveldb::DBImpl::Get` (db/db_impl.cc:1121): `if (options.snapshot != nullptr) {`",
+     "hints": [
+      "Removed condition `options.snapshot != nullptr`: the code it protected now also runs when it is false \u2014 call with `options.snapshot` == nullptr / 0",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "affected_build_configs": null
+    }
+   ]
+  }
+ ],
+ "graph_provider": "clang",
+ "impact_nodes": [
+  {
+   "id": "c:@N@leveldb@S@DBImpl@F@Get#&1$@N@leveldb@S@ReadOptions#&1$@N@leveldb@S@Slice#*$@N@std@N@__cxx11@S@basic_string>#C#$@N@std@S@char_traits>#C#$@N@std@S@allocator>#C#",
+   "symbol": {
+    "qualified_name": "leveldb::DBImpl::Get",
+    "kind": "method",
+    "file_path": "db/db_impl.cc",
+    "line": 1121
+   },
+   "hop_distance": 0,
+   "edges": [],
+   "roots": [
+    "c:@N@leveldb@S@DBImpl@F@Get#&1$@N@leveldb@S@ReadOptions#&1$@N@leveldb@S@Slice#*$@N@std@N@__cxx11@S@basic_string>#C#$@N@std@S@char_traits>#C#$@N@std@S@allocator>#C#"
+   ],
+   "risk_groups": [
+    "logic",
+    "ownership_lifetime"
+   ],
+   "targets": [
+    "leveldb"
+   ]
+  },
+  {
+   "id": "c:@N@leveldb@S@DB@F@Get#&1$@N@leveldb@S@ReadOptions#&1$@N@leveldb@S@Slice#*$@N@std@N@__cxx11@S@basic_string>#C#$@N@std@S@char_traits>#C#$@N@std@S@allocator>#C#",
+   "symbol": {
+    "qualified_name": "leveldb::DB::Get",
+    "kind": "method",
+    "file_path": "include/leveldb/db.h",
+    "line": 87
+   },
+   "hop_distance": 1,
+   "edges": [
+    {
+     "relation": "inherit_override",
+     "from_symbol": {
+      "qualified_name": "leveldb::DB::Get",
+      "kind": "method",
+      "file_path": "include/leveldb/db.h",
+      "line": 87
+     },
+     "to_symbol": {
+      "qualified_name": "leveldb::DBImpl::Get",
+      "kind": "method",
+      "file_path": "db/db_impl.cc",
+      "line": 1121
+     },
+     "source_location": {
+      "file_path": "db/db_impl.cc",
+      "line": 1121
+     }
+    }
+   ],
+   "roots": [
+    "c:@N@leveldb@S@DBImpl@F@Get#&1$@N@leveldb@S@ReadOptions#&1$@N@leveldb@S@Slice#*$@N@std@N@__cxx11@S@basic_string>#C#$@N@std@S@char_traits>#C#$@N@std@S@allocator>#C#"
+   ],
+   "risk_groups": [
+    "logic",
+    "ownership_lifetime"
+   ],
+   "targets": [
+    "leveldb"
+   ]
+  },
+  {
+   "id": "c:@F@leveldb_get",
+   "symbol": {
+    "qualified_name": "leveldb_get",
+    "kind": "function",
+    "file_path": "db/c.cc",
+    "line": 201
+   },
+   "hop_distance": 2,
+   "edges": [
+    {
+     "relation": "call",
+     "from_symbol": {
+      "qualified_name": "leveldb_get",
+      "kind": "function",
+      "file_path": "db/c.cc",
+      "line": 201
+     },
+     "to_symbol": {
+      "qualified_name": "leveldb::DB::Get",
+      "kind": "method",
+      "file_path": "include/leveldb/db.h",
+      "line": 87
+     },
+     "source_location": {
+      "file_path": "db/c.cc",
+      "line": 206
+     }
+    }
+   ],
+   "roots": [
+    "c:@N@leveldb@S@DBImpl@F@Get#&1$@N@leveldb@S@ReadOptions#&1$@N@leveldb@S@Slice#*$@N@std@N@__cxx11@S@basic_string>#C#$@N@std@S@char_traits>#C#$@N@std@S@allocator>#C#"
+   ],
+   "risk_groups": [
+    "logic",
+    "ownership_lifetime"
+   ],
+   "targets": [
+    "leveldb"
+   ]
+  }
+ ],
+ "existing_tests": [],
+ "test_gaps": [
+  {
+   "symbol": {
+    "qualified_name": "leveldb::DBImpl::Get",
+    "kind": "method",
+    "file_path": "db/db_impl.cc",
+    "line": 1121
+   },
+   "reason": "no existing test reaches it within 2 hop(s)"
+  }
+ ],
+ "affected_targets": [
+  {
+   "name": "leveldb",
+   "relation": "compiles_affected_file"
+  },
+  {
+   "name": "leveldbutil",
+   "relation": "link_to_target",
+   "via": "leveldb"
+  }
+ ],
+ "test_case_candidates": [
+  {
+   "id": "TC-0001",
+   "description": "Verify the object ownership and lifetime of `leveldb::DBImpl::Get` (modified, raw pointer)",
+   "activation_condition": "Changed directly: pointer ownership changed in `leveldb::DBImpl::Get` (db/db_impl.cc:1121): `nullptr`",
+   "evidence": [
+    {
+     "qualified_name": "leveldb::DBImpl::Get",
+     "kind": "method",
+     "file_path": "db/db_impl.cc",
+     "line": 1121
+    }
+   ],
+   "priority": "P1",
+   "risk_group": "ownership_lifetime",
+   "sub_reason": "raw_pointer",
+   "hop_distance": 0,
+   "node_id": "c:@N@leveldb@S@DBImpl@F@Get#&1$@N@leveldb@S@ReadOptions#&1$@N@leveldb@S@Slice#*$@N@std@N@__cxx11@S@basic_string>#C#$@N@std@S@char_traits>#C#$@N@std@S@allocator>#C#",
+   "corner_cases": [
+    "Null pointer input and allocation failure",
+    "No double delete / leak on every exit path (including early return and exceptions)",
+    "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+   ],
+   "bug_history": 1,
+   "related_cmake_targets": [
+    "leveldb"
+   ],
+   "key": "269ff6a99295",
+   "code_fingerprint": "8152b91776a7",
+   "pattern": null,
+   "path": null,
+   "lessons": [],
+   "test_result": null
+  },
+  {
+   "id": "TC-0002",
+   "description": "Verify the functional behaviour of `leveldb::DBImpl::Get` (modified, removed guard)",
+   "activation_condition": "Changed directly: condition removed in `leveldb::DBImpl::Get` (db/db_impl.cc:1121): `if (options.snapshot != nullptr) {`",
+   "evidence": [
+    {
+     "qualified_name": "leveldb::DBImpl::Get",
+     "kind": "method",
+     "file_path": "db/db_impl.cc",
+     "line": 1121
+    }
+   ],
+   "priority": "P1",
+   "risk_group": "logic",
+   "sub_reason": "removed_guard",
+   "hop_distance": 0,
+   "node_id": "c:@N@leveldb@S@DBImpl@F@Get#&1$@N@leveldb@S@ReadOptions#&1$@N@leveldb@S@Slice#*$@N@std@N@__cxx11@S@basic_string>#C#$@N@std@S@char_traits>#C#$@N@std@S@allocator>#C#",
+   "corner_cases": [
+    "Removed condition `options.snapshot != nullptr`: the code it protected now also runs when it is false \u2014 call with `options.snapshot` == nullptr / 0",
+    "Exercise every branch whose condition changed (true and false paths)",
+    "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+    "Error / early-return paths and default switch case"
+   ],
+   "bug_history": 1,
+   "related_cmake_targets": [
+    "leveldb"
+   ],
+   "key": "4ead790b64db",
+   "code_fingerprint": "8152b91776a7",
+   "pattern": null,
+   "path": null,
+   "lessons": [],
+   "test_result": null
+  },
+  {
+   "id": "TC-0003",
+   "description": "Re-verify the object ownership and lifetime of `leveldb::DB::Get`, which inherits from / overrides `leveldb::DBImpl::Get` (direct) \u2014 raw pointer",
+   "activation_condition": "Reachable from changed `leveldb::DBImpl::Get`: pointer ownership changed in `leveldb::DBImpl::Get` (db/db_impl.cc:1121): `nullptr`",
+   "evidence": [
+    {
+     "qualified_name": "leveldb::DB::Get",
+     "kind": "method",
+     "file_path": "include/leveldb/db.h",
+     "line": 87
+    },
+    {
+     "relation": "inherit_override",
+     "from_symbol": {
+      "qualified_name": "leveldb::DB::Get",
+      "kind": "method",
+      "file_path": "include/leveldb/db.h",
+      "line": 87
+     },
+     "to_symbol": {
+      "qualified_name": "leveldb::DBImpl::Get",
+      "kind": "method",
+      "file_path": "db/db_impl.cc",
+      "line": 1121
+     },
+     "source_location": {
+      "file_path": "db/db_impl.cc",
+      "line": 1121
+     }
+    }
+   ],
+   "priority": "P1",
+   "risk_group": "ownership_lifetime",
+   "sub_reason": "raw_pointer",
+   "hop_distance": 1,
+   "node_id": "c:@N@leveldb@S@DB@F@Get#&1$@N@leveldb@S@ReadOptions#&1$@N@leveldb@S@Slice#*$@N@std@N@__cxx11@S@basic_string>#C#$@N@std@S@char_traits>#C#$@N@std@S@allocator>#C#",
+   "corner_cases": [
+    "Null pointer input and allocation failure",
+    "No double delete / leak on every exit path (including early return and exceptions)",
+    "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+   ],
+   "bug_history": 0,
+   "related_cmake_targets": [
+    "leveldb"
+   ],
+   "key": "f0389b8a11fa",
+   "code_fingerprint": "a0f1948fa336",
+   "pattern": null,
+   "path": null,
+   "lessons": [],
+   "test_result": null
+  },
+  {
+   "id": "TC-0004",
+   "description": "Re-verify the functional behaviour of `leveldb::DB::Get`, which inherits from / overrides `leveldb::DBImpl::Get` (direct) \u2014 removed guard",
+   "activation_condition": "Reachable from changed `leveldb::DBImpl::Get`: condition removed in `leveldb::DBImpl::Get` (db/db_impl.cc:1121): `if (options.snapshot != nullptr) {`",
+   "evidence": [
+    {
+     "qualified_name": "leveldb::DB::Get",
+     "kind": "method",
+     "file_path": "include/leveldb/db.h",
+     "line": 87
+    },
+    {
+     "relation": "inherit_override",
+     "from_symbol": {
+      "qualified_name": "leveldb::DB::Get",
+      "kind": "method",
+      "file_path": "include/leveldb/db.h",
+      "line": 87
+     },
+     "to_symbol": {
+      "qualified_name": "leveldb::DBImpl::Get",
+      "kind": "method",
+      "file_path": "db/db_impl.cc",
+      "line": 1121
+     },
+     "source_location": {
+      "file_path": "db/db_impl.cc",
+      "line": 1121
+     }
+    }
+   ],
+   "priority": "P2",
+   "risk_group": "logic",
+   "sub_reason": "removed_guard",
+   "hop_distance": 1,
+   "node_id": "c:@N@leveldb@S@DB@F@Get#&1$@N@leveldb@S@ReadOptions#&1$@N@leveldb@S@Slice#*$@N@std@N@__cxx11@S@basic_string>#C#$@N@std@S@char_traits>#C#$@N@std@S@allocator>#C#",
+   "corner_cases": [
+    "Removed condition `options.snapshot != nullptr`: the code it protected now also runs when it is false \u2014 call with `options.snapshot` == nullptr / 0",
+    "Exercise every branch whose condition changed (true and false paths)",
+    "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+    "Error / early-return paths and default switch case"
+   ],
+   "bug_history": 0,
+   "related_cmake_targets": [
+    "leveldb"
+   ],
+   "key": "263bb3c28292",
+   "code_fingerprint": "a0f1948fa336",
+   "pattern": null,
+   "path": null,
+   "lessons": [],
+   "test_result": null
+  },
+  {
+   "id": "TC-0005",
+   "description": "Re-verify the object ownership and lifetime of `leveldb_get`, which calls `leveldb::DB::Get` (indirect, 2 hops) \u2014 raw pointer",
+   "activation_condition": "Reachable from changed `leveldb::DBImpl::Get`: pointer ownership changed in `leveldb::DBImpl::Get` (db/db_impl.cc:1121): `nullptr`",
+   "evidence": [
+    {
+     "qualified_name": "leveldb_get",
+     "kind": "function",
+     "file_path": "db/c.cc",
+     "line": 201
+    },
+    {
+     "relation": "call",
+     "from_symbol": {
+      "qualified_name": "leveldb_get",
+      "kind": "function",
+      "file_path": "db/c.cc",
+      "line": 201
+     },
+     "to_symbol": {
+      "qualified_name": "leveldb::DB::Get",
+      "kind": "method",
+      "file_path": "include/leveldb/db.h",
+      "line": 87
+     },
+     "source_location": {
+      "file_path": "db/c.cc",
+      "line": 206
+     }
+    }
+   ],
+   "priority": "P2",
+   "risk_group": "ownership_lifetime",
+   "sub_reason": "raw_pointer",
+   "hop_distance": 2,
+   "node_id": "c:@F@leveldb_get",
+   "corner_cases": [
+    "Null pointer input and allocation failure",
+    "No double delete / leak on every exit path (including early return and exceptions)",
+    "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+   ],
+   "bug_history": 0,
+   "related_cmake_targets": [
+    "leveldb"
+   ],
+   "key": "66dd4259d6c9",
+   "code_fingerprint": "8acb10b90261",
+   "pattern": null,
+   "path": null,
+   "lessons": [],
+   "test_result": null
+  },
+  {
+   "id": "TC-0006",
+   "description": "Re-verify the functional behaviour of `leveldb_get`, which calls `leveldb::DB::Get` (indirect, 2 hops) \u2014 removed guard",
+   "activation_condition": "Reachable from changed `leveldb::DBImpl::Get`: condition removed in `leveldb::DBImpl::Get` (db/db_impl.cc:1121): `if (options.snapshot != nullptr) {`",
+   "evidence": [
+    {
+     "qualified_name": "leveldb_get",
+     "kind": "function",
+     "file_path": "db/c.cc",
+     "line": 201
+    },
+    {
+     "relation": "call",
+     "from_symbol": {
+      "qualified_name": "leveldb_get",
+      "kind": "function",
+      "file_path": "db/c.cc",
+      "line": 201
+     },
+     "to_symbol": {
+      "qualified_name": "leveldb::DB::Get",
+      "kind": "method",
+      "file_path": "include/leveldb/db.h",
+      "line": 87
+     },
+     "source_location": {
+      "file_path": "db/c.cc",
+      "line": 206
+     }
+    }
+   ],
+   "priority": "P3",
+   "risk_group": "logic",
+   "sub_reason": "removed_guard",
+   "hop_distance": 2,
+   "node_id": "c:@F@leveldb_get",
+   "corner_cases": [
+    "Removed condition `options.snapshot != nullptr`: the code it protected now also runs when it is false \u2014 call with `options.snapshot` == nullptr / 0",
+    "Exercise every branch whose condition changed (true and false paths)",
+    "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+    "Error / early-return paths and default switch case"
+   ],
+   "bug_history": 0,
+   "related_cmake_targets": [
+    "leveldb"
+   ],
+   "key": "c81441824a17",
+   "code_fingerprint": "8acb10b90261",
+   "pattern": null,
+   "path": null,
+   "lessons": [],
+   "test_result": null
+  }
+ ],
+ "trigger_sources": [],
+ "uncertainty_flags": [],
+ "out_of_scope": [],
+ "run_notes": [],
+ "metrics": {
+  "duration_seconds": 7.712,
+  "index": {
+   "tus": 39,
+   "reparsed": 37,
+   "reused": 2
+  },
+  "configurations": [
+   "Debug"
+  ],
+  "max_hop_depth": 2,
+  "parse_errors": 0,
+  "attachment_warn_mb": 50
+ }
+}

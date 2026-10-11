@@ -1,0 +1,53 @@
+[
+ {
+  "label": "all",
+  "scored": 16,
+  "surfaced": 15,
+  "file_level": 1,
+  "missed": 0,
+  "via_graph": 2,
+  "top10": 10,
+  "top20": 10,
+  "top50": 12,
+  "sym_top10": 11,
+  "mrr": 0.496,
+  "median_rank": 2.0,
+  "median_cases": 324.5,
+  "median_seconds": 55.1,
+  "errors": 0
+ },
+ {
+  "label": "dev",
+  "scored": 9,
+  "surfaced": 8,
+  "file_level": 1,
+  "missed": 0,
+  "via_graph": 1,
+  "top10": 5,
+  "top20": 5,
+  "top50": 6,
+  "sym_top10": 5,
+  "mrr": 0.506,
+  "median_rank": 2,
+  "median_cases": 125,
+  "median_seconds": 36.6,
+  "errors": 0
+ },
+ {
+  "label": "holdout",
+  "scored": 7,
+  "surfaced": 7,
+  "file_level": 0,
+  "missed": 0,
+  "via_graph": 1,
+  "top10": 5,
+  "top20": 5,
+  "top50": 6,
+  "sym_top10": 6,
+  "mrr": 0.482,
+  "median_rank": 2,
+  "median_cases": 599,
+  "median_seconds": 67.0,
+  "errors": 0
+ }
+]

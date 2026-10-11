@@ -1,5 +1,15 @@
 <!--
-Sync Impact Report
+Sync Impact Report (1.1.0, 2026-10-11)
+===================
+Version change: 1.0.0 → 1.1.0
+Modified principle: III (Deterministic-First Analysis, Bounded LLM Role) — the LLM MAY close a case as
+"pass by code review" (spec 007) under deterministic gates; the case stays in the output with its proof.
+Rationale / sign-off: requested by the project owner (embedded use: large changes produce more cases than can be
+tested on the device; cases that reading code can settle should not cost a device run). Not a removal: the
+deterministic list, its order and priorities are unchanged, and the LLM still cannot add cases or evidence.
+Templates: none changed.
+
+Sync Impact Report (1.0.0)
 ===================
 Version change: (unratified template) → 1.0.0
 Rationale: Initial ratification of the project constitution. No prior concrete
@@ -75,7 +85,9 @@ dependency/call graph, and build-system metadata (CMake targets, `compile_comman
 MAY be used only after this deterministic pass has already filtered the candidate node set, and
 only for two tasks: (a) writing a human-readable description of a case, and (b) classifying its
 risk level. The LLM MUST NOT be used to discover dependencies, decide inclusion/exclusion, or
-invent evidence. The full codebase MUST NEVER be loaded into the LLM context — only the
+invent evidence. Exception (1.1.0): the LLM MAY mark a case "closed by code review" only when the deterministic
+pass classified it as reviewable (no runtime/target signal) and the LLM cites proof `file:line` that resolves
+in the repository; the case stays listed under "closed by code review" with that proof, never deleted. The full codebase MUST NEVER be loaded into the LLM context — only the
 already-filtered, bounded set of nodes relevant to the current diff. Rationale: determinism keeps
 the tool auditable, reproducible, and cheap; an LLM given free rein over the whole repo would be
 slow, expensive, non-reproducible, and prone to fabricating evidence.
@@ -204,4 +216,4 @@ include an explicit check that the planned output remains a test-case list with 
 rather than dropped (Principle IV), and that scope stays fixed (Principle VIII). Violations found
 during review block progression to implementation until resolved or the constitution is amended.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-08
+**Version**: 1.1.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-11
