@@ -153,6 +153,13 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
                 "build_description_unresolved",
                 "no compile database for this autotools module: compile flags, include paths and defines are "
                 "unknown, so preprocessor branches and header parsing use fallback flags"))
+    variant_views: list = []
+    if opts.profile is not None:  # spec 012: every selected variant's sources are indexed, not only the first's
+        from tcadvisor.classify.variants import load_views
+        variant_views = load_views(repo, opts.profile)
+        extra = [v.cdb for v in variant_views if v.cdb is not None and v.cdb.digest != cdb.digest]
+        if extra:
+            cdb = cdb.merged(extra) if cdb.entries else extra[0].merged(extra[1:])
     if bmodel is not None:
         tmodel = bmodel.targets
         for u in bmodel.unresolved:
@@ -217,6 +224,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         "graph": provider.name if provider else "clang", "contracts": contracts,
         "lessons": lessons.to_key(), "patterns": opts.patterns, "flow_tus": opts.flow_max_tus,
         "tests": [opts.include_tests, sorted(opts.test_paths)],
+        "profile": [opts.profile.state, opts.profile.variants] if opts.profile else None,
         "target_patterns": opts.target_patterns.read_text(encoding="utf-8", errors="replace")
         if opts.target_patterns and opts.target_patterns.is_file() else None}).encode()).hexdigest()
     if opts.use_run_cache:
@@ -457,6 +465,41 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     environment.assign(cases, repo, root_lines, {nid: n.root_ids for nid, n in nodes.items()}, flags,
                        environment.load_patterns(opts.target_patterns))
 
+    # -- build-variant profile (spec 012 US3): move cases on code not built in any confirmed variant -----------
+    not_built: list[dict[str, Any]] = []
+    not_built_changes: list[dict[str, Any]] = []
+    profile_info: dict[str, Any] = {"state": "absent", "variants": [], "filtering": False}
+    if opts.profile is not None:
+        from tcadvisor.classify import variants as V
+        from tcadvisor.index.automake import is_build_file
+        from tcadvisor.index.compile_db import CPP_HEADER_EXT
+        state = opts.profile.state
+        if (bmodel is not None and opts.profile.fingerprint and bmodel.fingerprint != opts.profile.fingerprint) \
+                or any(ch.kind == "file" and is_build_file(ch.rel_path) for ch in changes):
+            state = "stale"
+            ctx.notes.append("the build description changed since the build profile was confirmed: filtering still "
+                             "uses the saved variants; re-run 'tcadvisor profile' to update them")
+        views = variant_views
+        judge = V.LocationJudge(repo, bmodel, set(CPP_HEADER_EXT))
+        loc_lines = {ch.node_id: ([(ch.rel_path, n) for n in ch.added_line_numbers] or [(ch.rel_path, ch.line)])
+                     for ch in changes}
+        cases, not_built, not_built_changes, vflags = V.apply_profile(
+            cases, opts.profile, views, judge, loc_lines, graph, changes,
+            {nid: set(n.root_ids) for nid, n in nodes.items()})
+        flags.extend(vflags)
+        for o in list(out_of_scope):  # a changed source no selected variant compiles: not built, with the reason
+            path = o.get("path", "")
+            if o.get("symbol") is None and Path(path).suffix.lower() in CPP_SOURCE_EXT and (repo / path).is_file():
+                verdicts = [judge.file_built(path, v) for v in views]
+                if verdicts and all(b is False for b, _ in verdicts):
+                    out_of_scope.remove(o)
+                    not_built_changes.append({"path": path, "symbol": None, "line": None,
+                                              "excluded_by": [w.to_dict() for _, w in verdicts if w]})
+        profile_info = {"state": state, "variants": [v["name"] for v in opts.profile.variants], "filtering": True}
+        if not_built:
+            ctx.notes.append(f"{len(not_built)} case(s) moved to 'not built in the confirmed variants' (variants: "
+                             f"{', '.join(profile_info['variants'])})")
+
     # -- affected targets (FR-005) ---------------------------------------------------------------
     direct_targets = sorted({t for n in nodes.values() for t in n.targets})
     affected = [{"name": t, "relation": "compiles_affected_file"} for t in direct_targets]
@@ -492,7 +535,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         "llm_degraded": llm_degraded,
         "llm_token_usage": llm_usage,
         "target_scope": target_scope,
-        "no_detected_impact": not cases and not flags,
+        "no_detected_impact": not cases and not flags and not not_built,
         "changed_files": sorted(set(cs.changed_files)),
         "changed_symbols": [{**ch_dict(ch, roots[ch.node_id]), "risks": [r.to_dict() for r in root_risks[ch.node_id] + root_external.get(ch.node_id, [])]}
                             for ch in changes if ch.node_id in roots],
@@ -514,6 +557,9 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
                                           "covered_by_change": x.covered_by_change, "guard": x.guard}
                                          for x in t.sources]} for t in guarded] + changed_sources,
         "uncertainty_flags": [f.to_dict() for f in flags],
+        "build_profile": profile_info,
+        "not_built": not_built,
+        "not_built_changes": not_built_changes,
         "build_model": {"system": system, "products": len(tmodel.targets) if tmodel else 0,
                         **({"fingerprint": bmodel.fingerprint} if bmodel else {})},
         "out_of_scope": out_of_scope,

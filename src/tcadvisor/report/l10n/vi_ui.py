@@ -143,4 +143,19 @@ ENTRIES: list[tuple[str, str]] = [
     ("FAIL", "KHÔNG ĐẠT"),
     ("N/T", "KHÔNG THỂ TEST"),
     ("N/O", "KHÔNG THỂ XẢY RA"),
+    # spec 012: build-variant profile
+    ("## Not built in the confirmed variants", "## Không được build trong các biến thể đã xác nhận"),
+    ("Build profile: {state}; variants: {variants}. These cases concern code that no selected variant compiles; they "
+     "are listed here, not deleted (`--no-variant-filter` shows them in the main list).",
+     "Build profile: {state}; biến thể: {variants}. Các case này nói về code mà không biến thể nào đã chọn biên dịch; "
+     "chúng được liệt kê ở đây, không bị xóa (`--no-variant-filter` đưa chúng về danh sách chính)."),
+    ("- changed `{path}`{sym}: {why}", "- thay đổi `{path}`{sym}: {why}"),
+    ("not built (profile): {n}", "không được build (profile): {n}"),
+    ("source of no product built in this variant", "không là source của sản phẩm nào được build ở biến thể này"),
+    ("not compiled in this variant's build", "không được biên dịch trong bản build của biến thể này"),
+    ("directory not built in this variant", "thư mục không được build ở biến thể này"),
+    ("inactive branch", "nhánh không được kích hoạt"),
+    ("confirmed", "đã xác nhận"),
+    ("stale", "có thể đã cũ"),
+    ("overridden", "chọn riêng cho lần chạy này"),
 ]

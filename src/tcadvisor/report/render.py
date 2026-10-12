@@ -264,6 +264,8 @@ def to_markdown(r: dict[str, Any]) -> str:
         for o in r["out_of_scope"]:
             L.append(f"- `{o['path']}`{' `' + o['symbol'] + '`' if o.get('symbol') else ''}: {o['reason']}")
         L.append("")
+    if r.get("not_built") or r.get("not_built_changes"):
+        L += not_built_markdown(r, T)
     if r.get("run_notes"):
         L += [T.ui("## Run notes"), ""] + [f"- {n}" for n in r["run_notes"]] + [""]
     m = r.get("metrics", {})
@@ -359,6 +361,38 @@ def _md_case(c: dict[str, Any], T: Translator) -> list[str]:
     return L
 
 
+EXCLUSION_LABEL = {"source_not_in_product": "source of no product built in this variant",
+                   "source_not_in_compile_db": "not compiled in this variant's build",
+                   "conditional_dir": "directory not built in this variant", "preprocessor": "inactive branch"}
+
+
+def _ev_loc(c: dict[str, Any]) -> str:
+    ev = c["evidence"][0]
+    loc = ev.get("source_location") or ev
+    return f"{loc.get('file_path')}:{loc.get('line')}"
+
+
+def exclusion_text(xs: list[dict[str, Any]], T: Translator) -> str:
+    return "; ".join(f"{x['variant']}: {x.get('condition') or T.ui(EXCLUSION_LABEL.get(x['reason'], x['reason']))}"
+                     + (f" ({x['where']})" if x.get("where") else "") for x in xs)
+
+
+def not_built_markdown(r: dict[str, Any], T: Translator) -> list[str]:
+    bp = r.get("build_profile") or {}
+    L = [T.ui("## Not built in the confirmed variants"), "",
+         T.ui("Build profile: {state}; variants: {variants}. These cases concern code that no selected variant "
+              "compiles; they are listed here, not deleted (`--no-variant-filter` shows them in the main list).",
+              state=T.ui(bp.get("state", "confirmed")), variants=", ".join(bp.get("variants") or []) or "-"), ""]
+    for n in r.get("not_built") or []:
+        c = n["case"]
+        L.append(f"- {c['id']} {c['priority']} `{_ev_loc(c)}` {c['description']} — {exclusion_text(n['excluded_by'], T)}")
+    for n in r.get("not_built_changes") or []:
+        sym = f" `{n['symbol']}`" if n.get("symbol") else ""
+        L.append(T.ui("- changed `{path}`{sym}: {why}", path=n["path"], sym=sym,
+                      why=exclusion_text(n["excluded_by"], T)))
+    return L + [""]
+
+
 def to_brief(r: dict[str, Any], limit: int = 80) -> str:
     """Token-lean summary meant for an AI assistant (Claude) or a PR comment. Line tags (CHANGED, UNCERTAIN, ...)
     stay English in every language: they are markers for tools and AI readers."""
@@ -389,6 +423,13 @@ def to_brief(r: dict[str, Any], limit: int = 80) -> str:
             f"{x['symbol']['qualified_name']} ({T.ui('covered') if x['covered_by_change'] else T.ui('guard') + ' ' + x['guard']})"
             if t.get("reason", "guarded") == "guarded" else x["symbol"]["qualified_name"]
             for x in t["sources"]))
+    bp = r.get("build_profile") or {}
+    if bp.get("filtering"):
+        L.append(f"PROFILE {bp.get('state')} {','.join(bp.get('variants') or [])} :: "
+                 + T.ui("not built (profile): {n}", n=len(r.get("not_built") or [])))
+    for n in (r.get("not_built") or [])[:20]:
+        c = n["case"]
+        L.append(f"NOT-BUILT {c['id']} {_ev_loc(c)} :: {exclusion_text(n['excluded_by'], T)}")
     for f in r["uncertainty_flags"]:
         sym = f["related_symbol"]
         L.append(f"UNCERTAIN {f['category']} {sym['qualified_name'] if sym else '-'} :: {f['reason']}")

@@ -164,4 +164,11 @@ HTML: list[tuple[str, str]] = [
     ("${t.via?' via '+esc(t.via):''}", "${t.via?' qua '+esc(t.via):''}"),
     ("'<h2>Skipped (out of scope)</h2>", "'<h2>Bỏ qua (ngoài phạm vi)</h2>"),
     ("'<h2>Run notes</h2>", "'<h2>Ghi chú lần chạy</h2>"),
+    # spec 012: build-variant profile
+    ('<h2 style="display:inline">Not built in the confirmed variants (',
+     '<h2 style="display:inline">Không được build trong các biến thể đã xác nhận ('),
+    ("These cases concern code that no selected variant compiles; they are listed here, not deleted.</div>",
+     "Các case này nói về code mà không biến thể nào đã chọn biên dịch; chúng được liệt kê ở đây, không bị xóa.</div>"),
+    ('<span class="muted">excluded:</span>', '<span class="muted">bị loại bởi:</span>'),
+    ("`<li>changed <code>", "`<li>thay đổi <code>"),
 ]

@@ -166,6 +166,15 @@ def build_parser() -> argparse.ArgumentParser:
     cd.add_argument("--map", action="append", default=[], metavar="OLD=NEW", help="extra path prefix mapping")
     cd.add_argument("--variant", help="record the result as this build-profile variant (name [A-Za-z0-9._-]+)")
     cd.add_argument("--out", type=Path, help="default: <repo>/.tcadvisor/build/<variant|default>/compile_commands.json")
+    pf = sub.add_parser("profile", help="detect the build flow and its variants, confirm them and save the build "
+                                        "profile used to leave out code that is not built")
+    pf.add_argument("--repo", type=Path, default=Path("."))
+    g = pf.add_mutually_exclusive_group()
+    g.add_argument("--detect", action="store_true", help="print the detected proposal (with --json) and exit; no write")
+    g.add_argument("--save", metavar="FILE|-", help="save a profile JSON ({system?, variants: [...]}), e.g. the "
+                   "proposal of --detect --json after the user confirmed it")
+    g.add_argument("--show", action="store_true", help="print the saved profile and its state")
+    pf.add_argument("--json", action="store_true")
     cf = sub.add_parser("config", help="print every setting a run on the repository uses, with its source "
                                        "(flag aside): config file or built-in default")
     cf.add_argument("--repo", type=Path, default=Path("."))
@@ -366,6 +375,52 @@ def _compile_db(ns: argparse.Namespace) -> int:
     return 0
 
 
+def _profile(ns: argparse.Namespace) -> int:
+    from tcadvisor.config import load_config
+    from tcadvisor.index.variants import confirm_interactively, detect, profile_state, save_profile
+    repo = ns.repo.resolve()
+    if not (repo / ".git").exists():
+        raise UsageError(f"--repo '{repo}' is not a git repository root")
+    cfg = load_config(repo)
+    if ns.detect:
+        p = detect(repo, cfg)
+        if ns.json:
+            print(json.dumps(p, indent=2, ensure_ascii=False))
+        else:
+            print(f"build system: {p['system']}; switches: {', '.join(s['name'] for s in p['switches']) or 'none'}")
+            for v in p["variants"]:
+                print(f"variant {v['name']}: " + ", ".join(f"{k}={x}" for k, x in sorted(v["values"].items())
+                                                          if x is not None) + (f"; unset: {', '.join(p['unset'][v['name']])}"
+                                                                               if p["unset"].get(v["name"]) else ""))
+        return 0
+    if ns.save:
+        text = sys.stdin.read() if ns.save == "-" else Path(ns.save).read_text(encoding="utf-8")
+        try:
+            data = json.loads(text)
+        except ValueError as exc:
+            raise UsageError(f"--save: not JSON: {exc}") from exc
+        if not isinstance(data, dict):
+            raise UsageError("--save: expected an object {system?, variants: [...]}")
+        if "fingerprint" not in data:
+            data["fingerprint"] = detect(repo, cfg).get("fingerprint")
+        prof = save_profile(repo, data, cfg)
+        print(f"saved build profile: {', '.join(v['name'] for v in prof['variants'])}")
+        return 0
+    if ns.show:
+        prof = cfg.get("build")
+        state = profile_state(repo, prof)
+        if ns.json:
+            print(json.dumps({"state": state, "profile": prof}, indent=2, ensure_ascii=False))
+        else:
+            print(f"build profile: {state}")
+            for v in (prof or {}).get("variants", []):
+                print(f"  {v['name']}: " + ", ".join(f"{k}={x}" for k, x in sorted((v.get("values") or {}).items())))
+        return 0
+    if not sys.stdin.isatty():
+        raise UsageError("tcadvisor profile needs a terminal; use --detect --json and --save FILE|- instead")
+    return 0 if confirm_interactively(repo, cfg) is not None else 1
+
+
 def _report_repo(report: Path, repo: Path | None) -> Path:
     """The repository whose config applies to an existing report (its recorded root when it still exists)."""
     if repo is not None:
@@ -470,6 +525,8 @@ def main(argv: list[str] | None = None) -> int:
             return _results(ns)
         if ns.command == "compile-db":
             return _compile_db(ns)
+        if ns.command == "profile":
+            return _profile(ns)
         if ns.command == "config":
             from tcadvisor.config import effective, effective_table
             if ns.json:

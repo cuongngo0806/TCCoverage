@@ -128,6 +128,18 @@ class CompileDatabase:
         for e in entries:
             self.by_file.setdefault(e.file, e)
 
+    def merged(self, others: list["CompileDatabase"]) -> "CompileDatabase":
+        """Union by file (this database wins): a source built only in another build variant is still indexed."""
+        entries = list(self.entries)
+        seen = set(self.by_file)
+        for o in others:
+            for e in o.entries:
+                if e.file not in seen:
+                    seen.add(e.file)
+                    entries.append(e)
+        digest = hashlib.sha256((self.digest + "".join(o.digest for o in others)).encode()).hexdigest()
+        return CompileDatabase(self.build_dir, entries, digest if others else self.digest)
+
     @classmethod
     def load(cls, build_dir: Path, repo: Path, allow_stale: bool = False) -> "CompileDatabase":
         path = build_dir / "compile_commands.json"

@@ -147,6 +147,7 @@ def localize(r: dict[str, Any], T: Translator) -> dict[str, Any]:
             "test_gaps": [{**g, "reason": T(g["reason"])} for g in r.get("test_gaps") or []],
             "run_notes": T.all(r.get("run_notes") or []),
             "out_of_scope": [{**o, "reason": T(o["reason"])} for o in r.get("out_of_scope") or []],
+            "not_built": [{**n, "case": case(n["case"])} for n in r.get("not_built") or []],
             "affected_targets": [{**t, "relation": T(t["relation"])} for t in r.get("affected_targets") or []],
             "trigger_sources": [{**t, "sources": [{**x, "guard": T(x.get("guard"))} for x in t["sources"]]}
                                 for t in r.get("trigger_sources") or []]}

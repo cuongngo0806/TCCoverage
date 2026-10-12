@@ -229,4 +229,14 @@ ENTRIES: list[tuple[str, str]] = [
     ("not built by any product: no Makefile.am lists this source",
      "không được build bởi sản phẩm nào: không Makefile.am nào liệt kê source này"),
     ("unknown build target(s): {names} (known: {known})", "target build không tồn tại: {names} (có: {known})"),
+    ("{n} case(s) moved to 'not built in the confirmed variants' (variants: {variants})",
+     "{n} case đã chuyển sang 'không được build trong các biến thể đã xác nhận' (biến thể: {variants})"),
+    ("the build description changed since the build profile was confirmed: filtering still uses the saved variants; "
+     "re-run 'tcadvisor profile' to update them",
+     "mô tả build đã thay đổi từ khi build profile được xác nhận: việc lọc vẫn dùng các biến thể đã lưu; chạy lại "
+     "'tcadvisor profile' để cập nhật"),
+    ("{where} is guarded by `{cond}`, which cannot be evaluated for variant(s) {names} (macro values unknown); the "
+     "case is kept",
+     "{where} nằm trong `{cond}`, điều kiện không đánh giá được cho (các) biến thể {names} (không biết giá trị "
+     "macro); case vẫn được giữ"),
 ]

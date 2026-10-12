@@ -98,7 +98,7 @@ table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid var(--li
 <input type="search" id="q" placeholder="Filter by symbol, file, text…">
 <select id="ord" title="List order" style="margin-left:8px;padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg)"><option value="rel">Order: relevance</option><option value="ai">Order: AI-triaged</option></select><span class="muted" id="count" style="margin-left:8px"></span>
 <div id="cases"></div></div>
-<section id="srcSec"></section><section id="orphSec"></section><section id="aiSec"></section><section id="testsSec"></section><section id="flagsSec"></section><section id="targetsSec"></section><section id="oosSec"></section><section id="notesSec"></section>
+<section id="srcSec"></section><section id="orphSec"></section><section id="aiSec"></section><section id="testsSec"></section><section id="flagsSec"></section><section id="targetsSec"></section><section id="nbSec"></section><section id="oosSec"></section><section id="notesSec"></section>
 </main>
 <script id="data" type="application/json">__DATA__</script>
 <script type="application/json" id="results">__RESULTS__</script>
@@ -318,6 +318,11 @@ const T=R.affected_targets||[];
 if(T.length)document.getElementById('targetsSec').innerHTML='<h2>Build / test scope to rerun</h2><div class="panel">'+T.map(t=>`<code>${esc(t.name)}</code> <span class="muted">${esc(t.relation)}${t.via?' via '+esc(t.via):''}</span>`).join('<br>')+'</div>';
 const O=R.out_of_scope||[];
 if(O.length)document.getElementById('oosSec').innerHTML='<h2>Skipped (out of scope)</h2><div class="panel">'+O.map(o=>`<code>${esc(o.path)}</code> <span class="muted">${esc(o.reason)}</span>`).join('<br>')+'</div>';
+const NB=R.not_built||[],NBC=R.not_built_changes||[],BP=R.build_profile||{};
+const exT=xs=>(xs||[]).map(x=>`${esc(x.variant)}: <code>${esc(x.condition||x.reason)}</code>${x.where?' <span class="muted">'+esc(x.where)+'</span>':''}`).join('; ');
+if(NB.length||NBC.length)document.getElementById('nbSec').innerHTML=`<details><summary><h2 style="display:inline">Not built in the confirmed variants (${NB.length})</h2></summary><div class="panel"><div class="muted">Build profile: ${esc(BP.state||'')} · variants: ${esc((BP.variants||[]).join(', '))}. These cases concern code that no selected variant compiles; they are listed here, not deleted.</div><ul>`+
+ NB.map(n=>{const c=n.case,e=c.evidence[0],l=e.source_location||e;return `<li><b>${esc(c.id)}</b> ${esc(c.priority)} ${loc(l.file_path,l.line)} ${esc(c.description)}<br><span class="muted">excluded:</span> ${exT(n.excluded_by)}</li>`}).join('')+
+ NBC.map(n=>`<li>changed <code>${esc(n.path)}</code>${n.symbol?' <code>'+esc(n.symbol)+'</code>':''}: ${exT(n.excluded_by)}</li>`).join('')+'</ul></div></details>';
 const NO=R.run_notes||[];
 if(NO.length)document.getElementById('notesSec').innerHTML='<h2>Run notes</h2><div class="panel">'+NO.map(n=>esc(n)).join('<br>')+'</div>';
 })();
