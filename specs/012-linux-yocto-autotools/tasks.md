@@ -107,8 +107,8 @@ Independent test: config with `verify_model`, `budget_usd`, `graph_bin`, `contra
 ## Phase 8: Polish & cross-cutting
 
 - [X] T047 [P] Keep Playwright optional: T046 browser part uses `pytest.importorskip("playwright")`; do not add it to pyproject.toml (no new dependency rule); the static part of T046 always runs
-- [ ] T048 Run `python3 -m pytest -q`, `python3 scripts/l10n_check.py`, `python3 scripts/eval_real_project.py --quiet`, `python3 scripts/seeded_regressions.py`; record results (SC-007) in specs/012-linux-yocto-autotools/results.md
-- [ ] T049 Measure SC-002 / SC-003 on the autotools fixture (T026/T036 numbers) and, when available, on a real Yocto module from the team; time the first-run confirmation (SC-004) and a fresh-container walkthrough of docs/linux-yocto.md (SC-005); record all in specs/012-linux-yocto-autotools/results.md
+- [X] T048 Run `python3 -m pytest -q`, `python3 scripts/l10n_check.py`, `python3 scripts/eval_real_project.py --quiet`, `python3 scripts/seeded_regressions.py`; record results (SC-007) in specs/012-linux-yocto-autotools/results.md
+- [X] T049 Measure SC-002 / SC-003 on the autotools fixture (T026/T036 numbers) and, when available, on a real Yocto module from the team; time the first-run confirmation (SC-004) and a fresh-container walkthrough of docs/linux-yocto.md (SC-005); record all in specs/012-linux-yocto-autotools/results.md
 
 ## Dependencies
 

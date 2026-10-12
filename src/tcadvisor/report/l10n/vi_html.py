@@ -175,4 +175,7 @@ HTML: list[tuple[str, str]] = [
      "Các case này nói về code mà không biến thể nào đã chọn biên dịch; chúng được liệt kê ở đây, không bị xóa.</div>"),
     ('<span class="muted">excluded:</span>', '<span class="muted">bị loại bởi:</span>'),
     ("`<li>changed <code>", "`<li>thay đổi <code>"),
+    ("BPS={confirmed:'confirmed',stale:'stale (build description changed)',overridden:'variants chosen for this run'}",
+     "BPS={confirmed:'đã xác nhận',stale:'có thể đã cũ (mô tả build đã thay đổi)',overridden:'biến thể chọn riêng cho lần chạy này'}"),
+    ("|BP.state||'')} · variants: ${", "|BP.state||'')} · biến thể: ${"),
 ]

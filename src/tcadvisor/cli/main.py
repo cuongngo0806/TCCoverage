@@ -387,11 +387,11 @@ def _profile(ns: argparse.Namespace) -> int:
         if ns.json:
             print(json.dumps(p, indent=2, ensure_ascii=False))
         else:
+            from tcadvisor.index.variants import describe_values
             print(f"build system: {p['system']}; switches: {', '.join(s['name'] for s in p['switches']) or 'none'}")
             for v in p["variants"]:
-                print(f"variant {v['name']}: " + ", ".join(f"{k}={x}" for k, x in sorted(v["values"].items())
-                                                          if x is not None) + (f"; unset: {', '.join(p['unset'][v['name']])}"
-                                                                               if p["unset"].get(v["name"]) else ""))
+                print(f"variant {v['name']}: {describe_values(v['values'], p['switches'])}"
+                      + (f"; unset: {', '.join(p['unset'][v['name']])}" if p["unset"].get(v["name"]) else ""))
         return 0
     if ns.save:
         text = sys.stdin.read() if ns.save == "-" else Path(ns.save).read_text(encoding="utf-8")
@@ -413,8 +413,10 @@ def _profile(ns: argparse.Namespace) -> int:
             print(json.dumps({"state": state, "profile": prof}, indent=2, ensure_ascii=False))
         else:
             print(f"build profile: {state}")
+            from tcadvisor.index.variants import describe_values, detect
+            switches = detect(repo, cfg)["switches"]
             for v in (prof or {}).get("variants", []):
-                print(f"  {v['name']}: " + ", ".join(f"{k}={x}" for k, x in sorted((v.get("values") or {}).items())))
+                print(f"  {v['name']}: {describe_values(v.get('values') or {}, switches)}")
         return 0
     if not sys.stdin.isatty():
         raise UsageError("tcadvisor profile needs a terminal; use --detect --json and --save FILE|- instead")

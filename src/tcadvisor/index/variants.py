@@ -143,9 +143,12 @@ def save_profile(repo: Path, data: dict[str, Any], cfg: dict[str, Any] | None = 
             "variants": [{k: x for k, x in v.items() if k in ("name", "compile_db", "build_log", "log_sha256",
                                                               "build_dir", "values", "value_source")}
                          for v in variants or []]}
+    declared = {sw["name"] for sw in data.get("switches") or []}
     for v in prof["variants"]:
-        if "values" in v:
-            v["values"] = {k: x for k, x in v["values"].items() if x is not None}
+        if "values" in v:  # declared switches + the user's answers; other build values are re-read at run time
+            src = v.get("value_source") or {}
+            v["values"] = {k: x for k, x in v["values"].items()
+                           if x is not None and (not declared or k in declared or src.get(k) == "user")}
             v["value_source"] = {k: s for k, s in (v.get("value_source") or {}).items() if k in v["values"]}
     check_build_profile(config_path(repo), prof)
 
@@ -167,6 +170,14 @@ def profile_state(repo: Path, prof: dict[str, Any] | None) -> str:
         if detect_build_system(repo) == "autotools" and load_automake_model(repo).fingerprint != fp:
             return "stale"
     return "confirmed"
+
+
+def describe_values(values: dict[str, Any], switches: list[dict[str, Any]]) -> str:
+    """The declared switches' values (what the user decides on); other build values only counted."""
+    names = [s["name"] for s in switches]
+    shown = [f"{n}={values.get(n) if values.get(n) is not None else '?'}" for n in names]
+    other = sum(1 for k, x in values.items() if k not in names and x is not None and not k.startswith("AM:am"))
+    return (", ".join(shown) or "no declared switch") + (f" (+{other} other value(s) from the build)" if other else "")
 
 
 def _ask(prompt: str, default: str = "") -> str:
@@ -199,9 +210,7 @@ def confirm_interactively(repo: Path, cfg: dict[str, Any]) -> dict[str, Any] | N
     kept = []
     for v in p["variants"]:
         src = v.get("compile_db") or v.get("build_log") or v.get("build_dir") or "no build information yet"
-        known = {k: x for k, x in v["values"].items() if x is not None}
-        w(f"\nVariant '{v['name']}' ({src}); known values: "
-          + (", ".join(f"{k}={x}" for k, x in sorted(known.items())[:12]) or "none") + "\n")
+        w(f"\nVariant '{v['name']}' ({src}): {describe_values(v['values'], p['switches'])}\n")
         if _ask("  Is this variant built and shipped? [Y/n] ", "y").lower().startswith("n"):
             continue
         name = _ask(f"  Name [{v['name']}]: ", v["name"])

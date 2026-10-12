@@ -334,9 +334,9 @@ const T=R.affected_targets||[];
 if(T.length)document.getElementById('targetsSec').innerHTML='<h2>Build / test scope to rerun</h2><div class="panel">'+T.map(t=>`<code>${esc(t.name)}</code> <span class="muted">${esc(t.relation)}${t.via?' via '+esc(t.via):''}</span>`).join('<br>')+'</div>';
 const O=R.out_of_scope||[];
 if(O.length)document.getElementById('oosSec').innerHTML='<h2>Skipped (out of scope)</h2><div class="panel">'+O.map(o=>`<code>${esc(o.path)}</code> <span class="muted">${esc(o.reason)}</span>`).join('<br>')+'</div>';
-const NB=R.not_built||[],NBC=R.not_built_changes||[],BP=R.build_profile||{};
+const NB=R.not_built||[],NBC=R.not_built_changes||[],BP=R.build_profile||{},BPS={confirmed:'confirmed',stale:'stale (build description changed)',overridden:'variants chosen for this run'};
 const exT=xs=>(xs||[]).map(x=>`${esc(x.variant)}: <code>${esc(x.condition||x.reason)}</code>${x.where?' <span class="muted">'+esc(x.where)+'</span>':''}`).join('; ');
-if(NB.length||NBC.length)document.getElementById('nbSec').innerHTML=`<details><summary><h2 style="display:inline">Not built in the confirmed variants (${NB.length})</h2></summary><div class="panel"><div class="muted">Build profile: ${esc(BP.state||'')} · variants: ${esc((BP.variants||[]).join(', '))}. These cases concern code that no selected variant compiles; they are listed here, not deleted.</div><ul>`+
+if(NB.length||NBC.length)document.getElementById('nbSec').innerHTML=`<details><summary><h2 style="display:inline">Not built in the confirmed variants (${NB.length})</h2></summary><div class="panel"><div class="muted">Build profile: ${esc(BPS[BP.state]||BP.state||'')} · variants: ${esc((BP.variants||[]).join(', '))}. These cases concern code that no selected variant compiles; they are listed here, not deleted.</div><ul>`+
  NB.map(n=>{const c=n.case,e=c.evidence[0],l=e.source_location||e;return `<li><b>${esc(c.id)}</b> ${esc(c.priority)} ${loc(l.file_path,l.line)} ${esc(c.description)}<br><span class="muted">excluded:</span> ${exT(n.excluded_by)}</li>`}).join('')+
  NBC.map(n=>`<li>changed <code>${esc(n.path)}</code>${n.symbol?' <code>'+esc(n.symbol)+'</code>':''}: ${exT(n.excluded_by)}</li>`).join('')+'</ul></div></details>';
 const NO=R.run_notes||[];

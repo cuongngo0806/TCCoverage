@@ -9,10 +9,13 @@
 | `--variants A,B` | use only these profile variants for this run |
 | `--no-variant-filter` | ignore the profile for this run |
 | `--previous-report` | default when omitted: `latest/report.html` if it contains test results |
+| `--exact-output-dir` | no run folder (scripts / benchmarks keep their fixed paths) |
 
 Behaviour: first run in an interactive terminal with no confirmed profile ⇒ runs the `profile` confirmation, then
 analyses. Non-TTY ⇒ no prompt, no filter, note `no confirmed build profile: nothing filtered; run 'tcadvisor
-profile' to confirm the build variants`. Last stdout line (all `--print` modes): `report: <run folder>`.
+profile' to confirm the build variants`. Last stdout line (`summary` and `brief`): `report: <run folder>`
+(`--print json` keeps stdout pure JSON; the run folder is in `report.run.path`). `--exact-output-dir`: write
+straight into `--output-dir` without a run folder (scripts, benchmarks).
 Exit codes unchanged.
 
 ## `tcadvisor profile` (new)
