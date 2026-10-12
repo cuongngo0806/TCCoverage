@@ -93,7 +93,8 @@ def verify(report_path: Path, *, approved: bool, claude: str | None = None, veri
         say(f"synthesising with {synth_model}")
         compact = {cid: {"v": v.get("verdict"), "n": v.get("note", "")} for cid, v in merged.items()}
         try:
-            synth, usage = call_claude(claude, synth_model, _prompt("synthesizer") + "\n\nBRIEF:\n" + to_brief(report)
+            synth, usage = call_claude(claude, synth_model, _prompt("synthesizer") + "\n\nREPORT LANGUAGE: "
+                                       + report.get("report_language", "en") + "\nBRIEF:\n" + to_brief(report)
                                        + "\nVERDICTS:\n" + json.dumps(compact), budget_usd)
             for k in ("cost_usd", "input_tokens", "output_tokens"):
                 usage_total[k] += usage[k]

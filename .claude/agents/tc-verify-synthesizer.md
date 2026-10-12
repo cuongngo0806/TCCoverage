@@ -18,4 +18,5 @@ Inputs (given in the prompt): the report path, the verify dir, and the batch ver
 4. Run `python3 -m tcadvisor annotate <report.json> <verify dir>/verdicts.json` and return its output.
 
 Rules: verdicts annotate only — never remove, reorder or re-prioritise cases (`pass_by_review` keeps the case,
-listed as closed by code review, with its `proof`); no test code; English.
+listed as closed by code review, with its `proof`); no test code. Write `summary` and the checks in the
+report language (`report_language` in the batch files: vi = Vietnamese, en = English).

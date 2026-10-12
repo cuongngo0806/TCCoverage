@@ -18,9 +18,11 @@ $ARGUMENTS
 
 ## 1. Resolve inputs (cheap, once)
 
-- Config lives in `.claude/tc-coverage.local.json` (create it if missing, ask the user only for what you cannot detect):
-  `{"repo": "<abs path of analysed git repo>", "build_dir": "<cmake build dir>", "targets": "RemoteDoorLock,RemoteDoorUnlock", "python": "python3"}`
-- Build dir must contain `compile_commands.json` and `.cmake/api/v1/reply/`. If not, tell the user to run:
+- Settings live in the analysed repo's `.tcadvisor/config.json` (`graph`, `language`, `build_dir`, `output_dir`,
+  `targets`, `max_hop_depth`; shared with the VS Code extension and Copilot). `python3 -m tcadvisor config --repo <repo>`
+  prints the effective values; if the file is missing and the defaults do not fit, offer `tcadvisor init --repo <repo>`.
+- Build dir must contain `compile_commands.json` and `.cmake/api/v1/reply/` (without them the run works with
+  codegraph but is marked reduced accuracy). To create them:
   `mkdir -p <build>/.cmake/api/v1/query && touch <build>/.cmake/api/v1/query/codemodel-v2 && cmake -S <src> -B <build> -DCMAKE_EXPORT_COMPILE_COMMANDS=ON`
 - Map `$ARGUMENTS`: `A..B` → `--commit-range A..B`; `working-tree`/empty → `--working-tree`; a
   branch name → `--commit-range $(git merge-base origin/main <branch>)..<branch>`; names with `::` or
@@ -29,12 +31,12 @@ $ARGUMENTS
 ## 2. Run (one command, brief output only)
 
 ```bash
-<python> -m tcadvisor analyze --repo <repo> --build-dir <build> <mode> [--targets <targets>] \
-  --output-dir <repo>/../tcadvisor-report --print brief -q
+python3 -m tcadvisor analyze --repo <repo> <mode> --print brief -q
 ```
 
-Impact comes from the configured source (`graph` in `<repo>/.tcadvisor/config.json`, else codegraph; do not
-pass `--graph` unless the user asks). If it is missing the run stops with the install command — tell the user,
+Build dir, output dir, targets, depth, impact source and language come from `.tcadvisor/config.json`: do not pass
+`--build-dir`, `--output-dir`, `--targets`, `--graph` or `--language` unless the user asks. The last brief line
+`REPORT <dir>` is where report.json / report.html are. Impact comes from the configured source (else codegraph). If it is missing the run stops with the install command — tell the user,
 never switch to another `--graph` on your own; `--graph gitnexus` only if the user opted in — PolyForm-Noncommercial license). **You never trace
 impact yourself; you only verify it** (step 3b).
 

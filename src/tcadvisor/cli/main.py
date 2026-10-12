@@ -31,10 +31,11 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--working-tree", action="store_true", help="uncommitted (staged+unstaged+untracked) changes")
     mode.add_argument("--symbols", metavar="NAME[,NAME...]", help="explicit functions/methods/classes")
     mode.add_argument("--symbols-file", metavar="PATH", help="JSON list of symbols")
-    a.add_argument("--repo", required=True, type=Path)
-    a.add_argument("--build-dir", required=True, type=Path,
-                   help="CMake build dir with compile_commands.json and .cmake/api/v1/reply")
-    a.add_argument("--max-hop-depth", type=int, default=2)
+    a.add_argument("--repo", type=Path, default=Path("."), help="analysed git repository root (default: .)")
+    a.add_argument("--build-dir", type=Path,
+                   help="CMake build dir with compile_commands.json and .cmake/api/v1/reply (default: build_dir in "
+                        "<repo>/.tcadvisor/config.json, else <repo>/build)")
+    a.add_argument("--max-hop-depth", type=int, help="caller levels to follow (default: config, else 2)")
     a.add_argument("--split-threshold", type=int, default=50)
     a.add_argument("--contracts", type=Path, help="third-party API contracts JSON (default: "
                    "<repo>/.tcadvisor/external-contracts.json when present)")
@@ -48,10 +49,11 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--attachment-warn-mb", type=int, default=50,
                    help="report warns when embedded evidence exceeds this size")
     a.add_argument("--cache-dir", type=Path)
-    a.add_argument("--output-dir", type=Path, default=Path("tcadvisor-report"))
+    a.add_argument("--output-dir", type=Path, help="report directory, outside the repository (default: output_dir "
+                   "in <repo>/.tcadvisor/config.json, else <repo>/../tcadvisor-report/<repo name>)")
     a.add_argument("--format", choices=["md", "json", "html", "both", "all"], default="all",
                    help="'both' = md+json (contract), 'all' = md+json+html (default)")
-    a.add_argument("--targets", help="comma-separated CMake targets to restrict the scope to (pilot scope)")
+    a.add_argument("--targets", help="comma-separated CMake targets to restrict the scope to (default: config)")
     llm = a.add_mutually_exclusive_group()
     llm.add_argument("--llm", dest="llm", action="store_true")
     llm.add_argument("--no-llm", dest="llm", action="store_false")
@@ -85,7 +87,9 @@ def build_parser() -> argparse.ArgumentParser:
     cc.add_argument("--cache-dir", type=Path)
 
     v = sub.add_parser("verify-pack", help="write token-lean verification packets for AI verifiers")
-    v.add_argument("report", type=Path)
+    v.add_argument("report", type=Path, nargs="?",
+                   help="report.json (default: report.json in the output dir of --repo, see `tcadvisor config`)")
+    v.add_argument("--repo", type=Path, default=Path("."), help="repository whose report to pack (default: .)")
     v.add_argument("--out", type=Path, help="default: <report dir>/verify")
     v.add_argument("--priorities", default="P1,P2")
     v.add_argument("--max-cases", type=int, default=60)
@@ -116,6 +120,19 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("report", type=Path)
     r.add_argument("--output-dir", type=Path)
     r.add_argument("--language", choices=list(LANGUAGES), help="re-render in this language (default: the report's)")
+    ini = sub.add_parser("init", help="set up a repository: write .tcadvisor/config.json (and, with --copilot, the "
+                                      "GitHub Copilot prompts /tc-coverage and /tc-verify)")
+    ini.add_argument("--repo", type=Path, default=Path("."))
+    ini.add_argument("--copilot", action="store_true", help="also write .github/prompts/tc-*.prompt.md")
+    ini.add_argument("--force", action="store_true", help="overwrite existing files")
+    ini.add_argument("--graph", choices=list(GRAPHS))
+    ini.add_argument("--language", choices=list(LANGUAGES))
+    ini.add_argument("--build-dir", help="build dir relative to the repository root")
+    ini.add_argument("--output-dir", help="report dir (relative to the repository root, must resolve outside it)")
+    ini.add_argument("--targets", help="comma-separated CMake targets")
+    ini.add_argument("--max-hop-depth", type=int)
+    cf = sub.add_parser("config", help="print the settings a run on the repository uses (flags aside)")
+    cf.add_argument("--repo", type=Path, default=Path("."))
     rs = sub.add_parser("results", help="summarise the test results recorded in a filled report.html "
                                         "(exit 0 complete, 4 incomplete or any fail)")
     rs.add_argument("report", type=Path)
@@ -129,20 +146,22 @@ def _analyze(ns: argparse.Namespace) -> int:
     from tcadvisor.pipeline import Options, run
     from tcadvisor.report.render import summary_line, to_brief, write_outputs
 
-    if ns.max_hop_depth < 1 or ns.split_threshold < 1:
+    cfg = resolve(ns.repo, graph=ns.graph, language=ns.language, build_dir=ns.build_dir, output_dir=ns.output_dir,
+                  targets=ns.targets, max_hop_depth=ns.max_hop_depth)
+    if cfg["max_hop_depth"] < 1 or ns.split_threshold < 1:
         raise UsageError("--max-hop-depth and --split-threshold must be >= 1")
     if ns.target_patterns:
         from tcadvisor.classify.environment import load_patterns
         load_patterns(ns.target_patterns)  # usage error before any indexing
     if ns.llm:
         check_endpoint(ns.llm_endpoint, ns.llm_external_approved)
-    cfg = resolve(ns.repo, graph=ns.graph, language=ns.language)
     symbols = parse_symbol_args(ns.symbols, ns.symbols_file) if (ns.symbols or ns.symbols_file) else None
     say = (lambda m: None) if ns.quiet else (lambda m: print(f"[tcadvisor] {m}", file=sys.stderr))
     opts = Options(
-        repo=ns.repo, build_dir=ns.build_dir, commit_range=ns.commit_range, working_tree=ns.working_tree,
-        symbols=symbols, max_hop_depth=ns.max_hop_depth, split_threshold=ns.split_threshold, cache_dir=ns.cache_dir,
-        output_dir=ns.output_dir, targets=[t.strip() for t in ns.targets.split(",")] if ns.targets else None,
+        repo=ns.repo, build_dir=cfg["build_dir"], commit_range=ns.commit_range, working_tree=ns.working_tree,
+        symbols=symbols, max_hop_depth=cfg["max_hop_depth"], split_threshold=ns.split_threshold,
+        cache_dir=ns.cache_dir, output_dir=cfg["output_dir"],
+        targets=[t.strip() for t in cfg["targets"].split(",") if t.strip()] if cfg["targets"] else None,
         llm=ns.llm, llm_endpoint=ns.llm_endpoint, llm_model=ns.llm_model, allow_stale=ns.allow_stale_compile_db,
         use_run_cache=not ns.no_run_cache, progress=say, graph=cfg["graph"], language=cfg["language"], graph_bin=ns.graph_bin,
         index=ns.index, jobs=ns.jobs, history=ns.history,
@@ -150,11 +169,12 @@ def _analyze(ns: argparse.Namespace) -> int:
         flow_max_tus=ns.flow_max_tus, patterns=ns.patterns, attachment_warn_mb=ns.attachment_warn_mb,
         target_patterns=ns.target_patterns)
     report = run(opts)
-    files = write_outputs(report, ns.output_dir, ns.format)
+    files = write_outputs(report, cfg["output_dir"], ns.format)
     if ns.print == "json":
         print(json.dumps(report, indent=2))
     elif ns.print == "brief":
         print(to_brief(report), end="")
+        print(f"REPORT {cfg['output_dir']}")  # where report.html / report.json are (for AI chat front-ends)
     else:
         print(summary_line(report))
         for f in files:
@@ -208,7 +228,10 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if ns.command == "verify-pack":
             from tcadvisor.verify.pack import write_packets
-            m = write_packets(ns.report, ns.out or ns.report.parent / "verify",
+            report = ns.report or resolve(ns.repo)["output_dir"] / "report.json"
+            if not report.is_file():
+                raise UsageError(f"no report at {report}: run `tcadvisor analyze` first")
+            m = write_packets(report, ns.out or report.parent / "verify",
                               {p.strip() for p in ns.priorities.split(",")}, ns.max_cases, ns.batch, ns.scope)
             print(json.dumps(m, indent=1))
             return 0
@@ -245,6 +268,17 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if ns.command == "results":
             return _results(ns)
+        if ns.command == "config":
+            from tcadvisor.config import effective
+            print(json.dumps(effective(ns.repo), indent=2, ensure_ascii=False))
+            return 0
+        if ns.command == "init":
+            from tcadvisor.integrations.init import init
+            for path, status in init(ns.repo, {"graph": ns.graph, "language": ns.language, "build_dir": ns.build_dir,
+                                               "output_dir": ns.output_dir, "targets": ns.targets,
+                                               "max_hop_depth": ns.max_hop_depth}, ns.copilot, ns.force):
+                print(f"{status}: {path}")
+            return 0
         if ns.command == "render":
             from tcadvisor.report.render import write_outputs
             rep = json.loads(ns.report.read_text(encoding="utf-8"))

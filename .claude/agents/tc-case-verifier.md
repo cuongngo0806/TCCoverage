@@ -28,4 +28,7 @@ Each case has `verify_by`: `target` (must be run on the real device; `target_rea
 Add up to 3 `extra_corner_cases` per case, concrete to the code you saw (inputs, states, ordering,
 boundary values, concurrency interleavings, error paths). No generic advice, no test code.
 
+Write `note` and `extra_corner_cases` in the batch's `report_language` (vi = Vietnamese, en = English);
+keep ids, verdict values, symbols and `file:line` unchanged.
+
 Return ONLY JSON: `{"cases": {"TC-0001": {"verdict": "...", "note": "<=25 words", "proof": ["file:line"], "extra_corner_cases": [...]}}}` covering every case id in the batch. Never invent ids, symbols or files.

@@ -146,13 +146,26 @@ npm i -g gitnexus                    # optional; PolyForm-Noncommercial license,
 tcadvisor analyze ... --graph codegraph|gitnexus|clang --language vi|en
 ```
 
-`<repo>/.tcadvisor/config.json` sets the defaults for a project (CLI, VS Code extension and workflows):
+`<repo>/.tcadvisor/config.json` holds the workspace settings shared by every way of running the tool — CLI,
+VS Code extension, Claude Code and GitHub Copilot chat (`tcadvisor init` writes it; `tcadvisor config` prints
+what a run will use):
 
 ```json
-{"graph": "codegraph", "language": "vi"}
+{"graph": "codegraph", "language": "vi", "build_dir": "build",
+ "output_dir": "../tcadvisor-report/myrepo", "targets": ["DoorLock"], "max_hop_depth": 2}
 ```
 
-Precedence: command-line flag > config file > built-in default (`codegraph`, `vi`). The configured source is
+| Key | Default | Meaning |
+|---|---|---|
+| `graph` | `codegraph` | impact source: `codegraph`, `gitnexus` or `clang` |
+| `language` | `vi` | report language: `vi` or `en` |
+| `build_dir` | `build` | CMake build dir (compile_commands.json, File API), relative to the repo |
+| `output_dir` | `../tcadvisor-report/<repo>` | report dir, relative to the repo; must resolve outside it |
+| `targets` | all | CMake targets to restrict the scope to |
+| `max_hop_depth` | `2` | caller levels to follow |
+
+Precedence: command-line flag > config file > built-in default; a VS Code setting left empty defers to the
+config file. With a config, `tcadvisor analyze --working-tree` needs no other argument. The configured source is
 **always** the one used: if it is missing or fails, the run stops (exit 1) with the install command (the VS Code
 extension offers an *Install codegraph* button); a root the source cannot resolve becomes an uncertainty flag,
 it is never traced with another graph. `clang` = the built-in libclang graph (needs compile_commands.json).
@@ -213,11 +226,29 @@ only evidence windows for P1 cases, and answers with concrete test scenarios —
 tracing is never done by the model, which keeps token usage small. Speckit commands for Claude:
 `/speckit-specify`, `/speckit-plan`, `/speckit-tasks`, `/speckit-implement`, …
 
+## GitHub Copilot
+
+```bash
+tcadvisor init --repo <your repo> --copilot      # or VS Code: "TC Coverage: Set Up Repository"
+```
+
+writes `.tcadvisor/config.json` (kept if it exists) and two prompt files (English instructions) to commit with
+the repository:
+
+- `/tc-coverage working-tree` (or `HEAD~1..HEAD`, a branch, symbol names) in Copilot Chat, **Agent** mode:
+  Copilot runs `tcadvisor analyze --print brief`, reads only the brief and answers with a checklist of
+  concrete test scenarios.
+- `/tc-verify`: Copilot verifies the cases from `tcadvisor verify-pack` packets (verdicts, proof, extra corner
+  cases), writes `verdicts.json` and runs `tcadvisor annotate`; the report and VS Code view show the verdicts.
+
+Answers and AI-written report text follow `language` (vi / en). All settings come from `.tcadvisor/config.json`,
+so chat, the extension and the CLI analyse a workspace the same way.
+
 ## VS Code
 
 ```bash
 cd vscode-extension && npm install && npm run compile && npx @vscode/vsce package
-code --install-extension tc-coverage-0.1.0.vsix
+code --install-extension tc-coverage-*.vsix
 ```
 
 See `vscode-extension/README.md`.

@@ -2,7 +2,7 @@
   "name": "tc-coverage",
   "displayName": "TC Coverage \u2014 Change Impact & Test Cases",
   "description": "Shows the test cases, corner cases and impact flow a C++/CMake change must be checked against (powered by tcadvisor).",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "tccoverage",
   "license": "UNLICENSED",
   "engines": {
@@ -45,6 +45,11 @@
         "title": "Show Report (Impact Flow)",
         "category": "TC Coverage",
         "icon": "$(graph)"
+      },
+      {
+        "command": "tcCoverage.initRepo",
+        "title": "Set Up Repository (config, Copilot prompts)",
+        "category": "TC Coverage"
       },
       {
         "command": "tcCoverage.clearCache",
@@ -113,8 +118,8 @@
       "properties": {
         "tcCoverage.pythonPath": {
           "type": "string",
-          "default": "python3",
-          "description": "Python interpreter with tcadvisor installed (pip install -e <TCCoverage>).",
+          "default": "",
+          "description": "Python interpreter with tcadvisor installed (pip install -e <TCCoverage>). Empty = python on Windows, python3 elsewhere.",
           "scope": "machine"
         },
         "tcCoverage.repo": {
@@ -124,22 +129,26 @@
         },
         "tcCoverage.buildDir": {
           "type": "string",
-          "default": "build",
-          "description": "CMake build dir (relative to repo or absolute) with compile_commands.json and .cmake/api/v1/reply."
+          "default": "",
+          "description": "CMake build dir (relative to repo or absolute) with compile_commands.json and .cmake/api/v1/reply. Empty = build_dir in the repository's .tcadvisor/config.json, else <repo>/build."
         },
         "tcCoverage.outputDir": {
           "type": "string",
           "default": "",
-          "description": "Report directory (must be outside the repo). Empty = <repo>/../tcadvisor-report/<repo-name>."
+          "description": "Report directory (must be outside the repo). Empty = output_dir in the repository's .tcadvisor/config.json, else <repo>/../tcadvisor-report/<repo-name>."
         },
         "tcCoverage.targets": {
           "type": "string",
           "default": "",
-          "description": "Comma-separated CMake targets to restrict the scope (e.g. RemoteDoorLock,RemoteDoorUnlock)."
+          "description": "Comma-separated CMake targets to restrict the scope (e.g. RemoteDoorLock,RemoteDoorUnlock). Empty = targets in the repository's .tcadvisor/config.json, else all."
         },
         "tcCoverage.maxHopDepth": {
-          "type": "number",
-          "default": 2,
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
+          "markdownDescription": "Caller levels to follow. Empty = `max_hop_depth` in the repository's `.tcadvisor/config.json`, else 2.",
           "minimum": 1,
           "maximum": 6
         },

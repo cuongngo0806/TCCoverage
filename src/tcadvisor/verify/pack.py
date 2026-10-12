@@ -94,7 +94,8 @@ def write_packets(report_path: Path, out_dir: Path, priorities: set[str], max_ca
         old.unlink()
     changed = [f"{s['symbol']['qualified_name']} @{s['symbol']['file_path']}:{s['symbol']['line']} "
                f"[{','.join(sorted({r['risk_group'] for r in s['risks']}))}]" for s in report.get("changed_symbols", [])]
-    header = {"changed": changed, "flags": [f"{f['category']}: {f['reason']}" for f in report["uncertainty_flags"]],
+    lang = report.get("report_language", "en")
+    header = {"report_language": lang, "changed": changed, "flags": [f"{f['category']}: {f['reason']}" for f in report["uncertainty_flags"]],
               "existing_tests": [t["test"] for t in report.get("existing_tests", [])]}
     batches = []
     for i in range(0, len(packets), batch):
@@ -104,7 +105,8 @@ def write_packets(report_path: Path, out_dir: Path, priorities: set[str], max_ca
         batches.append({"file": str(path), "packets": len(b["packets"]),
                         "cases": sum(len(p["cases"]) for p in b["packets"]),
                         "approx_tokens": len(path.read_text(encoding="utf-8")) // 4})
-    manifest = {"report": str(report_path), "batches": batches, "notes": notes,
+    manifest = {"report": str(report_path), "verdicts": str(out_dir / "verdicts.json"), "report_language": lang,
+                "batches": batches, "notes": notes,
                 "approx_tokens_total": sum(b["approx_tokens"] for b in batches)}
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
     return manifest
