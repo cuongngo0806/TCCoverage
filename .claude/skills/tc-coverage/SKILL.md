@@ -30,11 +30,11 @@ $ARGUMENTS
 
 ```bash
 <python> -m tcadvisor analyze --repo <repo> --build-dir <build> <mode> [--targets <targets>] \
-  --graph auto --output-dir <repo>/../tcadvisor-report --print brief -q
+  --output-dir <repo>/../tcadvisor-report --print brief -q
 ```
 
-Impact comes from the code graph (`--graph auto` = codegraph if installed, else the built-in libclang
-graph; `--graph gitnexus` only if the user opted in — PolyForm-Noncommercial license). **You never trace
+Impact comes from codegraph (the default `--graph codegraph`; if it is missing the run stops with the
+install command — tell the user, never switch to `--graph clang` on your own; `--graph gitnexus` only if the user opted in — PolyForm-Noncommercial license). **You never trace
 impact yourself; you only verify it** (step 3b).
 
 (If `tcadvisor` is not installed: `pip install -e <this TCCoverage repo>` first.)

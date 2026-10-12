@@ -13,7 +13,7 @@ from pathlib import Path
 
 from tcadvisor.graph.impact import Dep, Graph
 from tcadvisor.index.clang_index import IndexFacts
-from tcadvisor.models import SymbolRef, UncertaintyFlag, UsageError
+from tcadvisor.models import PrerequisiteError, SymbolRef, UncertaintyFlag, UsageError
 
 KINDS = {"function", "method", "class", "struct", "enum", "macro", "variable", "file"}
 _GTEST = re.compile(r"\b(TEST|TEST_F|TEST_P|TYPED_TEST|TYPED_TEST_P|FRIEND_TEST)\s*\(\s*(\w+)\s*,\s*(\w+)\s*\)")
@@ -55,14 +55,15 @@ class Provider:
     name = "base"
     env_var = ""
     binary = ""
+    install = ""
 
     def __init__(self, repo: Path, depth: int, bin_path: str | None = None):
         self.repo = repo
         self.depth = depth
         self.bin = bin_path or os.environ.get(self.env_var) or shutil.which(self.binary)
         if not self.bin:
-            raise UsageError(f"--graph {self.name}: '{self.binary}' not found on PATH (set {self.env_var} or "
-                             f"install it, see README 'Graph providers')")
+            raise PrerequisiteError(f"{self.binary} not installed (needed by --graph {self.name}): install it with "
+                                    f"`{self.install}`, or point {self.env_var} / --graph-bin at it")
 
     def run(self, *args: str, timeout: int = 600) -> str:
         env = dict(os.environ, CODEGRAPH_TELEMETRY="0", NO_COLOR="1", DO_NOT_TRACK="1")

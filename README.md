@@ -141,15 +141,16 @@ analysis never silently drops a filled report in its output directory: it is cop
 ## Graph providers
 
 ```bash
-npm i -g @colbymchenry/codegraph     # MIT — default for --graph auto
+npm i -g @colbymchenry/codegraph     # MIT — the default --graph codegraph (required)
 npm i -g gitnexus                    # optional; PolyForm-Noncommercial license, check before commercial use
 tcadvisor analyze ... --graph auto|codegraph|gitnexus|clang
 ```
 
-`--graph auto` is the default. The first run builds the repo's index in `<repo>/.codegraph/`
+`--graph codegraph` is the default and is never silently replaced: if codegraph is missing or fails, the
+run stops (exit 1) with the install command (the VS Code extension offers an *Install codegraph* button);
+`--graph clang` (built-in libclang graph) and `--graph auto` (codegraph if installed, else clang) are opt-in. The first run builds the repo's index in `<repo>/.codegraph/`
 (`codegraph init`, git-ignored via `.git/info/exclude`) and later runs only `codegraph sync` it, so nothing
-has to be set up per repo. If codegraph itself is not installed, `auto` uses the built-in libclang graph and
-the report's run notes (and the VS Code extension, with an *Install codegraph* button) show the install command.
+has to be set up per repo.
 
 With a graph provider the libclang index is replaced by a fast `#include` scan (`--index auto|full|lite`),
 so ~1M-line code bases analyse in minutes. With codegraph/GitNexus a compile database is optional (results are marked *reduced accuracy* without it);

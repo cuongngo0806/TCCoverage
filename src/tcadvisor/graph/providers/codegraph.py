@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 
-from tcadvisor.graph.providers.base import (Provider, ProviderEdge, ProviderResult, Root, norm_kind,
+from tcadvisor.graph.providers.base import (CODEGRAPH_INSTALL, Provider, ProviderEdge, ProviderResult, Root, norm_kind,
                                             strip_anon)
 from tcadvisor.models import SymbolRef
 
@@ -16,6 +16,7 @@ class CodegraphProvider(Provider):
     name = "codegraph"
     env_var = "TCADVISOR_CODEGRAPH"
     binary = "codegraph"
+    install = CODEGRAPH_INSTALL
 
     def prepare(self) -> list[str]:
         fresh = not (self.repo / ".codegraph").exists()

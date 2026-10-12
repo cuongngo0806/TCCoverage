@@ -100,23 +100,36 @@ def test_compile_db_optional_with_provider(project, monkeypatch):
     assert [s["symbol"]["qualified_name"] for s in r["changed_symbols"]] == ["clampRetries"]
 
 
-def test_provider_failure_falls_back_to_clang_graph(project, tmp_path):
+def test_provider_failure_stops_instead_of_using_clang(project, tmp_path):
     fake = tmp_path / "codegraph"
     fake.write_text("#!/bin/sh\necho boom >&2\nexit 2\n")
     fake.chmod(0o755)
     project.edit("src/util.cpp", "if (n > 3) return 3;", "if (n > 4) return 4;")
     project.commit()
-    r = project.analyze("--commit-range", "HEAD~1..HEAD", "--graph", "codegraph", "--graph-bin", str(fake))
-    assert any("falling back" in n for n in r["run_notes"])
-    names = {n["symbol"]["qualified_name"] for n in r["impact_nodes"]}
-    assert "RemoteDoorLock::processOrderResp" in names  # impact not silently lost
+    project.analyze("--commit-range", "HEAD~1..HEAD", "--graph", "codegraph", "--graph-bin", str(fake), expect=1)
 
 
-def test_auto_without_codegraph_notes_install(project, monkeypatch):
+def _hide_codegraph(monkeypatch):
     from tcadvisor.graph.providers import base
     monkeypatch.delenv("TCADVISOR_CODEGRAPH", raising=False)
     which = shutil.which
     monkeypatch.setattr(base.shutil, "which", lambda name, *a, **k: None if name == "codegraph" else which(name, *a, **k))
+
+
+def test_default_graph_requires_codegraph(project, monkeypatch, capsys):
+    from tcadvisor.cli.main import main
+    _hide_codegraph(monkeypatch)
+    project.edit("src/util.cpp", "if (n > 3) return 3;", "if (n > 4) return 4;")
+    project.commit()
+    rc = main(["analyze", "--repo", str(project.repo), "--build-dir", str(project.build), "--output-dir",
+               str(project.out), "--commit-range", "HEAD~1..HEAD", "-q"])  # no --graph: the default
+    assert rc == 1
+    assert "codegraph not installed" in capsys.readouterr().err
+
+
+def test_auto_without_codegraph_notes_install(project, monkeypatch):
+    from tcadvisor.graph.providers import base
+    _hide_codegraph(monkeypatch)
     project.edit("src/util.cpp", "if (n > 3) return 3;", "if (n > 4) return 4;")
     project.commit()
     r = project.analyze("--commit-range", "HEAD~1..HEAD", "--graph", "auto")

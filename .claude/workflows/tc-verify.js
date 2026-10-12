@@ -9,7 +9,7 @@ export const meta = {
   ],
 }
 
-// args: { approved: true (required: packed code windows go to the model provider), repo, buildDir, mode: "--commit-range A..B" | "--working-tree" | "--symbols X", graph?: "auto",
+// args: { approved: true (required: packed code windows go to the model provider), repo, buildDir, mode: "--commit-range A..B" | "--working-tree" | "--symbols X", graph?: "codegraph",
 //         outDir?, targets?, report? (skip Analyze and verify an existing report.json) }
 const a = args || {}
 const VERDICTS = {
@@ -62,7 +62,7 @@ phase('Analyze')
 let analyzeCmd = ''
 if (!a.report) {
   const out = a.outDir || `${a.repo}/../tcadvisor-report`
-  const graph = ['auto', 'codegraph', 'gitnexus', 'clang'].includes(a.graph) ? a.graph : 'auto'
+  const graph = ['auto', 'codegraph', 'gitnexus', 'clang'].includes(a.graph) ? a.graph : 'codegraph'
   analyzeCmd = `python3 -m tcadvisor analyze --repo ${q(a.repo)} --build-dir ${q(a.buildDir)} ${a.mode || '--working-tree'} ` +
     `--graph ${graph} ${a.targets ? '--targets ' + q(a.targets) : ''} --output-dir ${q(out)} --print brief -q`
 }

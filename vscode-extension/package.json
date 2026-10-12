@@ -164,8 +164,8 @@
             "gitnexus",
             "clang"
           ],
-          "default": "auto",
-          "markdownDescription": "Where impact comes from. `codegraph` (MIT) is used by `auto` when installed; `gitnexus` is PolyForm-Noncommercial \u2014 enable only if your organisation allows it; `clang` = built-in libclang graph (needs compile_commands.json)."
+          "default": "codegraph",
+          "markdownDescription": "Where impact comes from. `codegraph` (MIT, default) is required: if it is missing the run stops and offers to install it; `auto` = codegraph if installed, else libclang; `gitnexus` is PolyForm-Noncommercial \u2014 enable only if your organisation allows it; `clang` = built-in libclang graph (needs compile_commands.json)."
         },
         "tcCoverage.graphBin": {
           "type": "string",

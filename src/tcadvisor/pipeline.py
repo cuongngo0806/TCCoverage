@@ -51,7 +51,7 @@ class Options:
     llm_model: str = "qwen2.5-coder:7b"
     allow_stale: bool = False
     use_run_cache: bool = True
-    graph: str = "auto"  # auto|codegraph|gitnexus|clang (spec 002); auto = codegraph if installed
+    graph: str = "codegraph"  # auto|codegraph|gitnexus|clang (spec 002); clang only when asked for
     index: str = "auto"  # auto|full|lite: lite (include scan only) is the default with a graph provider
     fallback_max_tus: int = 200
     history: bool = True  # rank by bug-fix history of files (git log, local)
@@ -240,7 +240,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     flows: dict[str, list[str]] = {}
     if provider is not None:
         from tcadvisor.graph.providers.base import Root, build_overlay
-        from tcadvisor.graph.providers.base import ProviderResult, copy_subgraph
+        from tcadvisor.graph.providers.base import copy_subgraph
         say(f"impact via {provider.name}")
         proots = [Root(ch.node_id, roots[ch.node_id].qualified_name, roots[ch.node_id].qualified_name.split("::")[-1],
                        roots[ch.node_id].kind, roots[ch.node_id].file_path, roots[ch.node_id].line) for ch in changes
@@ -250,10 +250,9 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         try:
             ctx.notes.extend(provider.prepare())
             pres = provider.impact(proots)
-        except Exception as exc:  # noqa: BLE001 - a broken provider must not hide impact
-            pres = ProviderResult(missed=[r.node_id for r in proots if r.kind != "file"],
-                                  notes=[f"{provider.name} failed ({type(exc).__name__}: {str(exc)[:300]}); "
-                                         "falling back to the compile-database graph"])
+        except Exception as exc:  # noqa: BLE001 - never silently swap in another graph: impact must come from it
+            raise PrerequisiteError(f"{provider.name} failed ({type(exc).__name__}: {str(exc)[:300]}); fix it and "
+                                    "re-run (an explicit --graph clang uses the built-in libclang graph instead)") from exc
         overlay = build_overlay(graph, facts, pres)
         for fid, deps in graph.dependents.items():  # header include propagation still comes from the compile db
             if fid.startswith("file:"):

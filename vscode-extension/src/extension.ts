@@ -161,7 +161,7 @@ function runAnalyze(modeArgs: string[], tree: CasesProvider): Thenable<void> {
   const out = outDir(repo);
   const args = ["-m", "tcadvisor", "analyze", "--repo", repo, "--build-dir", buildDir, "--output-dir", out,
     "--max-hop-depth", String(cfg().get<number>("maxHopDepth") ?? 2), ...modeArgs, ...(cfg().get<string[]>("extraArgs") ?? [])];
-  args.push("--graph", cfg().get<string>("graphProvider") || "auto");
+  args.push("--graph", cfg().get<string>("graphProvider") || "codegraph");
   const gbin = cfg().get<string>("graphBin");
   if (gbin) { args.push("--graph-bin", gbin); }
   const targets = cfg().get<string>("targets");
@@ -173,14 +173,17 @@ function runAnalyze(modeArgs: string[], tree: CasesProvider): Thenable<void> {
       const proc = cp.spawn(py, args, { cwd: repo });
       let stdout = "";
       proc.stdout.on("data", d => { stdout += d; output.append(String(d)); });
-      proc.stderr.on("data", d => output.append(String(d)));
+      let stderr = "";
+      proc.stderr.on("data", d => { stderr += d; output.append(String(d)); });
       proc.on("error", err => { vscode.window.showErrorMessage(`TC Coverage: cannot start ${py}: ${err.message}`); resolve(); });
       proc.on("close", code => {
         if (code === 0) {
           loadReport(out, tree);
           const s = stdout.split("\n")[0];
           vscode.window.showInformationMessage(`TC Coverage: ${s}`, "Show Report").then(a => { if (a) { showReport(); } });
-          if (report?.graph_provider === "clang" && (cfg().get<string>("graphProvider") || "auto") === "auto") { offerCodegraph(); }
+          if (report?.graph_provider === "clang" && cfg().get<string>("graphProvider") === "auto") { offerCodegraph(); }
+        } else if (stderr.includes("codegraph not installed")) {
+          offerCodegraph();
         } else {
           const what = code === 1 ? "prerequisite missing (compile_commands.json / CMake File API — see output)"
             : code === 2 ? "invalid input (see output)" : "internal error (see output)";
@@ -233,11 +236,11 @@ async function verifyWithClaude(tree: CasesProvider) {
     (av?.usage ? ` · ${av.usage.calls} calls · $${av.usage.cost_usd.toFixed(3)}` : ""), "Show Report").then(a => { if (a) { showReport(); } });
 }
 
-// codegraph (MIT) is the default impact source; without it `auto` falls back to the slower libclang graph.
+// codegraph (MIT) is the default impact source: without it the run stops (or, with `auto`, uses libclang).
 // The repo's .codegraph index is built by the CLI on the first run, so only the binary needs installing.
 function offerCodegraph() {
-  vscode.window.showWarningMessage("TC Coverage: codegraph is not installed, so impact used the slower built-in "
-    + "libclang graph. Install codegraph (needs Node.js) and re-run.", "Install codegraph").then(a => {
+  vscode.window.showWarningMessage("TC Coverage: codegraph is not installed. Install it (needs Node.js) and re-run "
+    + "the analysis.", "Install codegraph").then(a => {
     if (!a) { return; }
     const term = vscode.window.createTerminal("TC Coverage: install codegraph");
     term.show();
