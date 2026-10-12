@@ -55,3 +55,17 @@ def test_source_in_no_product_and_build_file_change(autotools_project):
     assert any(s["symbol"]["file_path"] == "lib/Makefile.am" and
                any("autotools / Yocto build definition" in x["detail"] for x in s["risks"])
                for s in r["changed_symbols"])
+
+
+def test_readme_flow_init_compile_db_analyze(autotools_project, capsys):
+    """README / docs/linux-yocto.md order: init (writes build_dir "build"), compile-db, analyze without flags."""
+    pr = autotools_project
+    log = pr.make_variant("basic", "--disable-feature-x")
+    assert main(["init", "--repo", str(pr.repo), "--ai", "none", "--graph", "clang", "--language", "en"]) == 0
+    assert main(["compile-db", "--repo", str(pr.repo), "--from-log", str(log), "--variant", "basic"]) == 0
+    pr.edit("lib/remote.c", "if (code > 3) return 3;", "if (code > 4) return 4;")
+    capsys.readouterr()
+    assert main(["analyze", "--repo", str(pr.repo), "--working-tree", "--cache-dir", str(pr.cache), "--print", "brief",
+                 "-q"]) == 0
+    out = capsys.readouterr().out
+    assert "remote_level" in out and "reduced accuracy" not in out

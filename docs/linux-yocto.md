@@ -35,7 +35,11 @@ The workspace is the git repository of the module, e.g.
 
 ```bash
 cd <workspace> && tcadvisor init        # writes .tcadvisor/config.json and the AI skill; prints next steps
+git add .tcadvisor/config.json .claude .github && git commit -m "tcadvisor setup"   # optional, keeps --working-tree clean
 ```
+
+Reports (`.tcadvisor/reports/`) and generated compile databases (`.tcadvisor/build/`) are already git-ignored
+locally; the config and the skill files are yours to commit (then the whole team shares the settings).
 
 ## 3. Compile flags: from the recipe's build log (once per variant)
 

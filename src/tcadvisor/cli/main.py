@@ -200,7 +200,8 @@ def _analyze(ns: argparse.Namespace) -> int:
                   jobs=ns.jobs, patterns=ns.patterns, history=ns.history, flow_max_tus=ns.flow_max_tus,
                   split_threshold=ns.split_threshold, attachment_warn_mb=ns.attachment_warn_mb,
                   cache_dir=ns.cache_dir, allow_stale_compile_db=ns.allow_stale_compile_db, format=ns.format)
-    if src["build_dir"] == "default":  # a compile database recorded by `tcadvisor compile-db` / the build profile
+    if src["build_dir"] != "flag" and not (Path(cfg["build_dir"]) / "compile_commands.json").is_file():
+        # no compile database in the configured build dir: the one `tcadvisor compile-db` / the build profile recorded
         from tcadvisor.config import variant_compile_db
         names = [v.strip() for v in ns.variants.split(",")] if ns.variants else None
         found = variant_compile_db(ns.repo, cfg, names)

@@ -36,7 +36,12 @@ python3 -m venv ~/.venvs/tcadvisor
 export PATH="$HOME/.venvs/tcadvisor/bin:$PATH"
 npm i -g @colbymchenry/codegraph                                 # the default impact source (MIT; needs Node.js)
 cd <your module> && tcadvisor init                               # config + skill for Claude Code and Copilot
+git add .tcadvisor/config.json .claude .github && git commit -m "tcadvisor setup"   # else they show up as changes
 ```
+
+A branch that is not merged yet: `pip install "git+https://github.com/cuongngo0806/tccoverage@<branch>"`.
+No Node.js on the host: set `"graph": "clang"` in `.tcadvisor/config.json` (built-in graph; needs a compile
+database, see below).
 
 Modules built by **Yocto with autotools**: follow [docs/linux-yocto.md](docs/linux-yocto.md) — compile flags come
 from the recipe's `log.do_compile` (`tcadvisor compile-db --from-log …`), and `tcadvisor profile` confirms the
@@ -308,9 +313,9 @@ Speckit commands for Claude: `/speckit-specify`, `/speckit-plan`, `/speckit-task
 ## Development
 
 ```bash
-pip install -e '.[dev]' && python3 -m pytest -q
+sudo apt install -y clang cmake autoconf automake libtool make      # test fixtures (CMake + autotools modules)
+python3 -m venv .venv && .venv/bin/pip install -e '.[dev]' && .venv/bin/python -m pytest -q
 ```
 
-Spec-driven docs: `specs/001-change-impact-test-advisor/` (spec, plan, tasks). Project rules:
-`.specify/memory/constitution.md`. Remaining acceptance step: pilot run on `remotecontrolapp`
-(tasks.md T032).
+Spec-driven docs: `specs/NNN-*/` (spec, plan, tasks, results; Linux / Yocto / autotools: `specs/012-linux-yocto-autotools/`).
+Project rules: `.specify/memory/constitution.md`.
