@@ -112,9 +112,13 @@ def run(opts: Options) -> dict[str, Any]:
 
 def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: float) -> dict[str, Any]:
     say = opts.progress or (lambda _m: None)
-    from tcadvisor.graph.providers.base import get_provider
+    from tcadvisor.graph.providers.base import CODEGRAPH_INSTALL, CODEGRAPH_MISSING, get_provider
     provider = get_provider(opts.graph, repo, opts.max_hop_depth, opts.graph_bin)
     early_notes: list[str] = []
+    if opts.graph == "auto" and provider is None:
+        early_notes.append(f"{CODEGRAPH_MISSING}: impact comes from the built-in libclang graph (slower, larger case "
+                           f"lists on big repos); install it with `{CODEGRAPH_INSTALL}`")
+        say(early_notes[-1])
     try:
         cdb = CompileDatabase.load(opts.build_dir.resolve(), repo, allow_stale=opts.allow_stale)
     except PrerequisiteError as exc:

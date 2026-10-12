@@ -146,6 +146,11 @@ npm i -g gitnexus                    # optional; PolyForm-Noncommercial license,
 tcadvisor analyze ... --graph auto|codegraph|gitnexus|clang
 ```
 
+`--graph auto` is the default. The first run builds the repo's index in `<repo>/.codegraph/`
+(`codegraph init`, git-ignored via `.git/info/exclude`) and later runs only `codegraph sync` it, so nothing
+has to be set up per repo. If codegraph itself is not installed, `auto` uses the built-in libclang graph and
+the report's run notes (and the VS Code extension, with an *Install codegraph* button) show the install command.
+
 With a graph provider the libclang index is replaced by a fast `#include` scan (`--index auto|full|lite`),
 so ~1M-line code bases analyse in minutes. With codegraph/GitNexus a compile database is optional (results are marked *reduced accuracy* without it);
 with it, change classification and CMake target mapping are exact.

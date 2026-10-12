@@ -180,6 +180,7 @@ function runAnalyze(modeArgs: string[], tree: CasesProvider): Thenable<void> {
           loadReport(out, tree);
           const s = stdout.split("\n")[0];
           vscode.window.showInformationMessage(`TC Coverage: ${s}`, "Show Report").then(a => { if (a) { showReport(); } });
+          if (report?.graph_provider === "clang" && (cfg().get<string>("graphProvider") || "auto") === "auto") { offerCodegraph(); }
         } else {
           const what = code === 1 ? "prerequisite missing (compile_commands.json / CMake File API — see output)"
             : code === 2 ? "invalid input (see output)" : "internal error (see output)";
@@ -230,6 +231,18 @@ async function verifyWithClaude(tree: CasesProvider) {
   const av = report?.ai_verification;
   vscode.window.showInformationMessage(`TC Coverage: AI verified ${av?.verified_cases ?? 0} case(s)` +
     (av?.usage ? ` · ${av.usage.calls} calls · $${av.usage.cost_usd.toFixed(3)}` : ""), "Show Report").then(a => { if (a) { showReport(); } });
+}
+
+// codegraph (MIT) is the default impact source; without it `auto` falls back to the slower libclang graph.
+// The repo's .codegraph index is built by the CLI on the first run, so only the binary needs installing.
+function offerCodegraph() {
+  vscode.window.showWarningMessage("TC Coverage: codegraph is not installed, so impact used the slower built-in "
+    + "libclang graph. Install codegraph (needs Node.js) and re-run.", "Install codegraph").then(a => {
+    if (!a) { return; }
+    const term = vscode.window.createTerminal("TC Coverage: install codegraph");
+    term.show();
+    term.sendText("npm i -g @colbymchenry/codegraph");
+  });
 }
 
 function loadReport(dir: string, tree: CasesProvider) {

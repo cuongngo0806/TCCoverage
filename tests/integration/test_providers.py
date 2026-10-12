@@ -110,3 +110,15 @@ def test_provider_failure_falls_back_to_clang_graph(project, tmp_path):
     assert any("falling back" in n for n in r["run_notes"])
     names = {n["symbol"]["qualified_name"] for n in r["impact_nodes"]}
     assert "RemoteDoorLock::processOrderResp" in names  # impact not silently lost
+
+
+def test_auto_without_codegraph_notes_install(project, monkeypatch):
+    from tcadvisor.graph.providers import base
+    monkeypatch.delenv("TCADVISOR_CODEGRAPH", raising=False)
+    which = shutil.which
+    monkeypatch.setattr(base.shutil, "which", lambda name, *a, **k: None if name == "codegraph" else which(name, *a, **k))
+    project.edit("src/util.cpp", "if (n > 3) return 3;", "if (n > 4) return 4;")
+    project.commit()
+    r = project.analyze("--commit-range", "HEAD~1..HEAD", "--graph", "auto")
+    assert r["graph_provider"] == "clang"
+    assert any(base.CODEGRAPH_INSTALL in n for n in r["run_notes"])

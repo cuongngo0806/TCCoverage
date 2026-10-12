@@ -175,6 +175,10 @@ def copy_subgraph(src: Graph, dst: Graph, root: str, depth: int) -> bool:
     return copied
 
 
+CODEGRAPH_MISSING = "codegraph not installed"
+CODEGRAPH_INSTALL = "npm i -g @colbymchenry/codegraph"
+
+
 def get_provider(name: str, repo: Path, depth: int, bin_path: str | None = None) -> Provider | None:
     from tcadvisor.graph.providers.codegraph import CodegraphProvider
     from tcadvisor.graph.providers.gitnexus import GitNexusProvider
