@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -20,8 +21,12 @@ CPP_EXT = CPP_SOURCE_EXT | CPP_HEADER_EXT
 # Flags that only make sense to the real (often cross-) compiler and confuse libclang.
 _DROP_WITH_VALUE = {"-o", "-MF", "-MT", "-MQ", "--serialize-diagnostics"}
 _DROP_EXACT = {"-c", "-MD", "-MMD", "-MP", "-pipe", "-fpch-preprocess"}
-_DROP_PREFIX = ("-mfpu", "-mfloat-abi", "-mcpu", "-march", "-mtune", "-mthumb", "-mabi", "-fstack-usage",
-                "-Werror", "-fdiagnostics-color", "-fno-tree-", "-fcallgraph-info")
+_ARCH_PREFIX = ("-mfpu", "-mfloat-abi", "-mcpu", "-march", "-mtune", "-mthumb", "-mabi")
+_DROP_PREFIX = _ARCH_PREFIX + ("-fstack-usage", "-Werror", "-fdiagnostics-color", "-fno-tree-", "-fcallgraph-info")
+# a GNU cross compiler named after its target triple: arm-oe-linux-gnueabi-g++, aarch64-poky-linux-gcc, ...
+_CROSS = re.compile(r"^(?P<triple>[A-Za-z0-9_.]+(?:-[A-Za-z0-9_.]+){1,3})-(?:gcc|g\+\+|cc|c\+\+|clang|clang\+\+)"
+                    r"(?:-[\d.]+)?$")
+_HOST_ARCH = {"x86_64", "amd64", "i386", "i486", "i586", "i686"}
 
 
 @dataclass(frozen=True)
@@ -46,9 +51,24 @@ def _split(command: str) -> list[str]:
     return shlex.split(command, posix=os.name != "nt")
 
 
+def cross_target(compiler: str) -> str | None:
+    """Target triple of a cross compiler (`arm-oe-linux-gnueabi-g++` → `arm-oe-linux-gnueabi`), None for the host
+    compiler. libclang then parses for that target: the sysroot's headers (glibc `gnu/stubs.h`, `bits/`) pick
+    the same variant as the real build, and the ARM flags (-march, -mfpu, -mfloat-abi) stay meaningful."""
+    m = _CROSS.match(os.path.basename(compiler))
+    if not m:
+        return None
+    triple = m.group("triple")
+    if triple.split("-")[0] in _HOST_ARCH or not any(k in triple for k in ("linux", "eabi", "elf", "none")):
+        return None
+    return triple
+
+
 def _clean_args(raw: list[str], file: str, directory: Path) -> tuple[str, ...]:
     args = raw[1:]  # drop compiler executable
-    out: list[str] = []
+    target = None if any(a.startswith(("-target", "--target")) for a in args) else cross_target(raw[0])
+    drop_prefix = tuple(p for p in _DROP_PREFIX if p not in _ARCH_PREFIX) if target else _DROP_PREFIX
+    out: list[str] = [f"--target={target}"] if target else []
     skip = False
     file_abs = os.path.normcase(os.path.abspath(os.path.join(directory, file)))
     path_flags = ("-I", "-isystem", "-iquote", "-include", "-idirafter", "--sysroot")
@@ -62,7 +82,7 @@ def _clean_args(raw: list[str], file: str, directory: Path) -> tuple[str, ...]:
         if a in _DROP_WITH_VALUE:
             skip = True
             continue
-        if a in _DROP_EXACT or a.startswith(_DROP_PREFIX):
+        if a in _DROP_EXACT or a.startswith(drop_prefix):
             continue
         if not a.startswith("-") and os.path.normcase(os.path.abspath(os.path.join(directory, a))) == file_abs:
             continue

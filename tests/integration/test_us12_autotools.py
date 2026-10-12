@@ -86,3 +86,20 @@ def test_compile_db_from_make_dry_run_without_building(autotools_project, capsys
     assert main(["compile-db", "--repo", str(pr.repo), "--from-log", str(log), "--variant", "dry"]) == 0
     db = json.loads((pr.repo / ".tcadvisor" / "build" / "dry" / "compile_commands.json").read_text())
     assert {Path(e["file"]).name for e in db} == {"remote.c", "main.c"}
+
+
+def test_source_missing_from_compile_db_borrows_product_flags(autotools_project):
+    """Field case: the Yocto build is another revision and does not compile a file the workspace's Makefile.am
+    lists; its changes are still analysed with the flags of a sibling source of the same product."""
+    pr = autotools_project
+    log = pr.make_variant("basic", "--disable-feature-x")
+    assert main(["compile-db", "--repo", str(pr.repo), "--from-log", str(log)]) == 0
+    pr.write({"lib/extra.c": "#include \"remote.h\"\nint extra_level(int c) {\n    return remote_level(c) + 1;\n}\n"})
+    pr.edit("lib/Makefile.am", "libremote_la_SOURCES = remote.c remote.h", "libremote_la_SOURCES = remote.c remote.h extra.c")
+    pr.commit()
+    pr.edit("lib/extra.c", "return remote_level(c) + 1;", "return remote_level(c) + 2;")
+    pr.commit()
+    r = pr.analyze("--commit-range", "HEAD~1..HEAD")
+    assert any(c["evidence"][0].get("qualified_name") == "extra_level" for c in r["test_case_candidates"])
+    assert not any(o["path"] == "lib/extra.c" for o in r["out_of_scope"])
+    assert any("parsed with the flags of another source of the same product" in n for n in r["run_notes"])

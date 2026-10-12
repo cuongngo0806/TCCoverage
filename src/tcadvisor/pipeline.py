@@ -127,6 +127,29 @@ def run(opts: Options) -> dict[str, Any]:
     return report
 
 
+def _borrow_product_flags(cdb: CompileDatabase, bmodel: Any) -> tuple[CompileDatabase, list[str]]:
+    """Spec 012: a C/C++ source a Makefile.am product lists but the compile database lacks (a Yocto build of an older
+    or newer revision, a file added since) gets the flags of a compiled source of the same product, else of the
+    same directory, so its changes are analysed instead of skipped."""
+    from tcadvisor.index.compile_db import CompileCommand
+    if not cdb.entries:
+        return cdb, []
+    extra, names = [], []
+    for t in bmodel.targets.targets.values():
+        donors = [cdb.by_file[s] for s in sorted(t.sources) if s in cdb.by_file]
+        for src in sorted(t.sources):
+            if src in cdb.by_file or src.suffix.lower() not in CPP_SOURCE_EXT or not src.is_file():
+                continue
+            donor = next((d for d in donors if d.file.suffix == src.suffix), None) or (donors[0] if donors else None) \
+                or next((e for e in cdb.entries if e.file.parent == src.parent), None)
+            if donor is not None:
+                extra.append(CompileCommand(src, donor.directory, donor.args))
+                names.append(src.name)
+    if not extra:
+        return cdb, []
+    return CompileDatabase(cdb.build_dir, cdb.entries + extra, cdb.digest + ":borrowed"), names
+
+
 def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: float) -> dict[str, Any]:
     say = opts.progress or (lambda _m: None)
     from tcadvisor.graph.providers.base import get_provider
@@ -162,6 +185,11 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
             cdb = cdb.merged(extra) if cdb.entries else extra[0].merged(extra[1:])
     if bmodel is not None:
         tmodel = bmodel.targets
+        cdb, borrowed = _borrow_product_flags(cdb, bmodel)
+        if borrowed:
+            early_notes.append(f"{len(borrowed)} source(s) listed in Makefile.am are not in the compile database (the "
+                               "build that produced it may be another revision); they are parsed with the flags of "
+                               f"another source of the same product: {', '.join(sorted(borrowed)[:5])}")
         for u in bmodel.unresolved:
             build_flags.append(UncertaintyFlag(
                 "build_description_unresolved",

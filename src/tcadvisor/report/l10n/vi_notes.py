@@ -239,4 +239,8 @@ ENTRIES: list[tuple[str, str]] = [
      "case is kept",
      "{where} nằm trong `{cond}`, điều kiện không đánh giá được cho (các) biến thể {names} (không biết giá trị "
      "macro); case vẫn được giữ"),
+    ("{n} source(s) listed in Makefile.am are not in the compile database (the build that produced it may be another "
+     "revision); they are parsed with the flags of another source of the same product: {names}",
+     "{n} source có trong Makefile.am nhưng không có trong compile database (bản build tạo ra nó có thể là revision "
+     "khác); chúng được phân tích bằng flag của source khác cùng sản phẩm: {names}"),
 ]

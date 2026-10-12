@@ -84,6 +84,13 @@ Keep build directories outside the workspace (`../rc-build`), or the build files
 
 Output: `.tcadvisor/build/<name>/compile_commands.json`. Re-run the command after the build flags change.
 
+- Cross compilers (`arm-oe-linux-gnueabi-g++`, `aarch64-poky-linux-gcc`, …): the code is parsed for that target
+  (`--target=<triple>`, ARM flags and `--sysroot` kept), so sysroot headers such as `dlt/dlt.h` resolve as in the
+  real build.
+- The Yocto build may compile another revision than your workspace (`${S}` is a copy). A source your
+  `Makefile.am` lists but the log does not compile is parsed with the flags of a sibling source of the same
+  product (run note); re-run `compile-db` after a new `bitbake -c compile` for exact flags.
+
 ## 4. Build variants: confirm once
 
 One module is often built for several machines / product types / configure options. Build each variant you ship

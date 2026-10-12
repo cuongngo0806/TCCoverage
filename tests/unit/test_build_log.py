@@ -107,3 +107,60 @@ make[1]: Leaving directory '{b}/src'
     assert [e["file"] for e in res.entries] == [str(repo / "lib/remote.c"), str(repo / "src/util.cpp")]
     assert res.entries[0]["arguments"][:2] == ["gcc", "-DX=1"]
     assert res.entries[1]["arguments"][0] == "g++" and "-DY" in res.entries[1]["arguments"]
+
+
+_YOCTO = "/yocto/build/tmp-glibc/work/armv7at2hf-neon-oe-linux-gnueabi/remotecontrolapp/0.0-r0"
+
+
+def _yocto_log(tick: str) -> str:
+    """Shape of a real Yocto log.do_compile (field report): cross libtool with a prefix, wrapper call first, its
+    `compile:` echo later (-j interleaving), source in ${WORKDIR}/remotecontrolapp, build in ${WORKDIR}/build."""
+    w, b = _YOCTO, f"{_YOCTO}/build"
+    flags = (f"-march=armv7-a -mthumb -mfpu=neon -mfloat-abi=hard --sysroot={w}/recipe-sysroot -DHAVE_CONFIG_H -I. "
+             "-I../remotecontrolapp -I/usr/include/servicelayer -I../remotecontrolapp/src/features "
+             "-I../remotecontrolapp/src/utils -std=c++14 -fpermissive -DCAN_TYPE_GEN2P -DEE_ARCH_GEN2P "
+             f"-DREGION_PCB26 -I{w}/recipe-sysroot/usr/include/servicelayer -Werror=address")
+    lines = ["DEBUG: Executing shell function do_compile", "NOTE: make -j 10", "make  all-am",
+             f"make[1]: Entering directory '{b}'"]
+    for f in ("src/utils/AppProperty.cpp", "src/features/RemoteDoorLock.cpp"):
+        lines.append(f"./arm-oe-linux-gnueabi-libtool  --tag=CXX   --mode=compile arm-oe-linux-gnueabi-g++  -pie -fPIE "
+                     f"{flags} -c -o x.lo {tick}test -f '{f}' || echo '../remotecontrolapp/'{tick}{f}")
+    for f in ("src/utils/AppProperty.cpp", "src/features/RemoteDoorLock.cpp"):
+        lines.append(f"arm-oe-linux-gnueabi-libtool: compile:  arm-oe-linux-gnueabi-g++ {flags} -c "
+                     f"../remotecontrolapp/{f}  -fPIC -DPIC -o .libs/x.o")
+        lines.append(f"arm-oe-linux-gnueabi-libtool: compile:  arm-oe-linux-gnueabi-g++ {flags} -c "
+                     f"../remotecontrolapp/{f} -pie -fPIE -o x.o >/dev/null 2>&1")
+    lines += [f"./arm-oe-linux-gnueabi-libtool  --tag=CXX   --mode=link arm-oe-linux-gnueabi-g++ -o lib.la x.lo",
+              f"make[1]: Leaving directory '{b}'", "DEBUG: Shell function do_compile finished"]
+    return "\n".join(lines) + "\n"
+
+
+@pytest.mark.parametrize("tick", ["`", ""])  # real log / a copy that lost its backticks
+def test_yocto_cross_log_with_source_outside_the_workspace(tmp_path, tick):
+    repo = tmp_path / "tsu-src" / "apps" / "remotecontrolapp"  # the developer's checkout, not ${S}
+    for rel in ("src/utils/AppProperty.cpp", "src/features/RemoteDoorLock.cpp"):
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_text("int x;\n")
+    res = parse_build_log(_yocto_log(tick), repo)
+    assert [e["file"] for e in res.entries] == [str(repo.resolve() / "src/utils/AppProperty.cpp"),
+                                                str(repo.resolve() / "src/features/RemoteDoorLock.cpp")]
+    assert res.prefix_map == {f"{_YOCTO}/remotecontrolapp": str(repo.resolve())} and res.unmapped == []
+    a = res.entries[0]["arguments"]
+    assert a[0] == "arm-oe-linux-gnueabi-g++" and "-fPIC" in a  # libtool's own (prefixed) echo is used
+    assert {"-DCAN_TYPE_GEN2P", "-DEE_ARCH_GEN2P", "-DREGION_PCB26"} <= set(a)
+    assert f"-I{repo.resolve()}/src/utils" in a  # source include dirs follow the source
+    assert f"-I{_YOCTO}/build" in a  # build dir (config.h) stays where the build put it
+    assert f"--sysroot={_YOCTO}/recipe-sysroot" in a
+    assert res.entries[0]["directory"] == f"{_YOCTO}/build"
+
+
+def test_cross_compiler_keeps_target_and_arch_flags():
+    """Yocto cross builds: libclang parses for the build's target, so ARM sysroot headers resolve as in the build."""
+    from tcadvisor.index.compile_db import _clean_args, cross_target
+    assert cross_target("arm-oe-linux-gnueabi-g++") == "arm-oe-linux-gnueabi"
+    assert cross_target("/opt/sdk/sysroots/x86_64/usr/bin/aarch64-poky-linux-gcc") == "aarch64-poky-linux"
+    assert cross_target("g++") is None and cross_target("x86_64-linux-gnu-gcc-11") is None
+    args = _clean_args(["arm-oe-linux-gnueabi-g++", "-march=armv7-a", "-mthumb", "-mfpu=neon", "-mfloat-abi=hard",
+                        "-Werror=address", "-c", "x.cpp", "-o", "x.o"], "x.cpp", Path("/tmp"))
+    assert args == ("--target=arm-oe-linux-gnueabi", "-march=armv7-a", "-mthumb", "-mfpu=neon", "-mfloat-abi=hard")
+    assert _clean_args(["g++", "-march=native", "-c", "x.cpp"], "x.cpp", Path("/tmp")) == ()

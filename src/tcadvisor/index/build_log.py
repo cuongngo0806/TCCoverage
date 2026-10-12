@@ -27,8 +27,10 @@ from tcadvisor.models import PrerequisiteError
 _COMPILER = re.compile(r"^(?:.*/)?(?:[\w.+-]+-)?(gcc|g\+\+|cc|c\+\+|clang|clang\+\+|icc|icpc)(?:-\d+(?:\.\d+)*)?$")
 _ENTER = re.compile(r"^make(?:\[\d+\])?: Entering directory ['`\"]?(.+?)['\"]?$")
 _LEAVE = re.compile(r"^make(?:\[\d+\])?: Leaving directory")
-_TEST_F = re.compile(r"`test -f '([^']+)' \|\| echo '([^']*)'`(\S+)")
-_LIBTOOL = re.compile(r"^libtool: compile:\s+(.*)$")
+# automake VPATH idiom `test -f 'x.c' || echo '../src/'`x.c (backticks may be lost when a log is copied)
+_TEST_F = re.compile(r"`?test -f '([^']+)' \|\| echo '([^']*)'`?(\S+)")
+# libtool's echo of the command it runs; cross toolchains prefix it (`arm-oe-linux-gnueabi-libtool: compile:`)
+_LIBTOOL = re.compile(r"^(?:\S*-)?libtool: compile:\s+(.*)$")
 _VALUE_FLAGS = {"-o", "-MF", "-MT", "-MQ", "-I", "-isystem", "-iquote", "-include", "-idirafter", "-D", "-U", "-x",
                 "-imacros", "--sysroot", "-isysroot", "-Xclang", "-target", "--param", "-arch", "-aux-info"}
 NO_COMMANDS_HINT = ("no compiler command found in the build log. Build with full command lines: locally `make V=1 "

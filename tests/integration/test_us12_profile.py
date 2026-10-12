@@ -51,8 +51,9 @@ def test_filter_by_variant_union_and_unknown(autotools_project, capsys, monkeypa
     moved = basic["not_built"]
     assert moved, "pro-only code must leave the main list for the basic variant"
     reasons = {x["reason"] for m in moved for x in m["excluded_by"]}
-    assert reasons == {"preprocessor"}
-    assert {m["case"]["evidence"][0].get("file_path") for m in moved} >= {"lib/remote.c"}
+    # pro.c (only built with FEATURE_X) is analysed with borrowed product flags, then excluded by Makefile.am
+    assert reasons == {"preprocessor", "source_not_in_product"}
+    assert {m["case"]["evidence"][0].get("file_path") for m in moved} >= {"lib/remote.c", "lib/pro.c"}
     assert basic["test_case_candidates"] == []  # dispatch / main only reach the change through the #ifdef branch
     pro_c = [n for n in basic["not_built_changes"] if n["path"] == "lib/pro.c"][0]
     assert {x["reason"] for x in pro_c["excluded_by"]} & {"source_not_in_product", "source_not_in_compile_db"}
