@@ -1,0 +1,274 @@
+{
+ "batch": "batch-04",
+ "report_language": "vi",
+ "changed": [
+  "src/features/Feature.h @src/features/Feature.h:131 [abi_layout]",
+  "rca::RemoteEngineStart::conSuccAcSetting @src/features/RemoteEngineStart.cpp:1159 [build_config,logic]",
+  "HCS_NO_REQ @src/receivermanager/MessageDefs.h:516 [abi_layout,build_config,logic]"
+ ],
+ "flags": [
+  "build_config_incomplete_macro: change in src/features/RemoteEngineStart.cpp:1159 is guarded by `#ifdef EE_ARCH_GEN2P`; `EE_ARCH_GEN2P` is undefined in every compile command, so this branch was never parsed (configurations in compile_commands.json: )"
+ ],
+ "existing_tests": [
+  "RemoteEngineStartTest.RemoteEngineStart_checkAcSetting_TC001",
+  "RemoteEngineStartTest.RemoteEngineStart_checkAcSetting_TC002",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC001",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC002",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC003",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC004",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC005",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC006",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC007",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC008",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC009",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC010",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC011",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC012",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC013",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC014",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC015",
+  "RemoteEngineStartTest.RemoteEngineStart_getChangeTempResp_TC001",
+  "RemoteEngineStartTest.RemoteEngineStart_getChangeTempResp_TC002"
+ ],
+ "packets": [
+  {
+   "packet": "K025",
+   "symbol": "src/features/RemoteDoorUnlock.h",
+   "at": "src/features/RemoteDoorUnlock.h:1",
+   "links": [
+    "include -> src/features/Feature.h at src/features/RemoteDoorUnlock.h:19: #include \"Feature.h\""
+   ],
+   "code": "",
+   "cases": [
+    {
+     "id": "TC-0048",
+     "priority": "P2",
+     "risk_group": "abi_layout",
+     "sub_reason": "header_change",
+     "description": "Recompile and re-test all code including header `src/features/RemoteDoorUnlock.h` (direct; it includes `src/features/Feature.h`) \u2014 header change",
+     "activation_condition": "Reachable from changed `src/features/Feature.h`: header src/features/Feature.h changed at file scope",
+     "corner_cases": [
+      "Rebuild every target that includes the header (no stale objects / prebuilt libs)",
+      "Callers compiled against the old header still link and behave"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K026",
+   "symbol": "src/features/ShoulderTapFeature.h",
+   "at": "src/features/ShoulderTapFeature.h:1",
+   "links": [
+    "include -> src/features/Feature.h at src/features/ShoulderTapFeature.h:19: "
+   ],
+   "code": "",
+   "cases": [
+    {
+     "id": "TC-0049",
+     "priority": "P2",
+     "risk_group": "abi_layout",
+     "sub_reason": "header_change",
+     "description": "Recompile and re-test all code including header `src/features/ShoulderTapFeature.h` (direct; it includes `src/features/Feature.h`) \u2014 header change",
+     "activation_condition": "Reachable from changed `src/features/Feature.h`: header src/features/Feature.h changed at file scope",
+     "corner_cases": [
+      "Rebuild every target that includes the header (no stale objects / prebuilt libs)",
+      "Callers compiled against the old header still link and behave"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K027",
+   "symbol": "src/features/ShoulderTapForGW.h",
+   "at": "src/features/ShoulderTapForGW.h:1",
+   "links": [
+    "include -> src/features/Feature.h at src/features/ShoulderTapForGW.h:20: "
+   ],
+   "code": "",
+   "cases": [
+    {
+     "id": "TC-0050",
+     "priority": "P2",
+     "risk_group": "abi_layout",
+     "sub_reason": "header_change",
+     "description": "Recompile and re-test all code including header `src/features/ShoulderTapForGW.h` (direct; it includes `src/features/Feature.h`) \u2014 header change",
+     "activation_condition": "Reachable from changed `src/features/Feature.h`: header src/features/Feature.h changed at file scope",
+     "corner_cases": [
+      "Rebuild every target that includes the header (no stale objects / prebuilt libs)",
+      "Callers compiled against the old header still link and behave"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K028",
+   "symbol": "src/tidl-generated/remotecontrolexecutor.h",
+   "at": "src/tidl-generated/remotecontrolexecutor.h:1",
+   "links": [
+    "include -> src/features/Feature.h at src/tidl-generated/remotecontrolexecutor.h:23: #include \"Feature.h\""
+   ],
+   "code": "",
+   "cases": [
+    {
+     "id": "TC-0051",
+     "priority": "P2",
+     "risk_group": "abi_layout",
+     "sub_reason": "header_change",
+     "description": "Recompile and re-test all code including header `src/tidl-generated/remotecontrolexecutor.h` (direct; it includes `src/features/Feature.h`) \u2014 header change",
+     "activation_condition": "Reachable from changed `src/features/Feature.h`: header src/features/Feature.h changed at file scope",
+     "corner_cases": [
+      "Rebuild every target that includes the header (no stale objects / prebuilt libs)",
+      "Callers compiled against the old header still link and behave"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K029",
+   "symbol": "src/receivermanager/MessageDefs.h",
+   "at": "src/receivermanager/MessageDefs.h:1",
+   "links": [
+    "include -> HCS_NO_REQ at src/receivermanager/MessageDefs.h:516: #define HCS_HIGH        1"
+   ],
+   "code": "",
+   "cases": [
+    {
+     "id": "TC-0052",
+     "priority": "P2",
+     "risk_group": "abi_layout",
+     "sub_reason": "signature_change",
+     "description": "Recompile and re-test all code including header `src/receivermanager/MessageDefs.h` (direct; it includes `HCS_NO_REQ`) \u2014 signature change",
+     "activation_condition": "Reachable from changed `HCS_NO_REQ`: `HCS_NO_REQ` (src/receivermanager/MessageDefs.h:516) was removed; remaining users must be updated",
+     "corner_cases": [
+      "All call sites pass the new parameters correctly (implicit conversions, default args)",
+      "Overload resolution does not silently pick a different overload",
+      "Function pointers / callbacks / mocks bound to the old signature"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0041",
+     "priority": "P2",
+     "risk_group": "build_config",
+     "sub_reason": "macro",
+     "description": "Recompile and re-test all code including header `src/receivermanager/MessageDefs.h` (direct; it includes `HCS_NO_REQ`) \u2014 macro",
+     "activation_condition": "Reachable from changed `HCS_NO_REQ`: macro `HCS_NO_REQ` (src/receivermanager/MessageDefs.h:516) definition removed",
+     "corner_cases": [
+      "Build and run with the macro defined and undefined",
+      "All #if/#else branches compile on every configuration/platform"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "build configuration: behaviour depends on the macros / options of the target build (build_config/macro at src/receivermanager/MessageDefs.h:1)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K030",
+   "symbol": "rca::RemoteEngineStart::conSuccAcSetting",
+   "at": "src/features/RemoteEngineStart.cpp:1159",
+   "links": [],
+   "code": " 1156|                 && rxSigRES[RX_C_RESCAUSE] != UNRECEIVED_RES_SIG));\n 1157| }\n 1158| \n 1159| bool RemoteEngineStart::conSuccAcSetting()\n 1160| {\n 1161|     bool r = false;\n 1162|     std::string seatHeaterDrSetting = AC_EMPTY;\n 1163|     std::string seatHeaterAsSetting = AC_EMPTY;\n 1164| #ifdef EE_ARCH_GEN2P\n 1165|     uint32_t acBulkAutoSetting = AC_BULK_NO_REQ;\n 1166|     std::string acDefAutoSetting = AC_EMPTY;\n 1167|     std::string acVentAutoSetting = AC_EMPTY;\n 1168|     std::string seatHeaterRrLsideSetting = AC_EMPTY;\n 1169|     std::string seatHeaterRrRsideSetting = AC_EMPTY;\n 1170| #endif\n 1171|     std::string strHeaterSetting = AC_EMPTY;\n 1172|     std::string acDefRSetting = AC_EMPTY;\n 1173|     std::string acDefFSetting = AC_EMPTY;\n 1174|     std::string acTempVal = AC_TEMP_DEFAULT;\n 1175| \n 1176|     auto equals = [] (\n 1177|         bool hasRequest,\n 1178|         const std::string& setting,\n 1179|         const std::string& requestedValue\n 1180|     ) {\n 1181|         return !hasRequest || (setting == requestedValue);\n 1182|     };\n 1183| \n 1184|     auto logACSettingParameters = [&] () {\n 1185| #ifndef EE_ARCH_GEN2P\n 1186|         LOG_I(\"ACSETTING acTemp(ACSETTING5):\", \" hasRequest=\", static_cast<int8_t>(orderRES.getIsAcTempVal()), \" requested=\", orderRES.getAcTempVal().data(), \" actual=\", acTempVal.data());\n 1187|         LOG_I(\"ACSETTING acDefF(ACSETTING4):\", \" hasRequest=\", static_cast<int8_t>(orderRES.getIsAcDefFSetting()), \" requested=\", orderRES.getAcDefFSetting().data(), \" actual=\", acDefFSetting.data());\n 1188|         LOG_I(\"ACSETTING acDefR(RRDEF6):\", \" hasRequest=\", static_cast<int8_t>(orderRES.getIsAcDefRSetting()), \" requested=\", orderRES.getAcDefRSetting().data(), \" actual=\", acDefRSetting.data());\n 1189|         LOG_I(\"ACSETTING heater(HSW):\", \" hasRequest=\", static_cast<int8_t>(orderRES.getIsStrHeaterSetting()), \" requested=\", orderRES.getStrHeaterSetting().data(), \" actual=\", strHeaterSetting.data());\n 1190|         LOG_I(\"ACSETTING heaterDr(HCSDR1):\", \" hasRequest=\", static_cast<int8_t>(orderRES.getIsSeatHeaterDrSetting()), \" requested=\", orderRES.getSeatHeaterDrSetting().data(), \" actual=\", seatHeaterDrSetting.data());\n 1191|         LOG_I(\"ACSETTING heaterAs(HCSAS2):\", \" hasRequest=\", static_cast<int8_t>(orderRES.getIsSeatHeaterAsSetting()), \" requested=\", orderRES.getSeatHeaterAsSetting().data(), \" actual=\", seatHeaterAsSetting.data());\n 1192| #else\n 1193|         LOG_I(\"ACSETTING acTemp(ACSETTING5):\", \" hasRequest=\", static_cast<int8_t>(orderRES.getIsAcTempVal()), \" requested=\", orderRES.getAcTempVal().data(), \" actual=\", acTempVal.data());\n 1194|         LOG_I(\"ACSETTING acBulkAuto(AC_RES_INT_AUTO):\", \" hasRequest=\", static_cast<int8_t>(orderRES.getIsAcBulkAutoSetting()), \" requested=\", orderRES.getAcBulkAutoSetting(), \" actual=\", acBulkAutoSetting);\n 1195|         LOG_I(\"ACSETTING acDefF(ACSETTING4):\", \" hasRequest=\", static_cast<int8_t>(orderRES.getIsAcDefFSetting()), \" requested=\", orderRES.getAcDefFSetting().data(), \" actual=\", acDefFSetting.data());",
+   "cases": [
+    {
+     "id": "TC-0001",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Verify the functional behaviour of `rca::RemoteEngineStart::conSuccAcSetting` (modified)",
+     "activation_condition": "Changed directly: control flow / computation changed in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159): `!=`, `:`, `?`",
+     "corner_cases": [
+      "`seatHeaterRrLsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW])`): test code that relies on the old value of `seatHeaterRrLsideSetting` (limits, sizes, timeouts, flags)",
+      "`seatHeaterRrRsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW])`): test code that relies on the old value of `seatHeaterRrRsideSetting` (limits, sizes, timeouts, flags)",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 0,
+     "verify_by": "target",
+     "target_reasons": [
+      "runtime routing (build_config_incomplete_macro): change in src/features/RemoteEngineStart.cpp:1159 is guarded by `#ifdef EE_ARCH_GEN2P`; `EE_ARCH_GEN2P` is undefined in every compile command, so this branch was never parsed (configurations in compile_commands.json: )"
+     ]
+    },
+    {
+     "id": "TC-0002",
+     "priority": "P2",
+     "risk_group": "build_config",
+     "sub_reason": "macro",
+     "description": "Verify the behaviour across build configurations of `rca::RemoteEngineStart::conSuccAcSetting` (modified, macro)",
+     "activation_condition": "Changed directly: change in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159) is inside `#ifdef EE_ARCH_GEN2P`",
+     "corner_cases": [
+      "Build and run with the macro defined and undefined",
+      "All #if/#else branches compile on every configuration/platform"
+     ],
+     "hop_distance": 0,
+     "verify_by": "target",
+     "target_reasons": [
+      "build configuration: behaviour depends on the macros / options of the target build (build_config/macro at src/features/RemoteEngineStart.cpp:1159)",
+      "runtime routing (build_config_incomplete_macro): change in src/features/RemoteEngineStart.cpp:1159 is guarded by `#ifdef EE_ARCH_GEN2P`; `EE_ARCH_GEN2P` is undefined in every compile command, so this branch was never parsed (configurations in compile_commands.json: )"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K031",
+   "symbol": "TEST_F",
+   "at": "unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:4000",
+   "links": [
+    "call -> rca::RemoteEngineStart::conSuccAcSetting at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:4012: testObj.conSuccAcSetting();"
+   ],
+   "code": " 3997|  *   @test_module\n 3998|  *   @design_id\n 3999|  */\n 4000| TEST_F(RemoteEngineStartTest, RemoteEngineStart_conSuccAcSetting_TC015){\n 4001|     EXPECT_EQ(Bypass, true);\n 4002|     RemoteEngineStart testObj;\n 4003|     testObj.orderRES.isAcTempVal = true;\n 4004|     testObj.orderRES.isAcDefRSetting = true;\n 4005|     testObj.orderRES.isStrHeaterSetting = true;\n 4006|     testObj.orderRES.isAcDefFSetting = true;\n 4007|     testObj.orderRES.isSeatHeaterDrSetting = true;\n 4008|     testObj.orderRES.isSeatHeaterAsSetting = true;\n 4009|     testObj.orderRES.acTempVal = AC_OFF;\n 4010|     TimerTimeoutHandler* testTimerHandler = new TimerHandlerImpl<Feature>(testObj);\n 4011|     testObj.resTimerImpl.resAcSettTimer  = new Timer(testTimerHandler, TIMER_TX_CONF);\n 4012|     testObj.conSuccAcSetting();\n 4013| }",
+   "cases": [
+    {
+     "id": "TC-0025",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC015` and check it still covers the functional behaviour of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: control flow / computation changed in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159): `!=`, `:`, `?`",
+     "corner_cases": [
+      "`seatHeaterRrLsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW])`): test code that relies on the old value of `seatHeaterRrLsideSetting` (limits, sizes, timeouts, flags)",
+      "`seatHeaterRrRsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW])`): test code that relies on the old value of `seatHeaterRrRsideSetting` (limits, sizes, timeouts, flags)",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "timing: `TimerTimeoutHandler` at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:4010"
+     ]
+    },
+    {
+     "id": "TC-0040",
+     "priority": "P2",
+     "risk_group": "build_config",
+     "sub_reason": "macro",
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC015` and check it still covers the behaviour across build configurations of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct) \u2014 macro",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: change in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159) is inside `#ifdef EE_ARCH_GEN2P`",
+     "corner_cases": [
+      "Build and run with the macro defined and undefined",
+      "All #if/#else branches compile on every configuration/platform"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "build configuration: behaviour depends on the macros / options of the target build (build_config/macro at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:4000)",
+      "timing: `TimerTimeoutHandler` at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:4010"
+     ]
+    }
+   ]
+  }
+ ]
+}

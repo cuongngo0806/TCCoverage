@@ -1,0 +1,33 @@
+{
+ "report": "D:\\Honda\\sourceCode\\honda_con_release\\tcadvisor-report\\remotecontrolapp\\report.json",
+ "verdicts": "D:\\Honda\\sourceCode\\honda_con_release\\tcadvisor-report\\remotecontrolapp\\verify\\verdicts.json",
+ "report_language": "vi",
+ "batches": [
+  {
+   "file": "D:\\Honda\\sourceCode\\honda_con_release\\tcadvisor-report\\remotecontrolapp\\verify\\batch-01.json",
+   "packets": 8,
+   "cases": 16,
+   "approx_tokens": 6530
+  },
+  {
+   "file": "D:\\Honda\\sourceCode\\honda_con_release\\tcadvisor-report\\remotecontrolapp\\verify\\batch-02.json",
+   "packets": 8,
+   "cases": 16,
+   "approx_tokens": 7487
+  },
+  {
+   "file": "D:\\Honda\\sourceCode\\honda_con_release\\tcadvisor-report\\remotecontrolapp\\verify\\batch-03.json",
+   "packets": 8,
+   "cases": 10,
+   "approx_tokens": 3674
+  },
+  {
+   "file": "D:\\Honda\\sourceCode\\honda_con_release\\tcadvisor-report\\remotecontrolapp\\verify\\batch-04.json",
+   "packets": 7,
+   "cases": 10,
+   "approx_tokens": 4375
+  }
+ ],
+ "notes": [],
+ "approx_tokens_total": 22066
+}

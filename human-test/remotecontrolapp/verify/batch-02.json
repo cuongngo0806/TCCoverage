@@ -1,0 +1,395 @@
+{
+ "batch": "batch-02",
+ "report_language": "vi",
+ "changed": [
+  "src/features/Feature.h @src/features/Feature.h:131 [abi_layout]",
+  "rca::RemoteEngineStart::conSuccAcSetting @src/features/RemoteEngineStart.cpp:1159 [build_config,logic]",
+  "HCS_NO_REQ @src/receivermanager/MessageDefs.h:516 [abi_layout,build_config,logic]"
+ ],
+ "flags": [
+  "build_config_incomplete_macro: change in src/features/RemoteEngineStart.cpp:1159 is guarded by `#ifdef EE_ARCH_GEN2P`; `EE_ARCH_GEN2P` is undefined in every compile command, so this branch was never parsed (configurations in compile_commands.json: )"
+ ],
+ "existing_tests": [
+  "RemoteEngineStartTest.RemoteEngineStart_checkAcSetting_TC001",
+  "RemoteEngineStartTest.RemoteEngineStart_checkAcSetting_TC002",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC001",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC002",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC003",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC004",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC005",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC006",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC007",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC008",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC009",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC010",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC011",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC012",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC013",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC014",
+  "RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC015",
+  "RemoteEngineStartTest.RemoteEngineStart_getChangeTempResp_TC001",
+  "RemoteEngineStartTest.RemoteEngineStart_getChangeTempResp_TC002"
+ ],
+ "packets": [
+  {
+   "packet": "K009",
+   "symbol": "TEST_F",
+   "at": "unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3686",
+   "links": [
+    "call -> rca::RemoteEngineStart::conSuccAcSetting at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3693: testObj.conSuccAcSetting();"
+   ],
+   "code": " 3683|  *   @test_module\n 3684|  *   @design_id\n 3685|  */\n 3686| TEST_F(RemoteEngineStartTest, RemoteEngineStart_conSuccAcSetting_TC005){\n 3687|     EXPECT_EQ(Bypass, true);\n 3688|     RemoteEngineStart testObj;\n 3689|     testObj.orderRES.isAcTempVal = true;\n 3690|     testObj.orderRES.isAcDefRSetting = true;\n 3691|     testObj.orderRES.isStrHeaterSetting = true;\n 3692|     testObj.orderRES.strHeaterSetting = AC_EMPTY;\n 3693|     testObj.conSuccAcSetting();\n 3694| }",
+   "cases": [
+    {
+     "id": "TC-0015",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC005` and check it still covers the functional behaviour of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: control flow / computation changed in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159): `!=`, `:`, `?`",
+     "corner_cases": [
+      "`seatHeaterRrLsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW])`): test code that relies on the old value of `seatHeaterRrLsideSetting` (limits, sizes, timeouts, flags)",
+      "`seatHeaterRrRsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW])`): test code that relies on the old value of `seatHeaterRrRsideSetting` (limits, sizes, timeouts, flags)",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0030",
+     "priority": "P2",
+     "risk_group": "build_config",
+     "sub_reason": "macro",
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC005` and check it still covers the behaviour across build configurations of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct) \u2014 macro",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: change in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159) is inside `#ifdef EE_ARCH_GEN2P`",
+     "corner_cases": [
+      "Build and run with the macro defined and undefined",
+      "All #if/#else branches compile on every configuration/platform"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "build configuration: behaviour depends on the macros / options of the target build (build_config/macro at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3686)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K010",
+   "symbol": "TEST_F",
+   "at": "unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3713",
+   "links": [
+    "call -> rca::RemoteEngineStart::conSuccAcSetting at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3721: testObj.conSuccAcSetting();"
+   ],
+   "code": " 3710|  *   @test_module\n 3711|  *   @design_id\n 3712|  */\n 3713| TEST_F(RemoteEngineStartTest, RemoteEngineStart_conSuccAcSetting_TC006){\n 3714|     EXPECT_EQ(Bypass, true);\n 3715|     RemoteEngineStart testObj;\n 3716|     testObj.orderRES.isAcTempVal = true;\n 3717|     testObj.orderRES.isAcDefRSetting = true;\n 3718|     testObj.orderRES.isStrHeaterSetting = true;\n 3719|     testObj.orderRES.isAcDefFSetting = true;\n 3720|     testObj.orderRES.acDefFSetting = AC_EMPTY;\n 3721|     testObj.conSuccAcSetting();\n 3722| }",
+   "cases": [
+    {
+     "id": "TC-0016",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC006` and check it still covers the functional behaviour of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: control flow / computation changed in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159): `!=`, `:`, `?`",
+     "corner_cases": [
+      "`seatHeaterRrLsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW])`): test code that relies on the old value of `seatHeaterRrLsideSetting` (limits, sizes, timeouts, flags)",
+      "`seatHeaterRrRsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW])`): test code that relies on the old value of `seatHeaterRrRsideSetting` (limits, sizes, timeouts, flags)",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0031",
+     "priority": "P2",
+     "risk_group": "build_config",
+     "sub_reason": "macro",
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC006` and check it still covers the behaviour across build configurations of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct) \u2014 macro",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: change in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159) is inside `#ifdef EE_ARCH_GEN2P`",
+     "corner_cases": [
+      "Build and run with the macro defined and undefined",
+      "All #if/#else branches compile on every configuration/platform"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "build configuration: behaviour depends on the macros / options of the target build (build_config/macro at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3713)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K011",
+   "symbol": "TEST_F",
+   "at": "unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3741",
+   "links": [
+    "call -> rca::RemoteEngineStart::conSuccAcSetting at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3750: testObj.conSuccAcSetting();"
+   ],
+   "code": " 3738|  *   @test_module\n 3739|  *   @design_id\n 3740|  */\n 3741| TEST_F(RemoteEngineStartTest, RemoteEngineStart_conSuccAcSetting_TC007){\n 3742|     EXPECT_EQ(Bypass, true);\n 3743|     RemoteEngineStart testObj;\n 3744|     testObj.orderRES.isAcTempVal = true;\n 3745|     testObj.orderRES.isAcDefRSetting = true;\n 3746|     testObj.orderRES.isStrHeaterSetting = true;\n 3747|     testObj.orderRES.isAcDefFSetting = true;\n 3748|     testObj.orderRES.isSeatHeaterDrSetting = true;\n 3749|     testObj.orderRES.seatHeaterDrSetting = AC_EMPTY;\n 3750|     testObj.conSuccAcSetting();\n 3751| }",
+   "cases": [
+    {
+     "id": "TC-0017",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC007` and check it still covers the functional behaviour of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: control flow / computation changed in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159): `!=`, `:`, `?`",
+     "corner_cases": [
+      "`seatHeaterRrLsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW])`): test code that relies on the old value of `seatHeaterRrLsideSetting` (limits, sizes, timeouts, flags)",
+      "`seatHeaterRrRsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW])`): test code that relies on the old value of `seatHeaterRrRsideSetting` (limits, sizes, timeouts, flags)",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0032",
+     "priority": "P2",
+     "risk_group": "build_config",
+     "sub_reason": "macro",
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC007` and check it still covers the behaviour across build configurations of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct) \u2014 macro",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: change in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159) is inside `#ifdef EE_ARCH_GEN2P`",
+     "corner_cases": [
+      "Build and run with the macro defined and undefined",
+      "All #if/#else branches compile on every configuration/platform"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "build configuration: behaviour depends on the macros / options of the target build (build_config/macro at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3741)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K012",
+   "symbol": "TEST_F",
+   "at": "unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3770",
+   "links": [
+    "call -> rca::RemoteEngineStart::conSuccAcSetting at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3780: testObj.conSuccAcSetting();"
+   ],
+   "code": " 3767|  *   @test_module\n 3768|  *   @design_id\n 3769|  */\n 3770| TEST_F(RemoteEngineStartTest, RemoteEngineStart_conSuccAcSetting_TC008){\n 3771|     EXPECT_EQ(Bypass, true);\n 3772|     RemoteEngineStart testObj;\n 3773|     testObj.orderRES.isAcTempVal = true;\n 3774|     testObj.orderRES.isAcDefRSetting = true;\n 3775|     testObj.orderRES.isStrHeaterSetting = true;\n 3776|     testObj.orderRES.isAcDefFSetting = true;\n 3777|     testObj.orderRES.isSeatHeaterDrSetting = true;\n 3778|     testObj.orderRES.isSeatHeaterAsSetting = true;\n 3779|     testObj.orderRES.seatHeaterAsSetting = AC_EMPTY;\n 3780|     testObj.conSuccAcSetting();\n 3781| }",
+   "cases": [
+    {
+     "id": "TC-0018",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC008` and check it still covers the functional behaviour of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: control flow / computation changed in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159): `!=`, `:`, `?`",
+     "corner_cases": [
+      "`seatHeaterRrLsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW])`): test code that relies on the old value of `seatHeaterRrLsideSetting` (limits, sizes, timeouts, flags)",
+      "`seatHeaterRrRsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW])`): test code that relies on the old value of `seatHeaterRrRsideSetting` (limits, sizes, timeouts, flags)",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0033",
+     "priority": "P2",
+     "risk_group": "build_config",
+     "sub_reason": "macro",
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC008` and check it still covers the behaviour across build configurations of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct) \u2014 macro",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: change in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159) is inside `#ifdef EE_ARCH_GEN2P`",
+     "corner_cases": [
+      "Build and run with the macro defined and undefined",
+      "All #if/#else branches compile on every configuration/platform"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "build configuration: behaviour depends on the macros / options of the target build (build_config/macro at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3770)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K013",
+   "symbol": "TEST_F",
+   "at": "unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3800",
+   "links": [
+    "call -> rca::RemoteEngineStart::conSuccAcSetting at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3815: testObj.conSuccAcSetting();"
+   ],
+   "code": " 3797|  *   @test_module\n 3798|  *   @design_id\n 3799|  */\n 3800| TEST_F(RemoteEngineStartTest, RemoteEngineStart_conSuccAcSetting_TC009){\n 3801|     EXPECT_EQ(Bypass, true);\n 3802|     RemoteEngineStart testObj;\n 3803|     testObj.orderRES.isAcTempVal = true;\n 3804|     testObj.orderRES.isAcDefRSetting = true;\n 3805|     testObj.orderRES.isStrHeaterSetting = true;\n 3806|     testObj.orderRES.isAcDefFSetting = true;\n 3807|     testObj.orderRES.isSeatHeaterDrSetting = true;\n 3808|     testObj.orderRES.isSeatHeaterAsSetting = true;\n 3809|     testObj.orderRES.acTempVal = AC_OFF;\n 3810|     testObj.orderRES.acDefRSetting = AC_OFF;\n 3811|     testObj.orderRES.strHeaterSetting = AC_OFF;\n 3812|     testObj.orderRES.acDefFSetting = AC_OFF;\n 3813|     testObj.orderRES.seatHeaterDrSetting = AC_OFF;\n 3814|     testObj.orderRES.seatHeaterAsSetting = AC_OFF;\n 3815|     testObj.conSuccAcSetting();\n 3816| }",
+   "cases": [
+    {
+     "id": "TC-0019",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC009` and check it still covers the functional behaviour of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: control flow / computation changed in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159): `!=`, `:`, `?`",
+     "corner_cases": [
+      "`seatHeaterRrLsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW])`): test code that relies on the old value of `seatHeaterRrLsideSetting` (limits, sizes, timeouts, flags)",
+      "`seatHeaterRrRsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW])`): test code that relies on the old value of `seatHeaterRrRsideSetting` (limits, sizes, timeouts, flags)",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0034",
+     "priority": "P2",
+     "risk_group": "build_config",
+     "sub_reason": "macro",
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC009` and check it still covers the behaviour across build configurations of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct) \u2014 macro",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: change in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159) is inside `#ifdef EE_ARCH_GEN2P`",
+     "corner_cases": [
+      "Build and run with the macro defined and undefined",
+      "All #if/#else branches compile on every configuration/platform"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "build configuration: behaviour depends on the macros / options of the target build (build_config/macro at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3800)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K014",
+   "symbol": "TEST_F",
+   "at": "unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3835",
+   "links": [
+    "call -> rca::RemoteEngineStart::conSuccAcSetting at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3850: testObj.conSuccAcSetting();"
+   ],
+   "code": " 3832|  *   @test_module\n 3833|  *   @design_id\n 3834|  */\n 3835| TEST_F(RemoteEngineStartTest, RemoteEngineStart_conSuccAcSetting_TC010){\n 3836|     EXPECT_EQ(Bypass, true);\n 3837|     RemoteEngineStart testObj;\n 3838|     testObj.orderRES.isAcTempVal = true;\n 3839|     testObj.orderRES.isAcDefRSetting = true;\n 3840|     testObj.orderRES.isStrHeaterSetting = true;\n 3841|     testObj.orderRES.isAcDefFSetting = true;\n 3842|     testObj.orderRES.isSeatHeaterDrSetting = true;\n 3843|     testObj.orderRES.isSeatHeaterAsSetting = true;\n 3844|     testObj.orderRES.acTempVal = AC_EMPTY;\n 3845|     testObj.orderRES.acDefRSetting = AC_EMPTY;\n 3846|     testObj.orderRES.strHeaterSetting = AC_EMPTY;\n 3847|     testObj.orderRES.acDefFSetting = AC_EMPTY;\n 3848|     testObj.orderRES.seatHeaterDrSetting = AC_EMPTY;\n 3849|     testObj.orderRES.seatHeaterAsSetting = AC_OFF;\n 3850|     testObj.conSuccAcSetting();\n 3851| }",
+   "cases": [
+    {
+     "id": "TC-0020",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC010` and check it still covers the functional behaviour of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: control flow / computation changed in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159): `!=`, `:`, `?`",
+     "corner_cases": [
+      "`seatHeaterRrLsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW])`): test code that relies on the old value of `seatHeaterRrLsideSetting` (limits, sizes, timeouts, flags)",
+      "`seatHeaterRrRsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW])`): test code that relies on the old value of `seatHeaterRrRsideSetting` (limits, sizes, timeouts, flags)",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0035",
+     "priority": "P2",
+     "risk_group": "build_config",
+     "sub_reason": "macro",
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC010` and check it still covers the behaviour across build configurations of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct) \u2014 macro",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: change in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159) is inside `#ifdef EE_ARCH_GEN2P`",
+     "corner_cases": [
+      "Build and run with the macro defined and undefined",
+      "All #if/#else branches compile on every configuration/platform"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "build configuration: behaviour depends on the macros / options of the target build (build_config/macro at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3835)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K015",
+   "symbol": "TEST_F",
+   "at": "unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3870",
+   "links": [
+    "call -> rca::RemoteEngineStart::conSuccAcSetting at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3884: testObj.conSuccAcSetting();"
+   ],
+   "code": " 3867|  *   @test_module\n 3868|  *   @design_id\n 3869|  */\n 3870| TEST_F(RemoteEngineStartTest, RemoteEngineStart_conSuccAcSetting_TC011){\n 3871|     EXPECT_EQ(Bypass, true);\n 3872|     RemoteEngineStart testObj;\n 3873|     testObj.orderRES.isAcTempVal = true;\n 3874|     testObj.orderRES.isAcDefRSetting = true;\n 3875|     testObj.orderRES.isStrHeaterSetting = true;\n 3876|     testObj.orderRES.isAcDefFSetting = true;\n 3877|     testObj.orderRES.isSeatHeaterDrSetting = true;\n 3878|     testObj.orderRES.isSeatHeaterAsSetting = true;\n 3879|     testObj.orderRES.acTempVal = AC_EMPTY;\n 3880|     testObj.orderRES.acDefRSetting = AC_EMPTY;\n 3881|     testObj.orderRES.strHeaterSetting = AC_EMPTY;\n 3882|     testObj.orderRES.acDefFSetting = AC_EMPTY;\n 3883|     testObj.orderRES.seatHeaterDrSetting = AC_OFF;\n 3884|     testObj.conSuccAcSetting();\n 3885| }",
+   "cases": [
+    {
+     "id": "TC-0021",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC011` and check it still covers the functional behaviour of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: control flow / computation changed in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159): `!=`, `:`, `?`",
+     "corner_cases": [
+      "`seatHeaterRrLsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW])`): test code that relies on the old value of `seatHeaterRrLsideSetting` (limits, sizes, timeouts, flags)",
+      "`seatHeaterRrRsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW])`): test code that relies on the old value of `seatHeaterRrRsideSetting` (limits, sizes, timeouts, flags)",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0036",
+     "priority": "P2",
+     "risk_group": "build_config",
+     "sub_reason": "macro",
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC011` and check it still covers the behaviour across build configurations of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct) \u2014 macro",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: change in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159) is inside `#ifdef EE_ARCH_GEN2P`",
+     "corner_cases": [
+      "Build and run with the macro defined and undefined",
+      "All #if/#else branches compile on every configuration/platform"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "build configuration: behaviour depends on the macros / options of the target build (build_config/macro at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3870)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K016",
+   "symbol": "TEST_F",
+   "at": "unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3904",
+   "links": [
+    "call -> rca::RemoteEngineStart::conSuccAcSetting at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3917: testObj.conSuccAcSetting();"
+   ],
+   "code": " 3901|  *   @test_module\n 3902|  *   @design_id\n 3903|  */\n 3904| TEST_F(RemoteEngineStartTest, RemoteEngineStart_conSuccAcSetting_TC012){\n 3905|     EXPECT_EQ(Bypass, true);\n 3906|     RemoteEngineStart testObj;\n 3907|     testObj.orderRES.isAcTempVal = true;\n 3908|     testObj.orderRES.isAcDefRSetting = true;\n 3909|     testObj.orderRES.isStrHeaterSetting = true;\n 3910|     testObj.orderRES.isAcDefFSetting = true;\n 3911|     testObj.orderRES.isSeatHeaterDrSetting = true;\n 3912|     testObj.orderRES.isSeatHeaterAsSetting = true;\n 3913|     testObj.orderRES.acTempVal = AC_EMPTY;\n 3914|     testObj.orderRES.acDefRSetting = AC_EMPTY;\n 3915|     testObj.orderRES.strHeaterSetting = AC_EMPTY;\n 3916|     testObj.orderRES.acDefFSetting = AC_OFF;\n 3917|     testObj.conSuccAcSetting();\n 3918| }",
+   "cases": [
+    {
+     "id": "TC-0022",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC012` and check it still covers the functional behaviour of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: control flow / computation changed in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159): `!=`, `:`, `?`",
+     "corner_cases": [
+      "`seatHeaterRrLsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_L_GW])`): test code that relies on the old value of `seatHeaterRrLsideSetting` (limits, sizes, timeouts, flags)",
+      "`seatHeaterRrRsideSetting` now gets `mapHCS.find(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW]) != mapHCS.end(` (was `mapHCS.at(rxSigAC[RX_C_HCSRR_RES_HCS_R_GW])`): test code that relies on the old value of `seatHeaterRrRsideSetting` (limits, sizes, timeouts, flags)",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0037",
+     "priority": "P2",
+     "risk_group": "build_config",
+     "sub_reason": "macro",
+     "description": "Re-run existing test `RemoteEngineStartTest.RemoteEngineStart_conSuccAcSetting_TC012` and check it still covers the behaviour across build configurations of the change (it calls `rca::RemoteEngineStart::conSuccAcSetting`; direct) \u2014 macro",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::conSuccAcSetting`: change in `rca::RemoteEngineStart::conSuccAcSetting` (src/features/RemoteEngineStart.cpp:1159) is inside `#ifdef EE_ARCH_GEN2P`",
+     "corner_cases": [
+      "Build and run with the macro defined and undefined",
+      "All #if/#else branches compile on every configuration/platform"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "build configuration: behaviour depends on the macros / options of the target build (build_config/macro at unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:3904)"
+     ]
+    }
+   ]
+  }
+ ]
+}
