@@ -59,6 +59,12 @@ def init(repo: Path, settings: dict[str, Any], ais: tuple[str, ...] = AIS, force
         from tcadvisor.models import UsageError
         raise UsageError(f"--repo '{repo}' is not a git repository root")
     given = {k: v for k, v in settings.items() if v is not None}
+    explicit_log = "build_log" in given
+    if not explicit_log:  # spec 012: the Yocto log the compile flags come from, when $BUILDDIR shows it
+        from tcadvisor.index.build_log import find_build_logs
+        found = find_build_logs(repo)
+        if found:
+            given["build_log"] = found
     cfg = {**DEFAULTS, "ai_verify": "chat" if ais else "off", "python": sys.executable, **given}
     path = config_path(repo)
     if path.is_file() and not force:
@@ -66,6 +72,8 @@ def init(repo: Path, settings: dict[str, Any], ais: tuple[str, ...] = AIS, force
         merged = {**cfg, **existing}
         if upgrade:
             merged["python"] = sys.executable  # the interpreter that has this (new) version installed
+        if explicit_log or (given.get("build_log") and not existing.get("build_log")):
+            merged["build_log"] = given["build_log"]  # --build-log always wins; a found log fills an empty key
         status = "kept (exists; --force to overwrite)" if merged == existing else "updated (missing keys added)"
         if merged != existing:
             path.write_text(json.dumps(merged, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -88,9 +96,12 @@ def next_steps(cfg: dict[str, Any]) -> list[str]:
     if cfg.get("graph", "codegraph") == "codegraph" and not shutil.which("codegraph"):
         steps.append("install the impact source: npm i -g @colbymchenry/codegraph")
     if cfg.get("_system") == "autotools":
-        steps.append("compile flags of this autotools module: tcadvisor compile-db --repo . --from-log "
-                     "<${WORKDIR}/temp/log.do_compile of the recipe, or a 'make V=1' log> --variant <name> "
-                     "(once per build variant; docs/linux-yocto.md)")
+        if cfg.get("build_log"):
+            steps.append(f"compile flags come from build_log {cfg['build_log']} (refreshed on every analysis)")
+        else:
+            steps.append("compile flags of this autotools module: fill in \"build_log\" in .tcadvisor/config.json "
+                         "with the recipe's log.do_compile (bitbake -e <recipe> | grep ^WORKDIR= → "
+                         "<WORKDIR>/temp/log.do_compile), or run tcadvisor init --build-log <path>")
         steps.append("confirm the build variants once: tcadvisor profile (or let the AI assistant ask you)")
     else:
         steps.append("optional, better accuracy: configure the build with -DCMAKE_EXPORT_COMPILE_COMMANDS=ON and an "

@@ -47,7 +47,8 @@ No Node.js on the host: set `"graph": "clang"` in `.tcadvisor/config.json` (buil
 database, see below).
 
 Modules built by **Yocto with autotools**: follow [docs/linux-yocto.md](docs/linux-yocto.md) — compile flags come
-from the recipe's `log.do_compile` (`tcadvisor compile-db --from-log …`), and `tcadvisor profile` confirms the
+from the recipe's `log.do_compile`: put its path in `"build_log"` of `.tcadvisor/config.json` (or `tcadvisor init
+--build-log <path>`); every analysis turns it into `compile_commands.json`. `tcadvisor profile` confirms the
 build variants once so cases on code that no shipped variant builds are listed apart.
 
 `tcadvisor init` writes `.tcadvisor/config.json` (every setting with its default, and the Python interpreter it ran
@@ -223,6 +224,8 @@ stop the run and name the closest valid key.
 | `ai_verify` | `off` (`init`: `chat`) | AI filter after each analysis: `off`, `chat` (the skill does it), `claude` (`analyze` runs the headless Claude Code CLI; the setting approves sending packed code windows) |
 | **build (spec 012)** | | |
 | `build_system` | `auto` | `cmake`, `autotools` or `auto` (`CMakeLists.txt` / `configure.ac` at the repo root) |
+| `build_log` | none | build log the compile flags come from: a path (Yocto `${WORKDIR}/temp/log.do_compile`, a `make V=1` / `make -n` log) or `{"<variant>": "<path>", …}`; every analysis regenerates the compile database when the log changed. `init` fills it from `$BUILDDIR` when it can, or `tcadvisor init --build-log <path>` |
+| `build_log_src` | none | source dir that build used, when it is not the workspace and auto-mapping fails (Yocto `${S}`) |
 | `build` | none | the confirmed build profile (`tcadvisor profile`): variants with their compile database and switch values |
 | **analysis** | | |
 | `graph_bin` | PATH | codegraph / GitNexus executable |

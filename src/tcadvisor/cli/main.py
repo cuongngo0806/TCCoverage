@@ -159,6 +159,9 @@ def build_parser() -> argparse.ArgumentParser:
     ini.add_argument("--build-dir", help="build dir relative to the repository root")
     ini.add_argument("--output-dir", help="report root, relative to the repository root (default .tcadvisor/reports)")
     ini.add_argument("--targets", help="comma-separated build targets / products")
+    ini.add_argument("--build-log", metavar="PATH",
+                     help="build log the compile flags come from (Yocto ${WORKDIR}/temp/log.do_compile); written to "
+                          "'build_log' (default: found under $BUILDDIR when set, else left for you to fill in)")
     ini.add_argument("--max-hop-depth", type=int)
     cd = sub.add_parser("compile-db", help="write compile_commands.json from a build log (Yocto log.do_compile or "
                                            "make V=1 output); the build itself is never run")
@@ -196,6 +199,12 @@ def _analyze(ns: argparse.Namespace) -> int:
     from tcadvisor.report.render import summary_line, to_brief, write_outputs
     from tcadvisor.report.runs import change_label, latest_run, new_run_folder, update_latest
 
+    say0 = (lambda m: None) if ns.quiet else (lambda m: print(f"[tcadvisor] {m}", file=sys.stderr))
+    from tcadvisor.config import load_config
+    from tcadvisor.index.build_log import refresh_from_config
+    log_notes = refresh_from_config(ns.repo, load_config(ns.repo))  # `build_log` in the config → compile database
+    for n in log_notes:
+        say0(n)
     cfg, src = resolve_sources(ns.repo, graph=ns.graph, language=ns.language, build_dir=ns.build_dir, output_dir=ns.output_dir,
                   targets=ns.targets, max_hop_depth=ns.max_hop_depth, include_tests=ns.include_tests,
                   ai_verify=ns.ai_verify, build_system=ns.build_system, graph_bin=ns.graph_bin,
@@ -222,7 +231,7 @@ def _analyze(ns: argparse.Namespace) -> int:
     repo = ns.repo.resolve()
     root: Path = cfg["output_dir"]
     _exclude_report_root(repo, root)  # before the analysis: a working-tree diff must not see earlier reports
-    previous, notes = ns.previous_report, []
+    previous, notes = ns.previous_report, list(log_notes)
     if previous is None and not ns.exact_output_dir:
         previous = _filled_report(latest_run(root))
         if previous is not None:
@@ -335,9 +344,7 @@ def _ai_verify(report_path: Path, say, cfg: dict) -> dict:
 
 
 def _compile_db(ns: argparse.Namespace) -> int:
-    from tcadvisor.config import _VARIANT_NAME, update_file
-    from tcadvisor.index.build_log import log_sha256, write_compile_db
-    from tcadvisor.ingest.git import git_exclude
+    from tcadvisor.config import _VARIANT_NAME
     repo = ns.repo.resolve()
     if not (repo / ".git").exists():
         raise UsageError(f"--repo '{repo}' is not a git repository root")
@@ -349,9 +356,8 @@ def _compile_db(ns: argparse.Namespace) -> int:
         if not sep or not old or not new:
             raise UsageError(f"--map expects OLD=NEW, not {m!r}")
         maps[old.rstrip("/")] = new
-    out = (ns.out or repo / ".tcadvisor" / "build" / (ns.variant or "default") / "compile_commands.json").resolve()
-    git_exclude(repo, ".tcadvisor/build/")
-    res = write_compile_db(ns.from_log, repo, out, ns.src, maps)
+    from tcadvisor.index.build_log import generate_variant
+    out, res = generate_variant(repo, ns.from_log, ns.variant, ns.src, maps, ns.out)
     print(f"wrote {out}: {len(res.entries)} compile command(s)")
     for old, new in res.prefix_map.items():
         print(f"  path map {old} -> {new}")
@@ -359,22 +365,6 @@ def _compile_db(ns: argparse.Namespace) -> int:
         print(f"warning: {len(res.unmapped)} source(s) not found in the workspace (pass --src / --map): "
               + ", ".join(res.unmapped[:5]), file=sys.stderr)
     if ns.variant:
-        rel = out.relative_to(repo).as_posix() if out.is_relative_to(repo) else str(out)
-        log = ns.from_log.resolve()
-        bdir = next((str(d) for e in res.entries for d in (Path(e["directory"]), *Path(e["directory"]).parents)
-                     if (d / "config.status").is_file()), None)  # configure's output: switch values (profile)
-
-        def record(data: dict) -> None:
-            prof = data.get("build") or {"system": "autotools", "confirmed": False, "variants": []}
-            entry = next((v for v in prof["variants"] if v["name"] == ns.variant), None)
-            if entry is None:
-                entry = {"name": ns.variant}
-                prof["variants"].append(entry)
-            entry.update({"compile_db": rel, "build_log": str(log), "log_sha256": log_sha256(log)})
-            if bdir:
-                entry["build_dir"] = bdir
-            data["build"] = prof
-        update_file(repo, record)
         print(f"recorded as build-profile variant '{ns.variant}' (confirm the profile with `tcadvisor profile`)")
     return 0
 
@@ -553,7 +543,8 @@ def main(argv: list[str] | None = None) -> int:
             for path, status in init(ns.repo, {"graph": ns.graph, "language": ns.language, "build_dir": ns.build_dir,
                                                "output_dir": ns.output_dir, "targets": ns.targets,
                                                "max_hop_depth": ns.max_hop_depth, "include_tests": ns.include_tests,
-                                               "ai_verify": ns.ai_verify}, ais, ns.force, ns.upgrade):
+                                               "ai_verify": ns.ai_verify, "build_log": ns.build_log},
+                                   ais, ns.force, ns.upgrade):
                 print(f"{status}: {path}")
             from tcadvisor.config import load_config
             from tcadvisor.index.automake import detect_build_system

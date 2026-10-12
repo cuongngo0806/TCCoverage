@@ -43,10 +43,10 @@ $ARGUMENTS
 - Compile database (better accuracy; required with `graph: clang`):
   - CMake: `mkdir -p build/.cmake/api/v1/query && touch build/.cmake/api/v1/query/codemodel-v2 &&
     cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON`.
-  - autotools (`configure.ac` + `Makefile.am`, also Yocto recipes): from the build log, never by running the
-    build yourself: `PY -m tcadvisor compile-db --repo . --from-log <log> --variant <name>`, where `<log>` is
-    `${WORKDIR}/temp/log.do_compile` of the recipe (one per MACHINE / variant) or a local `make V=1` log. Ask the
-    user for the log path when it is not known. The module does not build on this host (missing target headers)?
+  - autotools (`configure.ac` + `Makefile.am`, also Yocto recipes): from the build log named by `"build_log"` in
+    `.tcadvisor/config.json` — every `analyze` regenerates the compile database from it. Empty (`null`) → ask the
+    user for the recipe's `log.do_compile` path (`bitbake -e <recipe> | grep ^WORKDIR=` → `<WORKDIR>/temp/
+    log.do_compile`) and store it: `PY -m tcadvisor init --repo . --build-log <path>`. Never run the build yourself. The module does not build on this host (missing target headers)?
     A failed build is fine: after `configure`, `make -n V=1 > dry.log` (dry run) or `make -k V=1` lists every
     compile command; never try to fix the build. No configure possible → run without a compile database
     (codegraph, reduced accuracy).

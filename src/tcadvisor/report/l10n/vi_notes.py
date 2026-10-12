@@ -243,4 +243,15 @@ ENTRIES: list[tuple[str, str]] = [
      "revision); they are parsed with the flags of another source of the same product: {names}",
      "{n} source có trong Makefile.am nhưng không có trong compile database (bản build tạo ra nó có thể là revision "
      "khác); chúng được phân tích bằng flag của source khác cùng sản phẩm: {names}"),
+    ("build_log of variant {name} not found: {log}; set 'build_log' in .tcadvisor/config.json to the recipe's "
+     "log.do_compile (bitbake -e <recipe> | grep ^WORKDIR=, then <WORKDIR>/temp/log.do_compile)",
+     "không tìm thấy build_log của biến thể {name}: {log}; đặt 'build_log' trong .tcadvisor/config.json là file "
+     "log.do_compile của recipe (bitbake -e <recipe> | grep ^WORKDIR=, rồi <WORKDIR>/temp/log.do_compile)"),
+    ("build_log of variant {name}: {t_error}", "build_log của biến thể {name}: {t_error}"),
+    ("compile database of variant {name} generated from {log} ({n} compile command(s))",
+     "đã tạo compile database của biến thể {name} từ {log} ({n} lệnh compile)"),
+    ("compile database of variant {name} generated from {log} ({n} compile command(s)); {m} source(s) not found in "
+     "the workspace: set 'build_log_src' to the build's source dir",
+     "đã tạo compile database của biến thể {name} từ {log} ({n} lệnh compile); {m} source không tìm thấy trong "
+     "workspace: đặt 'build_log_src' là thư mục source mà bản build dùng"),
 ]

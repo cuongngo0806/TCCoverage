@@ -103,3 +103,45 @@ def test_source_missing_from_compile_db_borrows_product_flags(autotools_project)
     assert any(c["evidence"][0].get("qualified_name") == "extra_level" for c in r["test_case_candidates"])
     assert not any(o["path"] == "lib/extra.c" for o in r["out_of_scope"])
     assert any("parsed with the flags of another source of the same product" in n for n in r["run_notes"])
+
+
+def test_build_log_in_config_generates_the_compile_db(autotools_project, capsys, monkeypatch):
+    """init writes a "build_log" key; once filled in, every analysis (re)generates the compile database from it."""
+    pr = autotools_project
+    monkeypatch.delenv("BUILDDIR", raising=False)
+    assert main(["init", "--repo", str(pr.repo), "--ai", "none", "--graph", "clang", "--language", "en"]) == 0
+    cfg_path = pr.repo / ".tcadvisor" / "config.json"
+    cfg = json.loads(cfg_path.read_text())
+    assert "build_log" in cfg and cfg["build_log"] is None
+    assert 'fill in "build_log"' in capsys.readouterr().out
+    log = pr.make_variant("basic", "--disable-feature-x")
+    cfg["build_log"] = str(log)
+    cfg_path.write_text(json.dumps(cfg))
+    pr.edit("lib/remote.c", "if (code > 3) return 3;", "if (code > 4) return 4;")
+    pr.commit()
+    args = ["analyze", "--repo", str(pr.repo), "--commit-range", "HEAD~1..HEAD", "--cache-dir", str(pr.cache), "-q",
+            "--print", "json"]
+    assert main(args) == 0
+    r = json.loads(capsys.readouterr().out)
+    assert any("compile database of variant default generated from" in n for n in r["run_notes"])
+    assert r["build_model"]["products"] == 2 and not any("reduced accuracy" in n for n in r["run_notes"])
+    assert (pr.repo / ".tcadvisor" / "build" / "default" / "compile_commands.json").is_file()
+    assert main(args) == 0  # unchanged log: not regenerated
+    assert not any("generated from" in n for n in json.loads(capsys.readouterr().out)["run_notes"])
+    log.write_text(log.read_text() + "\n")  # a new bitbake -c compile wrote the log again
+    assert main(args) == 0
+    assert any("generated from" in n for n in json.loads(capsys.readouterr().out)["run_notes"])
+
+
+def test_init_finds_the_yocto_log_under_builddir(autotools_project, tmp_path, monkeypatch, capsys):
+    pr = autotools_project
+    bb = tmp_path / "yocto-build"
+    log = bb / "tmp-glibc" / "work" / "armv7at2hf-neon-oe-linux-gnueabi" / pr.repo.name / "0.0-r0" / "temp" / "log.do_compile"
+    log.parent.mkdir(parents=True)
+    log.write_text("NOTE: make -j 10\n")
+    monkeypatch.setenv("BUILDDIR", str(bb))
+    assert main(["init", "--repo", str(pr.repo), "--ai", "none"]) == 0
+    cfg_path = pr.repo / ".tcadvisor" / "config.json"
+    assert json.loads(cfg_path.read_text())["build_log"] == str(log)
+    assert main(["init", "--repo", str(pr.repo), "--ai", "none", "--build-log", "/elsewhere/log.do_compile"]) == 0
+    assert json.loads(cfg_path.read_text())["build_log"] == "/elsewhere/log.do_compile"  # explicit flag wins

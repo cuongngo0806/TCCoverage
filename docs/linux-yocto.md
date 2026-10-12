@@ -51,8 +51,15 @@ configures with `--disable-silent-rules`):
 ```bash
 bitbake -c compile -f <recipe>                                   # if the recipe came from sstate (no log yet)
 WORKDIR=$(bitbake -e <recipe> | sed -n 's/^WORKDIR="\(.*\)"/\1/p')
-tcadvisor compile-db --repo . --from-log "$WORKDIR/temp/log.do_compile" --variant <name>
+tcadvisor init --repo . --build-log "$WORKDIR/temp/log.do_compile"   # or edit "build_log" in .tcadvisor/config.json
 ```
+
+`tcadvisor init` already fills `"build_log"` when `$BUILDDIR` (Yocto's build environment) is set and the recipe
+has a log; otherwise the key is `null` until you put the path there. From then on every `tcadvisor analyze`
+regenerates `.tcadvisor/build/<variant>/compile_commands.json` when the log changed (a new `bitbake -c compile`)
+and reuses it otherwise. Several variants (machines / product types):
+`"build_log": {"gen2p": "/…/armv7…/remotecontrolapp/0.0-r0/temp/log.do_compile", "gen3": "/…"}`.
+By hand, without the config key: `tcadvisor compile-db --repo . --from-log <log> --variant <name>`.
 
 - `<name>`: the build variant this log belongs to (e.g. `imx8-basic`). It is recorded in the build profile.
 - Source not in the workspace (plain clone): add `--src "$(bitbake -e <recipe> | sed -n 's/^S="\(.*\)"/\1/p')"`;

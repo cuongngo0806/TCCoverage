@@ -225,3 +225,88 @@ def write_compile_db(log: Path, repo: Path, out: Path, src: str | None = None, m
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(res.entries, indent=1), encoding="utf-8")
     return res
+
+
+def generate_variant(repo: Path, log: Path, variant: str | None, src: str | None = None,
+                     maps: dict[str, str] | None = None, out: Path | None = None) -> tuple[Path, LogParse]:
+    """`tcadvisor compile-db` and the `build_log` config key: write the compile database of one build variant from
+    its log and, with a variant name, record it in the build profile (`build` key; unconfirmed until
+    `tcadvisor profile`)."""
+    from tcadvisor.config import update_file
+    from tcadvisor.ingest.git import git_exclude
+    repo = repo.resolve()
+    out = (out or repo / ".tcadvisor" / "build" / (variant or "default") / "compile_commands.json").resolve()
+    git_exclude(repo, ".tcadvisor/build/")
+    res = write_compile_db(log, repo, out, src, maps)
+    if variant:
+        rel = out.relative_to(repo).as_posix() if out.is_relative_to(repo) else str(out)
+        log = log.resolve()
+        bdir = next((str(d) for e in res.entries for d in (Path(e["directory"]), *Path(e["directory"]).parents)
+                     if (d / "config.status").is_file()), None)  # configure's output: switch values (profile)
+
+        def record(data: dict) -> None:
+            prof = data.get("build") or {"system": "autotools", "confirmed": False, "variants": []}
+            entry = next((v for v in prof["variants"] if v["name"] == variant), None)
+            if entry is None:
+                entry = {"name": variant}
+                prof["variants"].append(entry)
+            entry.update({"compile_db": rel, "build_log": str(log), "log_sha256": log_sha256(log)})
+            if bdir:
+                entry["build_dir"] = bdir
+            data["build"] = prof
+        update_file(repo, record)
+    return out, res
+
+
+def configured_logs(repo: Path, cfg: dict) -> dict[str, Path]:
+    """`build_log` of the config as {variant: absolute path} (a single path is variant `default`)."""
+    logs = cfg.get("build_log")
+    if not logs:
+        return {}
+    items = {"default": logs} if isinstance(logs, str) else dict(logs)
+    out = {}
+    for name, path in items.items():
+        p = Path(os.path.expandvars(str(path))).expanduser()
+        out[name] = p if p.is_absolute() else (repo / p)
+    return out
+
+
+def refresh_from_config(repo: Path, cfg: dict) -> list[str]:
+    """Before an analysis: (re)generate each configured variant's compile database when it is missing or its log
+    changed since (sha256 recorded in the profile). Returns run notes."""
+    repo = repo.resolve()
+    recorded = {v["name"]: v for v in ((cfg.get("build") or {}).get("variants") or [])}
+    notes = []
+    for name, log in configured_logs(repo, cfg).items():
+        if not log.is_file():
+            notes.append(f"build_log of variant {name} not found: {log}; set 'build_log' in .tcadvisor/config.json "
+                         "to the recipe's log.do_compile (bitbake -e <recipe> | grep ^WORKDIR=, then "
+                         "<WORKDIR>/temp/log.do_compile)")
+            continue
+        out = repo / ".tcadvisor" / "build" / name / "compile_commands.json"
+        if out.is_file() and recorded.get(name, {}).get("log_sha256") == log_sha256(log):
+            continue
+        try:
+            _, res = generate_variant(repo, log, name, cfg.get("build_log_src"))
+        except PrerequisiteError as exc:
+            notes.append(f"build_log of variant {name}: {exc}")
+            continue
+        notes.append(f"compile database of variant {name} generated from {log} ({len(res.entries)} compile "
+                     "command(s))" + (f"; {len(res.unmapped)} source(s) not found in the workspace: set "
+                                      "'build_log_src' to the build's source dir" if res.unmapped else ""))
+    return notes
+
+
+def find_build_logs(repo: Path, recipe: str | None = None) -> str | dict[str, str] | None:
+    """`log.do_compile` of the module's recipe under `$BUILDDIR` (set by Yocto's oe-init-build-env): one path, or
+    {machine-arch: path} when the recipe was built for several architectures."""
+    bb = os.environ.get("BUILDDIR")
+    if not bb or not Path(bb).is_dir():
+        return None
+    name = recipe or repo.resolve().name
+    found = sorted(Path(bb).glob(f"tmp*/work/*/{name}/*/temp/log.do_compile"))
+    if not found:
+        return None
+    if len(found) == 1:
+        return str(found[0])
+    return {re.sub(r"[^A-Za-z0-9._-]", "-", p.parents[3].name): str(p) for p in found}

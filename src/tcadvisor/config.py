@@ -37,7 +37,7 @@ DEFAULTS: dict[str, Any] = {
     "graph": "codegraph", "language": "vi", "build_dir": "build", "output_dir": None, "targets": None,
     "max_hop_depth": 2, "include_tests": False, "test_paths": [], "ai_verify": "off",
     # build (spec 012)
-    "build_system": "auto", "build": None,
+    "build_system": "auto", "build": None, "build_log": None, "build_log_src": None,
     # analysis options (formerly CLI-only / VS Code extraArgs)
     "graph_bin": None, "contracts": None, "lessons": None, "target_patterns": None, "index": "auto", "jobs": None,
     "patterns": True, "history": True, "flow_max_tus": 4, "split_threshold": 50, "cache_dir": None,
@@ -56,6 +56,7 @@ _BOOL_KEYS = ("include_tests", "patterns", "history", "allow_stale_compile_db")
 _INT_MIN = {"max_hop_depth": 1, "jobs": 1, "flow_max_tus": 0, "split_threshold": 1, "attachment_warn_mb": 1,
             "verify_max_cases": 1, "verify_parallel": 1}
 _NULLABLE = {k for k, v in DEFAULTS.items() if v is None}
+_VARIANT_KEY = re.compile(r"^[A-Za-z0-9._-]+$")
 _VARIANT_NAME = re.compile(r"^[A-Za-z0-9._-]+$")
 _VARIANT_KEYS = {"name", "compile_db", "build_log", "log_sha256", "build_dir", "values", "value_source"}
 
@@ -152,6 +153,17 @@ def _check(path: Path, key: str, value: Any) -> Any:
         value = ",".join(prios)
     elif key == "build":
         value = check_build_profile(path, value)
+    elif key == "build_log":
+        if isinstance(value, str) and value.strip():
+            return value
+        if not (isinstance(value, dict) and value and all(isinstance(k, str) and _VARIANT_KEY.match(k)
+                                                          and isinstance(v, str) and v.strip()
+                                                          for k, v in value.items())):
+            raise UsageError(f"{path}: 'build_log' must be the path of a build log (Yocto "
+                             "${WORKDIR}/temp/log.do_compile or a 'make V=1' log), or {\"<variant>\": \"<path>\", ...}")
+    elif key == "build_log_src":
+        if not isinstance(value, str) or not value.strip():
+            raise UsageError(f"{path}: 'build_log_src' must be the source dir the build used (Yocto ${{S}})")
     return value
 
 
