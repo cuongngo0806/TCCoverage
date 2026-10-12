@@ -48,7 +48,7 @@ def fix_history(repo, intro, path, months=int(__import__("os").environ.get("HIST
             date = subprocess.run(["git", "-C", repo, "log", "-1", "--format=%cI", intro], capture_output=True,
                                   text=True).stdout.strip()
             import datetime
-            since = (datetime.datetime.fromisoformat(date) - datetime.timedelta(days=30 * months)).isoformat()
+            since = (datetime.datetime.fromisoformat(date.replace("Z", "+00:00")) - datetime.timedelta(days=30 * months)).isoformat()
             out = subprocess.run(["git", "-C", repo, "log", f"--before={date}", f"--since={since}",
                                   "-i", "-E", "--grep=^(fix|bug)|\\bfix(es|ed)?\\b", "--format=%h", "--", path],
                                  capture_output=True, text=True).stdout
