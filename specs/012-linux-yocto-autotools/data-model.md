@@ -59,3 +59,19 @@ uncertainty flags), `build_files` (paths whose change = build-configuration chan
 ## Attachment (unchanged shape)
 
 `{name, type, size, sha256, data, added_at}` + optional `origin: "paste" | "drop" | "file"`.
+
+## WorkspaceSettings (config keys restored from the VS Code extension, US6)
+
+Flat keys, precedence flag > config > default, unknown keys rejected. Full list and constraints:
+[contracts/config-build-profile.schema.json](contracts/config-build-profile.schema.json).
+
+| Old extension setting | Config key now |
+|---|---|
+| `buildDir`, `outputDir`, `targets`, `maxHopDepth`, `graphProvider`, `reportLanguage` | already: `build_dir`, `output_dir`, `targets`, `max_hop_depth`, `graph`, `language` |
+| `ai.approved` | already: `ai_verify: claude` |
+| `ai.order` | HTML report order switch (unchanged) |
+| `graphBin` | `graph_bin` (new) |
+| `ai.claudePath`, `ai.verifyModel`, `ai.synthModel`, `ai.budgetUsd` | `claude_bin`, `verify_model`, `synth_model`, `budget_usd` (new) |
+| `extraArgs` | explicit keys (new): `contracts`, `lessons`, `target_patterns`, `index`, `jobs`, `patterns`, `history`, `flow_max_tus`, `split_threshold`, `attachment_warn_mb`, `cache_dir`, `allow_stale_compile_db`, `format`; plus `verify_priorities`, `verify_max_cases`, `verify_parallel` |
+| `pythonPath` | `python` (written by `init`, read by the skill/agents) |
+| `repo`, `showInlineHints` | not restored (editor-only) |

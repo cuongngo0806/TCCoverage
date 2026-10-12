@@ -91,6 +91,19 @@ Independent test: quickstart V5 (paste ⇒ inline image, survives save/reopen of
 - [ ] T045 [US5] vi strings for the paste hint / overlay in src/tcadvisor/report/l10n/vi_html.py; run scripts/l10n_check.py
 - [ ] T046 [US5] Test tests/integration/test_us12_evidence_paste.py (Playwright, `executablePath` `/opt/pw-browsers/chromium` when present, skip if Playwright missing): paste PNG ⇒ inline image; save ⇒ reopen offline ⇒ `naturalWidth > 0`; overlay; print media; also a static assertion that the rendered HTML contains the paste handler (runs without a browser)
 
+## Phase 7b: US6 — Keep every useful setting in the workspace config (P2)
+
+Independent test: config with `verify_model`, `budget_usd`, `graph_bin`, `contracts`, `attachment_warn_mb` ⇒ used by `analyze` (fake `claude` records its arguments) and shown by `tcadvisor config` with source.
+
+- [ ] T050 [P] [US6] Unit tests tests/unit/test_config_keys.py: every new key validated (types/ranges: `budget_usd` > 0, `verify_max_cases` ≥ 1, `verify_parallel` 1–16, `index` ∈ `auto|full|lite`, `format` ∈ `md|json|html|both|all`, `verify_priorities` ⊆ `P1,P2,P3`), unknown key ⇒ `UsageError` with closest match (`difflib.get_close_matches`), precedence flag > config > default
+- [ ] T051 [US6] Add keys of FR-026/FR-027/FR-031 (`claude_bin`, `verify_model`, `synth_model`, `budget_usd`, `verify_priorities`, `verify_max_cases`, `verify_parallel`, `graph_bin`, `contracts`, `lessons`, `target_patterns`, `index`, `jobs`, `patterns`, `history`, `flow_max_tus`, `split_threshold`, `attachment_warn_mb`, `cache_dir`, `allow_stale_compile_db`, `format`, `python`) to `DEFAULTS` / `_check` in src/tcadvisor/config.py; reject unknown keys; `resolve()` returns `{key: (value, source)}` for `tcadvisor config`
+- [ ] T052 [US6] In src/tcadvisor/cli/main.py change argparse defaults of the matching `analyze` / `verify` / `verify-pack` flags to `None` and fill them from `resolve()`; `_ai_verify` passes `claude_bin`, models, `budget_usd`, priorities, `verify_max_cases`, `verify_parallel` to src/tcadvisor/verify/runner.py `verify`
+- [ ] T053 [US6] `tcadvisor config` prints key / value / source table (and `--json`) in src/tcadvisor/cli/main.py
+- [ ] T054 [US6] `tcadvisor init` writes every key with its default and `python` = `sys.executable` (src/tcadvisor/integrations/init.py); existing values kept unless `--force`
+- [ ] T055 [US6] Skill / agents / prompts read `python` from `tcadvisor config --json` instead of guessing `python`/`python3` (src/tcadvisor/integrations/skills/tc-coverage/SKILL.md, claude/agents/*.md, copilot/*.prompt.md); re-copy into .claude/ as in T040
+- [ ] T056 [US6] Integration test tests/integration/test_config_init.py: `init` writes all keys; `ai_verify: claude` with a fake `claude` receives `--model <verify_model>` and `--max-budget-usd <budget_usd>`; `graph_bin` used by the provider; README config table lists every key (test reads the table)
+- [ ] T057 [P] [US6] README.md config table grouped (core / build / analysis / AI verification / report) with every key, default and meaning
+
 ## Phase 8: Polish & cross-cutting
 
 - [ ] T047 [P] Keep Playwright optional: T046 browser part uses `pytest.importorskip("playwright")`; do not add it to pyproject.toml (no new dependency rule); the static part of T046 always runs
@@ -100,7 +113,8 @@ Independent test: quickstart V5 (paste ⇒ inline image, survives save/reopen of
 ## Dependencies
 
 - Phase 1 → Phase 2 → US1 (MVP). US2 needs Phase 2 only. US3 needs US2 (automake model, compile-db) for autotools, T037 only Phase 2. US4 documents US1–US3 (write after them; T038/T039 drafts can start in parallel). US5 needs nothing but Phase 2 (independent of US1–US4).
-- Order: T001–T007 → {US1, US2, US5 in parallel} → US3 → US4 → Polish.
+- US6 needs Phase 2 only (config.py); do it before US3's `build` key work lands in the same file or rebase carefully. US4 docs (T038, T040) should come after US6 so the config table and skill are written once.
+- Order: T001–T007 → {US1, US2, US5, US6 in parallel} → US3 → US4 → Polish.
 
 ## Parallel examples
 

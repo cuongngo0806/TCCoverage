@@ -18,6 +18,9 @@ confirmed once (`tcadvisor profile`, interactive prompt on first `analyze` in a 
 evidence is provably not built in any confirmed variant move to `not_built`. (4) README + new
 `docs/linux-yocto.md` become the Linux-first guide; the packaged skill/agents/prompts follow. (5) The HTML report
 gets clipboard paste, inline images at readable size, a full-size viewer and print styles (`report/html.py`).
+(6) Settings that only the removed VS Code extension could set (AI verification binary / models / budget, impact-
+source binary, extra analysis options) become config keys with flag > config > default precedence; `init` writes
+all keys, unknown keys are rejected, `tcadvisor config` shows value + source.
 
 ## Technical Context
 
@@ -89,7 +92,7 @@ specs/012-linux-yocto-autotools/
 
 ```text
 src/tcadvisor/
-├── config.py                 # + build key (system, profile), validation; output_dir default → .tcadvisor/reports
+├── config.py                 # + build key, restored extension settings (US6), unknown-key check; output_dir default → .tcadvisor/reports
 ├── pipeline.py               # run folder creation, build-system dispatch, variant filter stage, profile hash in run key
 ├── index/
 │   ├── automake.py           # NEW configure.ac + Makefile.am → TargetModel (+ conditionals, unresolved constructs)

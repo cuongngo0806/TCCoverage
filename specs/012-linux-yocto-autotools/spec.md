@@ -193,6 +193,36 @@ offline: the image is shown inline in that case, full-size view works, the print
 5. **Given** a pasted item that is not an image or a file (plain text), **When** pasted into the evidence area,
    **Then** it is not turned into an attachment (it may go to the comment field).
 
+---
+
+### User Story 6 - Keep every useful setting in the workspace config (Priority: P2)
+
+With the old VS Code extension the team could set, once per workspace, the Claude Code binary and models used for
+AI verification, the spending cap, the codegraph/GitNexus binary and extra analysis options. When the extension was
+removed (spec 011) only the keys of `.tcadvisor/config.json` survived (`init` writes 5 of them); those settings now
+exist only as one-off command-line flags, so the CLI, Claude Code and Copilot runs cannot share them. A developer
+sets them once in the workspace config and every front-end uses them; `tcadvisor config` shows every key with its
+effective value and where it came from.
+
+**Why this priority**: the field test showed the reduced config is not enough (AI verification always ran with the
+built-in models and no budget cap, analysis options had to be retyped); it needs no new analysis capability.
+
+**Independent Test**: put `verify_model`, `budget_usd`, `graph_bin`, `contracts` and `attachment_warn_mb` in the
+config; run `analyze` with `ai_verify: claude` (fake `claude`) — the recorded call uses those values; `tcadvisor
+config` lists all keys with `config` / `default` / `flag` as source.
+
+**Acceptance Scenarios**:
+
+1. **Given** a config with AI-verification settings, **When** an analysis runs with `ai_verify: claude` or the user
+   runs `tcadvisor verify`, **Then** the configured Claude binary, models, budget, priorities and case limit are used.
+2. **Given** a config with analysis options (third-party API contracts, lessons file, target patterns, index mode,
+   workers, attachment size warning, cache location, impact-source binary), **When** any front-end runs the
+   analysis, **Then** they apply without command-line flags; a flag still wins for one run.
+3. **Given** `tcadvisor init`, **When** it writes the config, **Then** the file lists every supported key with its
+   default (not only 5), so the user can see what can be set; `tcadvisor config` prints each key, value and source.
+4. **Given** an unknown or misspelled key, **When** the config is loaded, **Then** the run stops with a message naming
+   the key and the closest valid one (today unknown keys are ignored silently).
+
 ### Edge Cases
 
 - Two analyses start at the same moment in the same workspace: run folders must still be distinct.
@@ -294,6 +324,27 @@ offline: the image is shown inline in that case, full-size view works, the print
   pasted images too.
 - **FR-025**: All new report sentences (sections, prompts, notes) MUST exist in both report languages.
 
+**Workspace settings restored from the VS Code extension**
+
+- **FR-026**: The workspace config MUST support the AI-verification settings that were extension-only: Claude Code
+  binary (`claude_bin`), per-batch model (`verify_model`, default `haiku`), synthesis model (`synth_model`, default
+  `sonnet`), per-call spending cap (`budget_usd`), priorities to verify (`verify_priorities`, default `P1,P2,P3`),
+  case limit (`verify_max_cases`, default 120) and parallel calls (`verify_parallel`, default 4); `analyze` with
+  `ai_verify: claude` and `tcadvisor verify` / `verify-pack` MUST use them.
+- **FR-027**: The workspace config MUST support the analysis options that were reachable only via the extension's
+  "extra arguments" or the CLI: `graph_bin`, `contracts`, `lessons`, `target_patterns`, `index` (`auto|full|lite`),
+  `jobs`, `patterns` (bool), `history` (bool), `flow_max_tus`, `split_threshold`, `attachment_warn_mb`, `cache_dir`,
+  `allow_stale_compile_db` (bool), `format`; paths are relative to the repository root.
+- **FR-028**: Precedence MUST stay command-line flag > config > built-in default for every key; `tcadvisor config`
+  MUST print every key with its effective value and its source (`flag`, `config`, `default`).
+- **FR-029**: `tcadvisor init` MUST write every supported key with its default value (grouped and documented in
+  README), and MUST keep values already in an existing config unless `--force`.
+- **FR-030**: Unknown keys MUST be rejected with a message naming the closest valid key.
+- **FR-031**: Settings that only made sense inside the editor (`pythonPath`, `repo`, inline hints on evidence lines)
+  are not restored; the case order switch (relevance / AI-triaged) stays in the HTML report. The skill / agents use
+  the interpreter recorded by `init` (`python` key, default: the interpreter that ran `init`) so a Linux virtual
+  environment is found without editor settings.
+
 ### Key Entities
 
 - **Run folder**: one analysis' output (reports, AI verification files, notes); identified by time and the analysed
@@ -325,6 +376,9 @@ offline: the image is shown inline in that case, full-size view works, the print
   following only the guide, in under 30 minutes.
 - **SC-006**: Attaching one screenshot to a case takes one paste (no file saving); 100% of attached images are
   visible inline in the reopened saved report and in its printed version.
+- **SC-008**: Every setting of the removed VS Code extension that affects analysis or AI verification (11 of 17) can
+  be set in the workspace config and is honoured by the CLI and both AI front-ends; 0 unknown keys are silently
+  ignored.
 - **SC-007**: Existing CMake benchmarks (leveldb ground truth, seeded regressions dev + holdout) show no drop.
 
 ## Assumptions
@@ -345,6 +399,10 @@ offline: the image is shown inline in that case, full-size view works, the print
   all of them.
 - Old run folders are kept until the user deletes them; no automatic retention policy in this feature.
 - CMake support stays; Windows / macOS stay best-effort (not removed, not the documented main path).
+- The extension's settings were checked against the last version before its removal (commit before `1e9969a`):
+  17 settings; 6 are already config keys, 1 (case order) lives in the HTML report, 3 were editor-only, 7 are
+  restored by US6 (`claude_bin`, `verify_model`, `synth_model`, `budget_usd`, `graph_bin`, `extraArgs` → explicit keys,
+  AI approval = `ai_verify: claude`).
 - Evidence stays embedded in the single HTML report (no separate evidence folder), as today.
 - The constitution's "Target codebases: C++ and CMake-based projects" line needs an amendment to cover autotools
   (C and C++); this is done through `/speckit-constitution` during planning.
