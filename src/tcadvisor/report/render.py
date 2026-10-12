@@ -1,4 +1,4 @@
-"""Markdown / JSON / brief renderers (FR-008). All output is English (Principle IX)."""
+"""Markdown / JSON / brief renderers (FR-008), in the report language (``report_language``: vi default, en)."""
 from __future__ import annotations
 
 import json
@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from tcadvisor.classify.environment import action
+from tcadvisor.report.l10n import Translator, l10n_map, localize
 
 PRIO_ORDER = ("P1", "P2", "P3")
 GROUP_LABEL = {
@@ -32,23 +33,31 @@ def _md_cell(s: str) -> str:
     return s.replace("|", "\\|").replace("\n", " ")
 
 
-def _targets(ts: list[str], limit: int = 6) -> str:
-    return (", ".join(ts[:limit]) + (f" (+{len(ts) - limit} more)" if len(ts) > limit else "")) if ts else "-"
+def translator(r: dict[str, Any]) -> Translator:
+    """Reports written before the report language existed are English."""
+    return Translator(r.get("report_language", "en"))
+
+
+def _targets(ts: list[str], T: Translator, limit: int = 6) -> str:
+    more = T.ui(" (+{n} more)", n=len(ts) - limit) if len(ts) > limit else ""
+    return (", ".join(ts[:limit]) + more) if ts else "-"
 
 
 def summary_line(r: dict[str, Any]) -> str:
+    T = translator(r)
     cases = r["test_case_candidates"]
     by = {p: sum(1 for c in cases if c["priority"] == p) for p in PRIO_ORDER}
-    llm = "degraded (LLM unavailable)" if r["llm_degraded"] else "enabled" if r["llm_enabled"] else "disabled"
+    llm = T.ui("degraded (LLM unavailable)") if r["llm_degraded"] else T.ui("enabled") if r["llm_enabled"] \
+        else T.ui("disabled")
     if r.get("no_detected_impact"):
-        head = "No detected impact"
+        head = T.ui("No detected impact")
     else:
-        head = f"{len(cases)} test case(s) [P1 {by['P1']} / P2 {by['P2']} / P3 {by['P3']}]"
-    tr = _test_summary(r)
-    return (f"{head}; {len(r['uncertainty_flags'])} uncertainty flag(s); {tr}"
-            f"{len(r.get('changed_files', []))} changed file(s); targets: {_targets(r['target_scope'])}; "
-            f"cache_hit: {str(r['cache_hit']).lower()}; LLM: {llm}; "
-            f"{r.get('metrics', {}).get('duration_seconds', 0)}s")
+        head = T.ui("{n} test case(s) [P1 {p1} / P2 {p2} / P3 {p3}]", n=len(cases), p1=by["P1"], p2=by["P2"], p3=by["P3"])
+    return T.ui("{head}; {flags} uncertainty flag(s); {tests}{files} changed file(s); targets: {targets}; "
+                "cache_hit: {cache}; LLM: {llm}; {secs}s", head=head, flags=len(r["uncertainty_flags"]),
+                tests=_test_summary(r, T), files=len(r.get("changed_files", [])),
+                targets=_targets(r["target_scope"], T), cache=str(r["cache_hit"]).lower(), llm=llm,
+                secs=r.get("metrics", {}).get("duration_seconds", 0))
 
 
 ACTION_LABEL = {"test_on_target": "Test on target", "review": "Review code",
@@ -60,15 +69,17 @@ def plan_line(r: dict[str, Any]) -> str:
     n = {a: 0 for a in ACTION_LABEL}
     for c in r["test_case_candidates"]:
         n[action(c)] += 1
-    return (f"Test plan: {n['test_on_target']} to test on target, {n['review']} to review (code reading may close "
-            f"them), {n['closed_by_review']} closed by code review")
+    return translator(r).ui("Test plan: {target} to test on target, {review} to review (code reading may close "
+                            "them), {closed} closed by code review", target=n["test_on_target"], review=n["review"],
+                            closed=n["closed_by_review"])
 
 
 def _mermaid_id(i: int) -> str:
     return f"n{i}"
 
 
-def mermaid(r: dict[str, Any]) -> str:
+def mermaid(r: dict[str, Any], T: Translator | None = None) -> str:
+    T = T or Translator()
     nodes = r.get("impact_nodes", [])[:MERMAID_MAX_NODES]
     ids = {n["id"]: _mermaid_id(i) for i, n in enumerate(nodes)}
     out = ["flowchart RL"]
@@ -95,184 +106,200 @@ def mermaid(r: dict[str, Any]) -> str:
             "  classDef h1 fill:#fff1d6,stroke:#d68910,color:#000",
             "  classDef h2 fill:#e8f1fb,stroke:#2e86c1,color:#000"]
     if len(r.get("impact_nodes", [])) > MERMAID_MAX_NODES:
-        out.append(f"  more[\"+{len(r['impact_nodes']) - MERMAID_MAX_NODES} more nodes (see report.html)\"]")
+        out.append(f"  more[\"{T.ui('+{n} more nodes (see report.html)', n=len(r['impact_nodes']) - MERMAID_MAX_NODES)}\"]")
     return "\n".join(out)
 
 
-def _test_summary(r: dict[str, Any]) -> str:
+def _test_summary(r: dict[str, Any], T: Translator) -> str:
     """'test results: …; ' when the report carries tester results (spec 006), else ''."""
     if not r.get("test_results"):
         return ""
     from tcadvisor.report.results import summary
     s = summary(r["test_results"], [c["key"] for c in r["test_case_candidates"]])
-    recheck = f" / {s['needs_recheck']} re-check" if s["needs_recheck"] else ""
-    return (f"test results: {s['pass']} pass / {s['fail']} fail / {s['not_testable']} n/t / "
-            f"{s['cannot_occur']} n/o / {s['untested']} untested{recheck}; ")
+    recheck = T.ui(" / {n} re-check", n=s["needs_recheck"]) if s["needs_recheck"] else ""
+    return T.ui("test results: {ok} pass / {bad} fail / {nt} n/t / {no} n/o / {untested} untested{recheck}; ",
+                ok=s["pass"], bad=s["fail"], nt=s["not_testable"], no=s["cannot_occur"], untested=s["untested"],
+                recheck=recheck)
 
 
-def _verdict_tag(c: dict[str, Any]) -> str:
+def _verdict_tag(c: dict[str, Any], T: Translator) -> str:
     tr = c.get("test_result")
     if tr is None:
         return ""
     from tcadvisor.report.results import VERDICT_LABEL
-    return f" [{VERDICT_LABEL.get(tr.get('verdict'), '—')}]" + (" (re-check)" if tr.get("needs_recheck") else "")
+    return f" [{T.ui(VERDICT_LABEL.get(tr.get('verdict'), '—'))}]" + (T.ui(" (re-check)") if tr.get("needs_recheck") else "")
 
 
 def to_markdown(r: dict[str, Any]) -> str:
-    L: list[str] = ["# Change Impact & Test Case Report", ""]
+    T = translator(r)
+    summary, plan = summary_line(r), plan_line(r)
+    r = localize(r, T)
+    L: list[str] = [T.ui("# Change Impact & Test Case Report"), ""]
     ci = r["change_input"]
-    src = ci.get("commit_range") or ("working tree" if ci.get("working_tree") else
+    src = ci.get("commit_range") or (T.ui("working tree") if ci.get("working_tree") else
                                      ", ".join(ci.get("symbols_requested") or []))
-    L += [f"- **Change**: {ci['mode']} — {src}", f"- **Repository**: `{ci['target_repo_path']}`",
-          f"- **Summary**: {summary_line(r)}", ""]
+    L += [T.ui("- **Change**: {mode} — {src}", mode=ci["mode"], src=src),
+          T.ui("- **Repository**: `{repo}`", repo=ci["target_repo_path"]), T.ui("- **Summary**: {s}", s=summary), ""]
     if r.get("no_detected_impact"):
-        L += ["> **No detected impact.** The change touches no indexed symbol semantically (e.g. comments, "
-              "whitespace or non-C++ files only). This is a positive result, not a tool failure.", ""]
+        L += [T.ui("> **No detected impact.** The change touches no indexed symbol semantically (e.g. comments, "
+                   "whitespace or non-C++ files only). This is a positive result, not a tool failure."), ""]
     if r.get("changed_symbols"):
-        L += ["## Changed symbols", "", "| Symbol | Change | Risk groups |", "|---|---|---|"]
+        L += [T.ui("## Changed symbols"), "", T.ui("| Symbol | Change | Risk groups |"), "|---|---|---|"]
         for s in r["changed_symbols"]:
-            groups = ", ".join(sorted({GROUP_LABEL[x['risk_group']] + (f" ({x['sub_reason']})" if x['sub_reason'] else "")
+            groups = ", ".join(sorted({T.ui(GROUP_LABEL[x['risk_group']]) + (f" ({x['sub_reason']})" if x['sub_reason'] else "")
                                        for x in s["risks"]}))
             L.append(f"| `{_md_cell(s['symbol']['qualified_name'])}` {s['symbol']['file_path']}:{s['symbol']['line']} "
-                     f"| {s['change_kind']} | {groups} |")
+                     f"| {T.ui(s['change_kind'])} | {groups} |")
         L.append("")
     if r.get("impact_nodes"):
-        L += ["## Impact flow", "", "Arrows point from the affected code to what it depends on "
-              "(red = changed, orange = direct, blue = indirect).", "", "```mermaid", mermaid(r), "```", ""]
+        L += [T.ui("## Impact flow"), "", T.ui("Arrows point from the affected code to what it depends on "
+                                               "(red = changed, orange = direct, blue = indirect)."),
+              "", "```mermaid", mermaid(r, T), "```", ""]
     cases = r["test_case_candidates"]
     if cases:
-        L += ["## Test cases to check", "", plan_line(r) + ".", "",
-              "- **Test on target**: the risk only shows up when running on the device (concurrency, lifetime, data "
-              "layout, build configuration, hardware / interrupt / timing / RTOS / bus code), or an AI reviewer "
-              "read the code and could not close it.",
-              "- **Review code**: no runtime signal — reading the code may close it without a run "
-              "(`tcadvisor verify --scope review`); test it on the target if nobody can.",
-              "- **Closed by code review**: an AI reviewer proved from the code that it cannot fail (proof "
-              "file:line); listed so the decision stays auditable.", "",
-              "Inside each group: relevance order (closest to the change, substantive before recompile-only, larger "
-              "changes first); the P1/P2/P3 label is the deterministic priority.", ""]
+        L += [T.ui("## Test cases to check"), "", plan + ".", "",
+              T.ui("- **Test on target**: the risk only shows up when running on the device (concurrency, lifetime, "
+                   "data layout, build configuration, hardware / interrupt / timing / RTOS / bus code), or an AI "
+                   "reviewer read the code and could not close it."),
+              T.ui("- **Review code**: no runtime signal — reading the code may close it without a run "
+                   "(`tcadvisor verify --scope review`); test it on the target if nobody can."),
+              T.ui("- **Closed by code review**: an AI reviewer proved from the code that it cannot fail (proof "
+                   "file:line); listed so the decision stays auditable."), "",
+              T.ui("Inside each group: relevance order (closest to the change, substantive before recompile-only, "
+                   "larger changes first); the P1/P2/P3 label is the deterministic priority."), ""]
         hops = (("changed code", lambda c: c["hop_distance"] == 0), ("direct impact", lambda c: c["hop_distance"] == 1),
                 ("indirect impact", lambda c: c["hop_distance"] > 1))
         for a, label in ACTION_LABEL.items():
             in_a = [c for c in cases if action(c) == a]
             if in_a:
-                L += [f"### {label} ({len(in_a)})", ""]
+                L += [f"### {T.ui(label)} ({len(in_a)})", ""]
             for title, sel in hops:
                 group = [c for c in in_a if sel(c)]
                 if not group:
                     continue
-                L += [f"#### {label} — {title} ({len(group)})", ""]
+                L += [f"#### {T.ui(label)} — {T.ui(title)} ({len(group)})", ""]
                 for c in group:
-                    L += _md_case(c)
+                    L += _md_case(c, T)
                 L.append("")
     av = r.get("ai_verification")
     if av:
-        L += ["## AI verification (annotations only — cases are never removed)", "",
-              f"{_md_cell(av['summary'])}", "", f"- verified cases: {av['verified_cases']}; models: "
-              f"{', '.join(av.get('models') or []) or '-'}"]
+        L += [T.ui("## AI verification (annotations only — cases are never removed)"), "",
+              f"{_md_cell(av['summary'])}", "",
+              T.ui("- verified cases: {n}; models: {models}", n=av["verified_cases"],
+                   models=", ".join(av.get("models") or []) or "-")]
         for a in av["additional_checks"]:
-            L.append(f"- [ ] **Also check** (AI): {_md_cell(a['title'])} — {_md_cell(a['why'])}"
-                     f"{' (' + a['evidence'] + ')' if a['evidence'] else ' (unverified AI suggestion: no resolvable file:line)'}")
+            ev = f" ({a['evidence']})" if a["evidence"] else T.ui(" (unverified AI suggestion: no resolvable file:line)")
+            L.append(T.ui("- [ ] **Also check** (AI): {title} — {why}{ev}", title=_md_cell(a["title"]),
+                          why=_md_cell(a["why"]), ev=ev))
         L.append("")
     if r.get("existing_tests"):
-        L += ["## Existing tests to re-run", "",
+        L += [T.ui("## Existing tests to re-run"), "",
               "`--gtest_filter=" + ":".join(t["test"] for t in r["existing_tests"]) + "`", ""]
-        L += [f"- `{t['test']}` ({t['file_path']}:{t['line']}, hop {t['hop_distance']})" for t in r["existing_tests"]]
+        L += [T.ui("- `{test}` ({file}:{line}, hop {hop})", test=t["test"], file=t["file_path"], line=t["line"],
+                   hop=t["hop_distance"]) for t in r["existing_tests"]]
         L.append("")
     if r.get("test_gaps"):
-        L += ["## Test gaps (no existing test reaches the change)", ""]
-        L += [f"- [ ] `{g['symbol']['qualified_name']}` ({g['symbol']['file_path']}:{g['symbol']['line']}) — "
-              f"{g['reason']}: a new test is likely needed" for g in r["test_gaps"]]
+        L += [T.ui("## Test gaps (no existing test reaches the change)"), ""]
+        L += [T.ui("- [ ] `{sym}` ({file}:{line}) — {reason}: a new test is likely needed",
+                   sym=g["symbol"]["qualified_name"], file=g["symbol"]["file_path"], line=g["symbol"]["line"],
+                   reason=g["reason"]) for g in r["test_gaps"]]
         L.append("")
     ts = r.get("trigger_sources") or []
     for t in [t for t in ts if t.get("reason", "guarded") == "guarded"]:
-        L += [f"## Trigger sources of `{t['target']['qualified_name']}`", "",
-              f"Guard added in {', '.join(f'`{c}`' for c in t['covered_by'])}: `{_md_cell('; '.join(t['guard']))}`", "",
-              "| Source | Kind | Guard | |", "|---|---|---|---|"]
+        L += [T.ui("## Trigger sources of `{sym}`", sym=t["target"]["qualified_name"]), "",
+              T.ui("Guard added in {where}: `{guard}`", where=", ".join(f"`{c}`" for c in t["covered_by"]),
+                   guard=_md_cell("; ".join(t["guard"]))), "",
+              T.ui("| Source | Kind | Guard | |"), "|---|---|---|---|"]
         for x in t["sources"]:
             sym = x["symbol"]
-            kind = (f"callback registered at {x['registered_at'][0]}:{x['registered_at'][1]}" if x["registered_at"]
-                    else "call")
+            kind = (T.ui("callback registered at {file}:{line}", file=x["registered_at"][0], line=x["registered_at"][1])
+                    if x["registered_at"] else T.ui("call"))
             L.append(f"| `{sym['qualified_name']}` {sym['file_path']}:{x['call_line']} | {kind} | {x['guard']} | "
-                     f"{'covered by this change' if x['covered_by_change'] else 'check (see cases)'} |")
+                     f"{T.ui('covered by this change') if x['covered_by_change'] else T.ui('check (see cases)')} |")
         L.append("")
     changed = [t for t in ts if t.get("reason") == "changed"]
     if changed:
-        L += ["## Where each changed function is triggered from", "",
-              "Every source should be exercised: a fix verified from one source only is the classic miss.", "",
-              "| Changed function | Source (caller) | Entry points behind it |", "|---|---|---|"]
+        L += [T.ui("## Where each changed function is triggered from"), "",
+              T.ui("Every source should be exercised: a fix verified from one source only is the classic miss."), "",
+              T.ui("| Changed function | Source (caller) | Entry points behind it |"), "|---|---|---|"]
         for t in changed:
             for x in t["sources"]:
                 sym = x["symbol"]
-                kind = (f" (callback registered at {x['registered_at'][0]}:{x['registered_at'][1]})"
-                        if x["registered_at"] else "")
+                kind = (T.ui(" (callback registered at {file}:{line})", file=x["registered_at"][0],
+                             line=x["registered_at"][1]) if x["registered_at"] else "")
                 L.append(f"| `{t['target']['qualified_name']}` | `{sym['qualified_name']}` {sym['file_path']}:"
                          f"{x['call_line']}{kind} | {', '.join(f'`{e}`' for e in x.get('entries') or []) or '-'} |")
             if t.get("total", 0) > len(t["sources"]):
-                L.append(f"| `{t['target']['qualified_name']}` | … {t['total'] - len(t['sources'])} more | |")
+                L.append(f"| `{t['target']['qualified_name']}` | " + T.ui("… {n} more", n=t["total"] - len(t["sources"]))
+                         + " | |")
         L.append("")
     if r["uncertainty_flags"]:
-        L += ["## Uncertain — needs manual review", "", "| Category | Symbol | Reason |", "|---|---|---|"]
+        L += [T.ui("## Uncertain — needs manual review"), "", T.ui("| Category | Symbol | Reason |"), "|---|---|---|"]
         for f in r["uncertainty_flags"]:
             sym = f["related_symbol"]
             where = f"`{sym['qualified_name']}` {sym['file_path']}:{sym['line']}" if sym else "-"
             L.append(f"| {f['category']} | {_md_cell(where)} | {_md_cell(f['reason'])} |")
         L.append("")
     if r.get("affected_targets"):
-        L += ["## Build / test scope to rerun", ""]
+        L += [T.ui("## Build / test scope to rerun"), ""]
         for t in r["affected_targets"]:
-            via = f" (links {t['via']})" if t.get("via") else ""
+            via = T.ui(" (links {via})", via=t["via"]) if t.get("via") else ""
             L.append(f"- `{t['name']}` — {t['relation']}{via}")
         L.append("")
     if r.get("out_of_scope"):
-        L += ["## Skipped (out of scope)", ""]
+        L += [T.ui("## Skipped (out of scope)"), ""]
         for o in r["out_of_scope"]:
             L.append(f"- `{o['path']}`{' `' + o['symbol'] + '`' if o.get('symbol') else ''}: {o['reason']}")
         L.append("")
     if r.get("run_notes"):
-        L += ["## Run notes", ""] + [f"- {n}" for n in r["run_notes"]] + [""]
+        L += [T.ui("## Run notes"), ""] + [f"- {n}" for n in r["run_notes"]] + [""]
     m = r.get("metrics", {})
-    L += ["## Metrics", "", f"- run_id: `{r['run_id']}`", f"- duration: {m.get('duration_seconds')}s",
+    L += [T.ui("## Metrics"), "", f"- run_id: `{r['run_id']}`", T.ui("- duration: {s}s", s=m.get("duration_seconds")),
           f"- cache_hit: {r['cache_hit']}", f"- index: {m.get('index')}",
           f"- LLM: enabled={r['llm_enabled']} degraded={r['llm_degraded']} tokens={r['llm_token_usage']}", ""]
     return "\n".join(L)
 
 
-def _md_case(c: dict[str, Any]) -> list[str]:
+def _md_case(c: dict[str, Any], T: Translator) -> list[str]:
     tr = c.get("test_result") or {}
     box = "x" if tr.get("verdict") and not tr.get("needs_recheck") else " "
-    L = [f"- [{box}] **{c['id']}** {c['priority']} [{GROUP_LABEL[c['risk_group']]}] "
-         f"{_md_cell(c['description'])}{_verdict_tag(c)}",
-         f"  - *When*: {_md_cell(c['activation_condition'])}",
-         "  - *Evidence*: " + "; ".join(_ev_label(e) for e in c["evidence"])]
+    L = [f"- [{box}] **{c['id']}** {c['priority']} [{T.ui(GROUP_LABEL[c['risk_group']])}] "
+         f"{_md_cell(c['description'])}{_verdict_tag(c, T)}",
+         T.ui("  - *When*: {text}", text=_md_cell(c["activation_condition"])),
+         T.ui("  - *Evidence*: {text}", text="; ".join(_ev_label(e) for e in c["evidence"]))]
     if c.get("path"):
-        L.append("  - *Path*: " + " → ".join(
-            f"`{x['symbol']['qualified_name']}` ({x['role']}{', checked' if x['checked'] else ''})" for x in c["path"]))
+        L.append(T.ui("  - *Path*: {text}", text=" → ".join(
+            f"`{x['symbol']['qualified_name']}` ({x['role']}{T.ui(', checked') if x['checked'] else ''})"
+            for x in c["path"])))
     if c.get("corner_cases"):
-        L.append("  - *Corner cases*: " + "; ".join(c["corner_cases"][:5]))
-    L.append(f"  - *Targets*: {', '.join(c['related_cmake_targets'])}")
+        L.append(T.ui("  - *Corner cases*: {text}", text="; ".join(c["corner_cases"][:5])))
+    L.append(T.ui("  - *Targets*: {text}", text=", ".join(c["related_cmake_targets"])))
     if c.get("target_reasons"):
-        L.append("  - *Needs the target*: " + "; ".join(_md_cell(x) for x in c["target_reasons"]))
+        L.append(T.ui("  - *Needs the target*: {text}", text="; ".join(_md_cell(x) for x in c["target_reasons"])))
     if tr.get("verdict"):
         names = ", ".join(a["name"] for a in tr.get("attachments", []))
-        L.append(f"  - *Test result*: {tr['verdict']} by {_md_cell(tr.get('tester', ''))} on "
-                 f"{tr.get('date', '')}{' — ' + _md_cell(tr['comment']) if tr.get('comment') else ''}"
-                 f"{'; defect ' + _md_cell(tr['defect_ref']) if tr.get('defect_ref') else ''}"
-                 f"{'; evidence: ' + _md_cell(names) if names else ''}")
+        L.append(T.ui("  - *Test result*: {verdict} by {tester} on {date}", verdict=tr["verdict"],
+                      tester=_md_cell(tr.get("tester", "")), date=tr.get("date", ""))
+                 + (" — " + _md_cell(tr["comment"]) if tr.get("comment") else "")
+                 + (T.ui("; defect {ref}", ref=_md_cell(tr["defect_ref"])) if tr.get("defect_ref") else "")
+                 + (T.ui("; evidence: {names}", names=_md_cell(names)) if names else ""))
     v = c.get("verification")
     if v:
-        L.append(f"  - *AI verification*: **{v['verdict']}**{' — re-check' if v['recheck'] else ''}"
-                 f"{': ' + _md_cell(v['note']) if v['note'] else ''}")
+        L.append(T.ui("  - *AI verification*: **{verdict}**", verdict=v["verdict"])
+                 + (T.ui(" — re-check") if v["recheck"] else "") + (": " + _md_cell(v["note"]) if v["note"] else ""))
         if v.get("proof"):
-            L.append("  - *Proof*: " + ", ".join(v["proof"]))
+            L.append(T.ui("  - *Proof*: {text}", text=", ".join(v["proof"])))
         if v["extra_corner_cases"]:
-            L.append("  - *AI corner cases*: " + "; ".join(_md_cell(x) for x in v["extra_corner_cases"]))
+            L.append(T.ui("  - *AI corner cases*: {text}", text="; ".join(_md_cell(x) for x in v["extra_corner_cases"])))
     return L
 
 
 def to_brief(r: dict[str, Any], limit: int = 80) -> str:
-    """Token-lean summary meant for an AI assistant (Claude) or a PR comment."""
+    """Token-lean summary meant for an AI assistant (Claude) or a PR comment. Line tags (CHANGED, UNCERTAIN, ...)
+    stay English in every language: they are markers for tools and AI readers."""
+    T = translator(r)
     L = [summary_line(r), plan_line(r)]
+    r = localize(r, T)
     for s in r.get("changed_symbols", []):
         L.append(f"CHANGED {s['symbol']['qualified_name']} @{s['symbol']['file_path']}:{s['symbol']['line']} "
                  f"[{','.join(sorted({x['risk_group'] for x in s['risks']}))}]")
@@ -281,18 +308,18 @@ def to_brief(r: dict[str, Any], limit: int = 80) -> str:
         v = c.get("verification")
         tag = f" [AI:{v['verdict']}]" if v else ""
         L.append(f"{c['id']} {c['priority']} {ACTION_TAG[action(c)]} {c['risk_group']} {ev['file_path']}:{ev['line']}{tag} :: {c['description']}"
-                 f"{_verdict_tag(c)}")
+                 f"{_verdict_tag(c, T)}")
         if c.get("target_reasons"):
             L.append("   target: " + " | ".join(c["target_reasons"][:2]))
         if c.get("corner_cases"):
             L.append("   corner: " + " | ".join(c["corner_cases"][:3]))
     if len(r["test_case_candidates"]) > limit:
-        L.append(f"... {len(r['test_case_candidates']) - limit} more in report.json")
+        L.append(T.ui("... {n} more in report.json", n=len(r["test_case_candidates"]) - limit))
     ts_brief = [t for t in r.get("trigger_sources") or [] if t.get("reason", "guarded") == "guarded"] + [
         t for t in r.get("trigger_sources") or [] if t.get("reason") == "changed" and t.get("total", 0) >= 2][:10]
     for t in ts_brief:
         L.append(f"SOURCES {t['target']['qualified_name']} :: " + ", ".join(
-            f"{x['symbol']['qualified_name']} ({'covered' if x['covered_by_change'] else 'guard ' + x['guard']})"
+            f"{x['symbol']['qualified_name']} ({T.ui('covered') if x['covered_by_change'] else T.ui('guard') + ' ' + x['guard']})"
             if t.get("reason", "guarded") == "guarded" else x["symbol"]["qualified_name"]
             for x in t["sources"]))
     for f in r["uncertainty_flags"]:
@@ -349,7 +376,11 @@ def write_outputs(r: dict[str, Any], out_dir: Path, fmt: str = "both", same_anal
             written.append(backup)
     if fmt in ("json", "both", "all"):
         p = out_dir / "report.json"
-        p.write_text(json.dumps(_without_attachment_data(r), indent=2), encoding="utf-8")
+        T = translator(r)
+        data = {k: v for k, v in _without_attachment_data(r).items() if k != "l10n"}
+        if T.active:  # the VS Code view shows report.json text through this map
+            data["l10n"] = l10n_map(data, T)
+        p.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
         written.append(p)
     if fmt in ("md", "both", "all"):
         p = out_dir / "report.md"

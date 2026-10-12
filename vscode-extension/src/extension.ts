@@ -23,6 +23,7 @@ interface Report {
   ai_verification?: { summary: string; additional_checks: { title: string; why: string; evidence: string }[];
     verified_cases: number; usage?: { cost_usd: number; calls: number } };
   graph_provider?: string;
+  report_language?: string; l10n?: Record<string, string>;
 }
 const VERDICT_ICON: Record<string, string> = { confirmed: "pass", weak: "info", needs_info: "question", pass_by_review: "verified" };
 // spec 007: same rule as classify/environment.py action()
@@ -35,6 +36,33 @@ const RISK: Record<string, string> = {
   logic: "Logic", abi_layout: "ABI / layout", ownership_lifetime: "Ownership / lifetime",
   thread_safety: "Thread safety", exception_safety: "Exception safety", build_config: "Build config",
 };
+
+// Report language (report_language, default vi): report.json keeps English text plus an `l10n` map
+// (English -> translated) written by the CLI; the view's own labels are translated here.
+const VI_UI: Record<string, string> = {
+  "No detected impact (comments/format/non-C++ only)": "Không phát hiện ảnh hưởng (chỉ comment / định dạng / không phải C++)",
+  "Existing tests to re-run": "Test hiện có cần chạy lại",
+  "Test gaps: new test likely needed": "Chỗ thiếu test: nhiều khả năng cần test mới",
+  "AI: also check": "AI: kiểm tra thêm",
+  "Uncertain — manual review": "Chưa chắc chắn — review thủ công",
+  "Targets to rebuild/retest": "Target cần build / test lại",
+  "When": "Khi nào", "Corner cases": "Corner case", "Targets": "Target", "Needs the target": "Cần target vì",
+  "Proof": "Chứng minh", "re-check": "kiểm tra lại",
+  "Logic": "Logic", "ABI / layout": "ABI / layout", "Ownership / lifetime": "Sở hữu / vòng đời",
+  "Thread safety": "An toàn thread", "Exception safety": "An toàn exception", "Build config": "Cấu hình build",
+};
+const ui = (en: string): string => (report?.report_language === "vi" ? VI_UI[en] ?? en : en);
+
+function localizeReport<T>(v: T, map: Record<string, string>): T {
+  if (typeof v === "string") { return (map[v] ?? v) as unknown as T; }
+  if (Array.isArray(v)) { return v.map(x => localizeReport(x, map)) as unknown as T; }
+  if (v && typeof v === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) { out[k] = k === "l10n" ? x : localizeReport(x, map); }
+    return out as T;
+  }
+  return v;
+}
 
 let report: Report | undefined;
 let reportDir: string | undefined;
@@ -67,7 +95,7 @@ class CasesProvider implements vscode.TreeDataProvider<Node> {
   getChildren(n?: Node): Node[] {
     if (n) { return n.children ?? []; }
     if (!report) { return [{ label: "Run 'TC Coverage: Analyze Working Tree Changes'", kind: "info" }]; }
-    if (report.no_detected_impact) { return [{ label: "No detected impact (comments/format/non-C++ only)", kind: "info" }]; }
+    if (report.no_detected_impact) { return [{ label: ui("No detected impact (comments/format/non-C++ only)"), kind: "info" }]; }
     const groups: Node[] = ["P1", "P2", "P3"].map(p => {
       const cs = report!.test_case_candidates.filter(c => c.priority === p);
       if (cfg().get<string>("ai.order") === "ai") {  // stable: relevance order inside each verdict
@@ -80,17 +108,17 @@ class CasesProvider implements vscode.TreeDataProvider<Node> {
       };
     }).filter(g => (g.children?.length ?? 0) > 0);
     if (report.existing_tests?.length) {
-      groups.push({ label: `Existing tests to re-run (${report.existing_tests.length})`, kind: "group",
+      groups.push({ label: `${ui("Existing tests to re-run")} (${report.existing_tests.length})`, kind: "group",
         children: report.existing_tests.map(t => ({ label: t.test, kind: "evidence" as const, file: t.file_path, line: t.line })) });
     }
     if (report.test_gaps?.length) {
-      groups.push({ label: `Test gaps: new test likely needed (${report.test_gaps.length})`, kind: "group",
+      groups.push({ label: `${ui("Test gaps: new test likely needed")} (${report.test_gaps.length})`, kind: "group",
         children: report.test_gaps.map(g => ({ label: `${g.symbol.qualified_name} — ${g.reason}`, kind: "evidence" as const,
           file: g.symbol.file_path, line: g.symbol.line })) });
     }
     if (report.ai_verification) {
       const av = report.ai_verification;
-      groups.push({ label: `AI: also check (${av.additional_checks.length})`, kind: "group", tooltip: av.summary,
+      groups.push({ label: `${ui("AI: also check")} (${av.additional_checks.length})`, kind: "group", tooltip: av.summary,
         children: av.additional_checks.map(a => {
           const m = /^(.*):(\d+)$/.exec(a.evidence || "");
           return { label: a.title, kind: "flag" as const, tooltip: a.why, file: m?.[1], line: m ? +m[2] : undefined };
@@ -98,7 +126,7 @@ class CasesProvider implements vscode.TreeDataProvider<Node> {
     }
     if (report.uncertainty_flags.length) {
       groups.push({
-        label: `Uncertain — manual review (${report.uncertainty_flags.length})`, kind: "group",
+        label: `${ui("Uncertain — manual review")} (${report.uncertainty_flags.length})`, kind: "group",
         children: report.uncertainty_flags.map(f => ({
           label: `${f.category}: ${f.related_symbol?.qualified_name ?? "-"}`, kind: "flag" as const, tooltip: f.reason,
           file: f.related_symbol?.file_path, line: f.related_symbol?.line,
@@ -106,7 +134,7 @@ class CasesProvider implements vscode.TreeDataProvider<Node> {
       });
     }
     if (report.affected_targets?.length) {
-      groups.push({ label: `Targets to rebuild/retest (${report.affected_targets.length})`, kind: "group",
+      groups.push({ label: `${ui("Targets to rebuild/retest")} (${report.affected_targets.length})`, kind: "group",
         children: report.affected_targets.map(t => ({ label: `${t.name} — ${t.relation}`, kind: "info" as const })) });
     }
     return groups;
@@ -134,13 +162,13 @@ class CasesProvider implements vscode.TreeDataProvider<Node> {
 
 function caseNode(c: Case): Node {
   const first = c.evidence.find(isSym);
-  const tip = `**${c.id}** ${c.priority} · ${RISK[c.risk_group]}${c.sub_reason ? " · " + c.sub_reason : ""}\n\n` +
-    `${c.description}\n\n*When*: ${c.activation_condition}\n\n` +
-    (c.corner_cases?.length ? "*Corner cases*:\n" + c.corner_cases.map(h => `- ${h}`).join("\n") + "\n\n" : "") +
-    `*Targets*: ${c.related_cmake_targets.join(", ")}` +
-    (c.target_reasons?.length ? "\n\n*Needs the target*:\n" + c.target_reasons.map(h => `- ${h}`).join("\n") : "") +
-    (c.verification ? `\n\n---\n**AI (${c.verification.verdict}${c.verification.recheck ? ", re-check" : ""})**: ${c.verification.note}` +
-      (c.verification.proof?.length ? `\n\n*Proof*: ${c.verification.proof.join(", ")}` : "") +
+  const tip = `**${c.id}** ${c.priority} · ${ui(RISK[c.risk_group])}${c.sub_reason ? " · " + c.sub_reason : ""}\n\n` +
+    `${c.description}\n\n*${ui("When")}*: ${c.activation_condition}\n\n` +
+    (c.corner_cases?.length ? `*${ui("Corner cases")}*:\n` + c.corner_cases.map(h => `- ${h}`).join("\n") + "\n\n" : "") +
+    `*${ui("Targets")}*: ${c.related_cmake_targets.join(", ")}` +
+    (c.target_reasons?.length ? `\n\n*${ui("Needs the target")}*:\n` + c.target_reasons.map(h => `- ${h}`).join("\n") : "") +
+    (c.verification ? `\n\n---\n**AI (${c.verification.verdict}${c.verification.recheck ? ", " + ui("re-check") : ""})**: ${c.verification.note}` +
+      (c.verification.proof?.length ? `\n\n*${ui("Proof")}*: ${c.verification.proof.join(", ")}` : "") +
       c.verification.extra_corner_cases.map(h => `\n- ${h}`).join("") : "");
   const children: Node[] = c.evidence.map(e => isSym(e)
     ? { label: e.qualified_name, kind: "evidence" as const, file: e.file_path, line: e.line }
@@ -148,7 +176,7 @@ function caseNode(c: Case): Node {
         file: e.source_location.file_path, line: e.source_location.line });
   for (const h of c.corner_cases ?? []) { children.push({ label: h, kind: "info" }); }
   for (const h of c.verification?.extra_corner_cases ?? []) { children.push({ label: `AI: ${h}`, kind: "info" }); }
-  return { label: `${c.id} [${ACTION_TAG[action(c)]}] [${RISK[c.risk_group]}] ${first?.qualified_name ?? ""}`, kind: "case", tooltip: tip,
+  return { label: `${c.id} [${ACTION_TAG[action(c)]}] [${ui(RISK[c.risk_group])}] ${first?.qualified_name ?? ""}`, kind: "case", tooltip: tip,
     children, file: first?.file_path, line: first?.line, verdict: c.verification?.verdict };
 }
 
@@ -254,7 +282,8 @@ function offerCodegraph() {
 function loadReport(dir: string, tree: CasesProvider) {
   const p = path.join(dir, "report.json");
   if (!fs.existsSync(p)) { return; }
-  report = JSON.parse(fs.readFileSync(p, "utf8")) as Report;
+  const raw = JSON.parse(fs.readFileSync(p, "utf8")) as Report;
+  report = raw.l10n ? localizeReport(raw, raw.l10n) : raw;
   reportDir = dir;
   tree.refresh();
   updateDiagnostics();
@@ -276,7 +305,7 @@ function updateDiagnostics() {
     const e = c.evidence.find(isSym);
     if (!e) { continue; }
     const line = Math.max(0, e.line - 1);
-    const d = new vscode.Diagnostic(new vscode.Range(line, 0, line, 200), `${c.id} ${c.priority} [${RISK[c.risk_group]}] ${c.description}`,
+    const d = new vscode.Diagnostic(new vscode.Range(line, 0, line, 200), `${c.id} ${c.priority} [${ui(RISK[c.risk_group])}] ${c.description}`,
       c.priority === "P1" ? vscode.DiagnosticSeverity.Information : vscode.DiagnosticSeverity.Hint);
     d.source = "TC Coverage";
     const f = path.join(repo, e.file_path);

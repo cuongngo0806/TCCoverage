@@ -45,6 +45,8 @@ Exit codes: `1` prerequisite (compile db / File API missing or stale → explain
 ## 3. Token discipline (mandatory)
 
 - Read **only** the brief stdout. Do **not** open `report.json` / `report.html` / `report.md` in full.
+- The brief follows the report language (`language` in `.tcadvisor/config.json`, default `vi`): its text may be
+  Vietnamese while the line tags (CHANGED, UNCERTAIN, TEST-GAP, NOTE, ...) stay English. Answer in the user's language.
 - Need details of one case? `python3 -c "import json;r=json.load(open('<out>/report.json'));print(json.dumps([c for c in r['test_case_candidates'] if c['id']=='TC-0003'],indent=1))"`
 - Need code? Read only the evidence window: `sed -n '<line-3>,<line+25>p' <file>` — for at most the P1 cases.
 - If the brief has > 40 cases, delegate the reading/summarising to the `tc-coverage-analyst` subagent and keep only its summary.

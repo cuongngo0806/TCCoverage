@@ -122,6 +122,22 @@ int unlockDoor(DoorState& s) {
 }
 
 
+_REPORTS: list[dict] = []  # every report the suite produced: its sentences must all have a translation
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Report language gate: a sentence the pipeline emits without a `report/l10n/vi_*.py` entry fails the run."""
+    from tcadvisor.report.l10n import Translator, localize
+    T = Translator("vi")
+    for r in _REPORTS:
+        localize(r, T)
+    if T.misses():
+        print("\nuntranslated report sentence(s) (add them to src/tcadvisor/report/l10n/vi_*.py):")
+        for text in sorted(T.misses()):
+            print(f"  {text}")
+        session.exitstatus = 1
+
+
 def _run(cmd, cwd):
     subprocess.run(cmd, cwd=cwd, check=True, capture_output=True)
 
@@ -160,13 +176,17 @@ class Project:
     def analyze(self, *extra: str, expect: int = 0) -> dict:
         args = ["analyze", "--repo", str(self.repo), "--build-dir", str(self.build), "--output-dir", str(self.out),
                 "--cache-dir", str(self.cache), "-q", *extra]
-        if "--graph" not in extra:  # the default (auto) depends on codegraph being installed
+        if "--graph" not in extra:  # the default (codegraph) needs codegraph installed
             args += ["--graph", "clang"]
+        if "--language" not in extra:  # assertions read the English text; report language tests pass --language
+            args += ["--language", "en"]
         rc = cli_main(args)
         assert rc == expect, f"exit {rc}"
         if rc != 0:
             return {}
-        return json.loads((self.out / "report.json").read_text())
+        report = json.loads((self.out / "report.json").read_text())
+        _REPORTS.append(report)
+        return report
 
 
 @pytest.fixture

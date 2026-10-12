@@ -128,7 +128,7 @@ def assign(cases: list[TestCaseCandidate], repo: Path, root_lines: dict[str, lis
         for rid in sorted({c.node_id} | node_roots.get(c.node_id, set())):
             f = flag_at.get((sym, ev.file_path)) if rid == c.node_id else None
             if f:
-                reasons.append(f"runtime routing ({f.category}): {f.reason[:120]}")
+                reasons.append(f"runtime routing ({f.category}): {f.reason}")
             reasons += root_hits.get(rid, [])
         if getattr(ev, "kind", "file") != "file":
             key = f"{ev.file_path}:{ev.line}"
