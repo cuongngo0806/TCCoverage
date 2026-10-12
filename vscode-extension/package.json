@@ -2,7 +2,7 @@
   "name": "tc-coverage",
   "displayName": "TC Coverage \u2014 Change Impact & Test Cases",
   "description": "Shows the test cases, corner cases and impact flow a C++/CMake change must be checked against (powered by tcadvisor).",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "tccoverage",
   "license": "UNLICENSED",
   "engines": {
