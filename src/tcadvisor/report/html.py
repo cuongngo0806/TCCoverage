@@ -6,6 +6,7 @@ Inside the VS Code webview, file:line links open the editor via ``postMessage``.
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from typing import Any
 
 _TEMPLATE = r"""<!doctype html>
@@ -319,12 +320,33 @@ if(NO.length)document.getElementById('notesSec').innerHTML='<h2>Run notes</h2><d
 """
 
 
+def localized_template(lang: str) -> str:
+    """The page template with its chrome in ``lang``; raises when a translated fragment is gone from the template."""
+    if lang != "vi":
+        return _TEMPLATE
+    return _vi_template()
+
+
+@lru_cache(maxsize=None)
+def _vi_template() -> str:
+    from tcadvisor.report.l10n.vi_html import HTML
+    out = _TEMPLATE
+    for en, vi in HTML:
+        if en not in out:
+            raise ValueError(f"vi_html fragment not in the HTML template (template changed?): {en!r}")
+        out = out.replace(en, vi)
+    return out
+
+
 def to_html(report: dict[str, Any]) -> str:
+    from tcadvisor.report.l10n import Translator, localize
     from tcadvisor.report.results import empty_block
+    T = Translator(report.get("report_language", "en"))
     block = report.get("test_results") or empty_block(report, report.get("metrics", {}).get("attachment_warn_mb", 50))
-    data = {k: v for k, v in report.items() if k != "test_results"}  # attachments live once, in the results block
-    pre, rest = _TEMPLATE.split("__DATA__")
+    # the page shows the report in its language; case ids / keys (read back by results.py) are never translated
+    shown = localize(report, T)
+    data = {k: v for k, v in shown.items() if k != "test_results"}  # attachments live once, in the results block
+    pre, rest = localized_template(T.lang).split("__DATA__")
     mid, post = rest.split("__RESULTS__")
     return (pre + json.dumps(data).replace("<", "\\u003c") + mid + json.dumps(block).replace("<", "\\u003c")
             + post)
-

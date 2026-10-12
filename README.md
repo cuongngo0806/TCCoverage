@@ -138,13 +138,30 @@ Each case has a stable `key` (what the case is about, not its position) and a `c
 analysis never silently drops a filled report in its output directory: it is copied to
 `report.results-backup-<time>.html` first.
 
-## Graph providers
+## Graph providers and project config
 
 ```bash
-npm i -g @colbymchenry/codegraph     # MIT — default for --graph auto
+npm i -g @colbymchenry/codegraph     # MIT — the default source
 npm i -g gitnexus                    # optional; PolyForm-Noncommercial license, check before commercial use
-tcadvisor analyze ... --graph auto|codegraph|gitnexus|clang
+tcadvisor analyze ... --graph codegraph|gitnexus|clang --language vi|en
 ```
+
+`<repo>/.tcadvisor/config.json` sets the defaults for a project (CLI, VS Code extension and workflows):
+
+```json
+{"graph": "codegraph", "language": "vi"}
+```
+
+Precedence: command-line flag > config file > built-in default (`codegraph`, `vi`). The configured source is
+**always** the one used: if it is missing or fails, the run stops (exit 1) with the install command (the VS Code
+extension offers an *Install codegraph* button); a root the source cannot resolve becomes an uncertainty flag,
+it is never traced with another graph. `clang` = the built-in libclang graph (needs compile_commands.json).
+codegraph's index is built in `<repo>/.codegraph/` on the first run (`codegraph init`, git-ignored via
+`.git/info/exclude`) and synced on later runs, so nothing has to be set up per repo.
+
+`language` selects the report language (Markdown, HTML, brief, VS Code view): `vi` (default) or `en`.
+`report.json` keeps the English text as the machine contract and records `report_language`;
+`tcadvisor render report.json --language en` re-renders an existing report in the other language.
 
 With a graph provider the libclang index is replaced by a fast `#include` scan (`--index auto|full|lite`),
 so ~1M-line code bases analyse in minutes. With codegraph/GitNexus a compile database is optional (results are marked *reduced accuracy* without it);

@@ -13,7 +13,7 @@ analysed repo.
   `evidence/` (uncertainty flags, evidence gate) → `llm/` (optional, off by default) → `report/`.
 - `tests/` — pytest; `tests/conftest.py` builds a synthetic CMake project (needs cmake + clang).
 - `vscode-extension/` — VS Code front-end (TypeScript) calling the CLI.
-- `src/tcadvisor/graph/providers/` — codegraph / GitNexus adapters; `src/tcadvisor/verify/` — packets, annotate, headless Claude runner.
+- `src/tcadvisor/graph/providers/` — codegraph / GitNexus / clang impact source (`.tcadvisor/config.json` `graph`, never switched); `src/tcadvisor/verify/` — packets, annotate, headless Claude runner.
 - Spec 006 (lessons + test report): `index/flow.py` + `graph/dataflow.py` (data paths A→B→C), `graph/sources.py`
   (sibling trigger sources), `classify/patterns.py` + `classify/lessons.py` (patterns, `.tcadvisor/lessons.json`),
   `report/results.py` (fillable report results, `--previous-report`, `tcadvisor results`).
@@ -63,4 +63,6 @@ are cross-platform: `python3 .specify/scripts/python/speckit.py <check-prerequis
 Output is a case list (no test code). Every case has resolvable evidence. Dependency tracing is
 deterministic; an LLM may only reword descriptions of already-emitted cases. Blind spots go to
 `uncertainty_flags`, never silently dropped. Local-first: no source leaves the machine unless
-`--llm-external-approved`. All tool output in English.
+`--llm-external-approved`. Code, docs, CLI messages and report.json text in English; the rendered report follows
+`report_language` (vi default, en — `--language` / `.tcadvisor/config.json`) via `report/l10n/` catalogs: a new or
+changed report sentence needs its `vi_*.py` entry (`scripts/l10n_check.py`, `tests/integration/test_l10n.py`).

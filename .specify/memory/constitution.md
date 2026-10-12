@@ -1,4 +1,15 @@
 <!--
+Sync Impact Report (1.2.0, 2026-10-12)
+===================
+Version change: 1.1.0 → 1.2.0
+Modified principle: IX (English-Only Documentation & Output → English Documentation, Configurable Report Language)
+— the report shown to testers (Markdown, HTML, brief, VS Code view) follows the configured report language:
+Vietnamese (`vi`, default) or English (`en`). Documentation, specs, code, CLI/log messages and the text inside
+report.json (the machine contract) stay English.
+Rationale / sign-off: requested by the project owner (the testers reading the case lists work in Vietnamese).
+Translation is deterministic (a fixed catalog applied at render time); no case, evidence or priority depends on it.
+Templates: none changed.
+
 Sync Impact Report (1.1.0, 2026-10-11)
 ===================
 Version change: 1.0.0 → 1.1.0
@@ -28,7 +39,7 @@ Principles established:
   6. Local-First Execution & Data Privacy (NON-NEGOTIABLE)
   7. Recall Over Volume (Missed-Regression Priority)
   8. Fixed Scope — No Code Mutation, No Test Execution, No Test Authoring (NON-NEGOTIABLE)
-  9. English-Only Documentation & Output
+  9. English Documentation, Configurable Report Language
 
 Added sections:
   - Core Principles (9 principles, mapped 1:1 to the user-supplied binding principles)
@@ -139,12 +150,15 @@ under this project. Rationale: scope creep from "helpful" adjacent features is h
 analysis tools turn into unreliable, unmaintainable do-everything systems; a hard scope fence keeps
 the tool trustworthy and reviewable.
 
-### IX. English-Only Documentation & Output
-All documentation (specs, plans, READMEs, in-tool help) and all tool output presented to users
-(case descriptions, risk labels, evidence annotations, CLI/log messages) MUST be written in
-English. This applies regardless of the language of the source code being analyzed. Rationale: a
-single documentation/output language keeps the tool consistent and reviewable across a mixed-team,
-multi-repo environment.
+### IX. English Documentation, Configurable Report Language
+All documentation (specs, plans, READMEs, in-tool help), source code, CLI/log messages and the text stored in
+`report.json` (the machine contract read by AI verifiers, lessons, tests and integrations) MUST be English,
+regardless of the language of the source code being analyzed. The report presented to testers (Markdown, HTML,
+brief and the VS Code view) MUST follow the configured report language — `vi` (default) or `en` — set by
+`--language` or `<repo>/.tcadvisor/config.json`. Translation MUST be deterministic (a fixed catalog applied at
+render time) and MUST NOT change which cases, evidence, priorities or flags are reported; a sentence without a
+translation is shown in English rather than dropped. Rationale: one engineering language keeps the tool reviewable
+across a mixed team, while testers read the case list in their own language.
 
 ## Technology & Tooling Constraints
 
@@ -216,4 +230,4 @@ include an explicit check that the planned output remains a test-case list with 
 rather than dropped (Principle IV), and that scope stays fixed (Principle VIII). Violations found
 during review block progression to implementation until resolved or the constitution is amended.
 
-**Version**: 1.1.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-11
+**Version**: 1.2.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-12

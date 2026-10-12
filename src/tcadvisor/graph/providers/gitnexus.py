@@ -22,6 +22,7 @@ class GitNexusProvider(Provider):
     name = "gitnexus"
     env_var = "TCADVISOR_GITNEXUS"
     binary = "gitnexus"
+    install = "npm i -g gitnexus"
 
     def prepare(self) -> list[str]:
         self.run("analyze", ".", "--index-only", "--skip-fts", timeout=3600)

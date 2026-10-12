@@ -245,6 +245,14 @@
     "metrics": {
       "type": "object"
     },
+    "report_language": {
+      "type": "string",
+      "enum": [
+        "vi",
+        "en"
+      ],
+      "description": "Language the md/html/brief renderings use; the text in this file stays English"
+    },
     "graph_provider": {
       "type": "string",
       "enum": [

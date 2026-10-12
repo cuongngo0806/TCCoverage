@@ -5,7 +5,7 @@ Two loops share one rule: **graphs decide impact, models only verify and enrich.
 ## 1. Runtime loop (every change a developer makes)
 
 ```text
- git diff ─► tcadvisor analyze --graph auto ───────────────► report.json/.md/.html/brief   ($0, deterministic)
+ git diff ─► tcadvisor analyze (codegraph) ───────────────────► report.json/.md/.html/brief   ($0, deterministic)
               │  changed symbols: libclang token diff + risk rules
               │  impact: codegraph (default) | GitNexus (opt-in) | libclang
               ▼
@@ -23,7 +23,7 @@ Ways to run it — all produce the same annotated report:
 | Entry point | Command |
 |---|---|
 | VS Code | *TC Coverage: Analyze …* then *Verify Cases with Claude (AI)* |
-| CLI / CI | `tcadvisor analyze … --graph auto` then `tcadvisor verify <out>/report.json --ai-external-approved` |
+| CLI / CI | `tcadvisor analyze …` (source from `.tcadvisor/config.json`, default codegraph) then `tcadvisor verify <out>/report.json --ai-external-approved` |
 | Claude Code chat | `/tc-coverage HEAD~1..HEAD` (skill; delegates to the agents below) |
 | Claude Code workflow | Workflow `tc-verify` with args `{repo, buildDir, mode, graph}` |
 

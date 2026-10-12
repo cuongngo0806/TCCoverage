@@ -30,11 +30,12 @@ $ARGUMENTS
 
 ```bash
 <python> -m tcadvisor analyze --repo <repo> --build-dir <build> <mode> [--targets <targets>] \
-  --graph auto --output-dir <repo>/../tcadvisor-report --print brief -q
+  --output-dir <repo>/../tcadvisor-report --print brief -q
 ```
 
-Impact comes from the code graph (`--graph auto` = codegraph if installed, else the built-in libclang
-graph; `--graph gitnexus` only if the user opted in — PolyForm-Noncommercial license). **You never trace
+Impact comes from the configured source (`graph` in `<repo>/.tcadvisor/config.json`, else codegraph; do not
+pass `--graph` unless the user asks). If it is missing the run stops with the install command — tell the user,
+never switch to another `--graph` on your own; `--graph gitnexus` only if the user opted in — PolyForm-Noncommercial license). **You never trace
 impact yourself; you only verify it** (step 3b).
 
 (If `tcadvisor` is not installed: `pip install -e <this TCCoverage repo>` first.)
@@ -44,6 +45,8 @@ Exit codes: `1` prerequisite (compile db / File API missing or stale → explain
 ## 3. Token discipline (mandatory)
 
 - Read **only** the brief stdout. Do **not** open `report.json` / `report.html` / `report.md` in full.
+- The brief follows the report language (`language` in `.tcadvisor/config.json`, default `vi`): its text may be
+  Vietnamese while the line tags (CHANGED, UNCERTAIN, TEST-GAP, NOTE, ...) stay English. Answer in the user's language.
 - Need details of one case? `python3 -c "import json;r=json.load(open('<out>/report.json'));print(json.dumps([c for c in r['test_case_candidates'] if c['id']=='TC-0003'],indent=1))"`
 - Need code? Read only the evidence window: `sed -n '<line-3>,<line+25>p' <file>` — for at most the P1 cases.
 - If the brief has > 40 cases, delegate the reading/summarising to the `tc-coverage-analyst` subagent and keep only its summary.
