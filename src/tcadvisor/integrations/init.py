@@ -8,17 +8,20 @@ front-ends themselves, so one command makes `/tc-coverage` work in the repositor
   `/tc-verify` prompt files in `.github/prompts/`.
 
 The skill is one file for every assistant (`integrations/skills/tc-coverage/SKILL.md`). Existing files are kept
-unless `--force`.
+unless `--force`; an existing config keeps its values and only gains the keys it lacks (spec 012: the config lists
+every supported key with its default, and `python` = the interpreter that ran `init`). The report root
+`.tcadvisor/reports/` and generated compile databases `.tcadvisor/build/` go to `.git/info/exclude`.
 """
 from __future__ import annotations
 
 import json
 import shutil
+import sys
 from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from tcadvisor.config import config_path, load_config
+from tcadvisor.config import DEFAULTS, config_path, load_config, read_file
 
 AIS = ("claude", "copilot")
 COPILOT_PROMPTS = ("tc-coverage.prompt.md", "tc-verify.prompt.md")
@@ -53,11 +56,22 @@ def init(repo: Path, settings: dict[str, Any], ais: tuple[str, ...] = AIS, force
     if not (repo / ".git").exists():
         from tcadvisor.models import UsageError
         raise UsageError(f"--repo '{repo}' is not a git repository root")
-    cfg = {"graph": "codegraph", "language": "vi", "build_dir": "build", "include_tests": False,
-           "ai_verify": "chat" if ais else "off", **{k: v for k, v in settings.items() if v is not None}}
+    given = {k: v for k, v in settings.items() if v is not None}
+    cfg = {**DEFAULTS, "ai_verify": "chat" if ais else "off", "python": sys.executable, **given}
     path = config_path(repo)
-    out = [(path, _write(path, json.dumps(cfg, indent=2, ensure_ascii=False) + "\n", force))]
+    if path.is_file() and not force:
+        existing = read_file(repo)  # validates; its values win, missing keys are added
+        merged = {**cfg, **existing}
+        status = "kept (exists; --force to overwrite)" if merged == existing else "updated (missing keys added)"
+        if merged != existing:
+            path.write_text(json.dumps(merged, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        out = [(path, status)]
+    else:
+        out = [(path, _write(path, json.dumps(cfg, indent=2, ensure_ascii=False) + "\n", True))]
     load_config(repo)  # validate what is on disk now
+    from tcadvisor.ingest.git import git_exclude
+    for entry in (".tcadvisor/reports/", ".tcadvisor/build/"):
+        git_exclude(repo, entry)
     for ai in ais:
         for rel, text in files_for(ai):
             out.append((repo / rel, _write(repo / rel, text, force)))

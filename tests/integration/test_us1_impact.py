@@ -88,10 +88,10 @@ def test_prerequisite_failures(project, tmp_path):
     project.analyze("--working-tree", expect=1)
 
 
-def test_output_dir_inside_repo_is_rejected(project):
+def test_cache_dir_inside_repo_is_rejected(project):
     from tcadvisor.cli.main import main
     rc = main(["analyze", "--repo", str(project.repo), "--build-dir", str(project.build), "--working-tree",
-               "--output-dir", str(project.repo / "out"), "--cache-dir", str(project.cache), "-q"])
+               "--output-dir", str(project.out), "--cache-dir", str(project.repo / "cache"), "-q"])
     assert rc == 2
 
 

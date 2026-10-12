@@ -83,7 +83,7 @@ def main() -> int:
         out = a.workdir / f"out-{prov}"
         t0 = time.monotonic()
         cmd = [sys.executable, "-m", "tcadvisor", "analyze", "--repo", str(repo), "--build-dir", str(build),
-               "--commit-range", "HEAD~1..HEAD", "--output-dir", str(out), "--cache-dir", str(a.workdir / "cache"),
+               "--commit-range", "HEAD~1..HEAD", "--output-dir", str(out), "--exact-output-dir", "--cache-dir", str(a.workdir / "cache"),
                "--graph", prov, "--no-run-cache", "--include-tests", "-q"] + (["--graph-bin", env_bin] if env_bin else [])
         res = subprocess.run(cmd, capture_output=True, text=True)
         if res.returncode != 0:

@@ -40,8 +40,8 @@ def test_cli_default_language_is_vi(project):
     project.edit("src/util.cpp", "if (n > 3) return 3;", "if (n > 4) return 4;")
     project.commit()
     args = ["analyze", "--repo", str(project.repo), "--build-dir", str(project.build), "--output-dir",
-            str(project.out), "--cache-dir", str(project.cache), "--commit-range", "HEAD~1..HEAD", "--graph", "clang",
-            "-q"]
+            str(project.out), "--exact-output-dir", "--cache-dir", str(project.cache), "--commit-range", "HEAD~1..HEAD",
+            "--graph", "clang", "-q"]
     assert main(args) == 0
     assert json.loads((project.out / "report.json").read_text())["report_language"] == "vi"
 

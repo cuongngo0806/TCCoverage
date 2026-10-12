@@ -136,3 +136,23 @@ def fix_history(repo: Path, until_rev: str | None, months: int = 12) -> dict[str
         if line:
             counts[line] = counts.get(line, 0) + 1
     return counts
+
+
+def git_exclude(repo: Path, entry: str) -> bool:
+    """Keep a tool-owned path out of `git status` (and out of working-tree analyses) via `.git/info/exclude`,
+    without touching tracked files (Principle VIII). Returns True when the entry is present afterwards."""
+    git_dir = repo / ".git"
+    if git_dir.is_file():  # worktree / submodule: "gitdir: <path>"
+        try:
+            git_dir = (repo / git_dir.read_text(encoding="utf-8").split(":", 1)[1].strip()).resolve()
+        except (OSError, IndexError):
+            return False
+    ex = git_dir / "info" / "exclude"
+    try:
+        text = ex.read_text(encoding="utf-8") if ex.exists() else ""
+        if entry not in text.split():
+            ex.parent.mkdir(parents=True, exist_ok=True)
+            ex.write_text(text + ("" if text.endswith("\n") or not text else "\n") + entry + "\n", encoding="utf-8")
+        return True
+    except OSError:
+        return False

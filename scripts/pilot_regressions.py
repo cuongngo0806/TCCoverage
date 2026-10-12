@@ -208,7 +208,7 @@ def analyse(a, pair: dict, info: dict) -> dict:
     out = a.run_dir / f"out-{pair['intro']}"
     t0 = time.monotonic()
     cmd = [sys.executable, "-m", "tcadvisor", "analyze", "--repo", info["wt"], "--build-dir", info["build"],
-           "--commit-range", f"{pair['intro']}^..{pair['intro']}", "--output-dir", str(out), "--cache-dir",
+           "--commit-range", f"{pair['intro']}^..{pair['intro']}", "--output-dir", str(out), "--exact-output-dir", "--cache-dir",
            str(a.run_dir / f"cache-{pair['intro']}"), "--graph", a.graph, "--no-run-cache",
            "--allow-stale-compile-db", "--max-hop-depth", str(a.max_hop_depth), "--jobs", "1", "--include-tests", "-q",
            *shlex.split(a.extra_args)]

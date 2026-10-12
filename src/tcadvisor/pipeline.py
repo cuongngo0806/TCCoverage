@@ -46,7 +46,7 @@ class Options:
     max_hop_depth: int = 2
     split_threshold: int = 50
     cache_dir: Path | None = None
-    output_dir: Path = Path("tcadvisor-report")
+    output_dir: Path = Path(".tcadvisor/reports")  # report root (run folders are created by the CLI)
     targets: list[str] | None = None
     llm: bool = False
     llm_endpoint: str = "http://localhost:11434"
@@ -68,6 +68,8 @@ class Options:
     language: str = "vi"  # report language (vi|en); report.json text stays English, renderers translate
     include_tests: bool = False  # unit-test code (changed tests, test callers, test includers, re-run lists)
     test_paths: list[str] = field(default_factory=list)  # extra globs of test / mock files (config `test_paths`)
+    build_system: str = "auto"  # spec 012: auto|cmake|autotools
+    profile: Any = None  # spec 012: classify.variants.RunProfile (confirmed build variants) or None
     progress: Callable[[str], None] | None = None
 
 
@@ -108,10 +110,9 @@ def run(opts: Options) -> dict[str, Any]:
     repo = opts.repo.resolve()
     if not (repo / ".git").exists():
         raise UsageError(f"--repo '{repo}' is not a git repository root")
-    for label, p in (("--output-dir", opts.output_dir), ("--cache-dir", opts.cache_dir)):
-        if p is not None and _is_within(p, repo):
-            raise UsageError(f"{label} '{p}' resolves inside the analysed repository; the advisor never writes "
-                             "into the analysed repo (Principle VIII)")
+    if opts.cache_dir is not None and _is_within(opts.cache_dir, repo):  # reports may live in <repo>/.tcadvisor
+        raise UsageError(f"--cache-dir '{opts.cache_dir}' resolves inside the analysed repository; the index cache "
+                         "is kept outside it")
     previous = read_results(opts.previous_report) if opts.previous_report else None
     cache = CacheStore(opts.cache_dir or default_cache_dir(repo))
     try:
@@ -438,6 +439,8 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
 
     ci_dict = ci_.to_dict()
     ci_dict["symbols"] = ci_dict_symbols
+    if ctx.old_rev or ctx.new_rev:
+        ci_dict["old_rev"], ci_dict["new_rev"] = ctx.old_rev, ctx.new_rev
     report = {
         "tool": {"name": "tcadvisor", "version": __version__},
         "run_id": str(uuid.uuid4()),

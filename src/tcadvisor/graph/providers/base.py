@@ -80,14 +80,8 @@ class Provider:
 
     def exclude_index_dir(self, dirname: str) -> None:
         """Keep the provider's index out of `git status` without touching tracked files (Principle VIII)."""
-        ex = self.repo / ".git" / "info" / "exclude"
-        try:
-            text = ex.read_text() if ex.exists() else ""
-            if dirname not in text.split():
-                ex.parent.mkdir(parents=True, exist_ok=True)
-                ex.write_text(text + ("" if text.endswith("\n") or not text else "\n") + dirname + "\n")
-        except OSError:
-            pass
+        from tcadvisor.ingest.git import git_exclude
+        git_exclude(self.repo, dirname)
 
     def prepare(self) -> list[str]:
         raise NotImplementedError

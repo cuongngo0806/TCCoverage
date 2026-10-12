@@ -203,4 +203,15 @@ ENTRIES: list[tuple[str, str]] = [
      "file(s)",
      "đã bỏ qua code unit test (include_tests đang tắt): {a} symbol thay đổi, {b} hàm / file test bị ảnh hưởng"),
     ("unit-test code: not analysed (include_tests is off)", "code unit test: không phân tích (include_tests đang tắt)"),
+    # -- spec 012: run folders, build profile ------------------------------------------------------------------
+    ("no confirmed build profile: nothing filtered; run 'tcadvisor profile' to confirm the build variants",
+     "chưa có build profile đã xác nhận: không lọc gì; chạy 'tcadvisor profile' để xác nhận các biến thể build"),
+    ("build profile ignored for this run (--no-variant-filter): nothing filtered",
+     "lần chạy này bỏ qua build profile (--no-variant-filter): không lọc gì"),
+    ("unknown variant(s) {names} ignored (profile: {known})",
+     "bỏ qua (các) biến thể không có trong profile: {names} (profile: {known})"),
+    ("test results carried over from the latest run {run} (by case key); pass --previous-report to choose another "
+     "filled report",
+     "kết quả test được chuyển từ lần chạy gần nhất {run} (theo key của case); dùng --previous-report để chọn report "
+     "đã điền khác"),
 ]

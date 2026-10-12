@@ -175,7 +175,7 @@ class Project:
 
     def analyze(self, *extra: str, expect: int = 0) -> dict:
         args = ["analyze", "--repo", str(self.repo), "--build-dir", str(self.build), "--output-dir", str(self.out),
-                "--cache-dir", str(self.cache), "-q", *extra]
+                "--exact-output-dir", "--cache-dir", str(self.cache), "-q", *extra]
         if "--graph" not in extra:  # the default (codegraph) needs codegraph installed
             args += ["--graph", "clang"]
         if "--language" not in extra:  # assertions read the English text; report language tests pass --language
