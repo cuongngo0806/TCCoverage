@@ -60,6 +60,26 @@ tcadvisor compile-db --repo . --from-log "$WORKDIR/temp/log.do_compile" --varian
 - Run it on the host that has the Yocto `tmp/` directory: include paths into the recipe sysroot must exist.
 - Local build instead of Yocto: `autoreconf -fi && mkdir -p b && cd b && ../configure <options> && make V=1 2>&1 |
   tee ../build-<name>.log`, then `--from-log build-<name>.log`.
+
+### The module does not build on the host (target-only headers such as `dlt/dlt.h`)
+
+The tool needs the compiler **command lines**, not a successful build. In order of accuracy:
+
+1. **Yocto `log.do_compile`** (above): the real cross build, include paths into the recipe sysroot.
+2. **Yocto SDK** (`bitbake <image> -c populate_sdk`, installed once): `source /opt/<sdk>/environment-setup-*`,
+   then configure with the SDK's flags and print the commands without compiling:
+   `mkdir -p ../rc-build && cd ../rc-build && <workspace>/configure $CONFIGURE_FLAGS && make -n V=1 > dry.log`.
+   Headers like `dlt/dlt.h` resolve from the SDK sysroot.
+3. **Host configure + dry run**, when `configure` passes on the host but `make` stops at a missing header:
+   `make -n V=1 > dry.log` (prints every compile command, compiles nothing) or `make -k V=1 > keep.log 2>&1`
+   (keeps going after errors). Then `tcadvisor compile-db --from-log dry.log --variant <name>`. Flags and defines
+   are exact; files that include the missing headers are parsed with errors, which only lowers accuracy around
+   those headers.
+4. **No configure at all**: skip the compile database. With the default codegraph impact source the analysis
+   still runs (marked *reduced accuracy*), and products / sources still come from `Makefile.am`.
+
+Keep build directories outside the workspace (`../rc-build`), or the build files show up as changes in
+`--working-tree` analyses.
 - Other recorders work too (`bear -- make`, `compiledb make`): point a variant's `compile_db` at their output.
 
 Output: `.tcadvisor/build/<name>/compile_commands.json`. Re-run the command after the build flags change.

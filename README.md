@@ -282,6 +282,9 @@ autoreconf -fi && mkdir -p b && cd b && ../configure && make V=1 2>&1 | tee ../b
 tcadvisor compile-db --repo . --from-log build.log --variant default
 ```
 
+Cannot build on the host (target-only headers)? `make -n V=1 > dry.log` after `configure` prints every compile
+command without compiling; `compile-db --from-log dry.log` reads it. More options: [docs/linux-yocto.md](docs/linux-yocto.md).
+
 ## CLI
 
 ```bash

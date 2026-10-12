@@ -1,5 +1,6 @@
 """Spec 012 US2: a Yocto-style autotools module (configure.ac + Makefile.am) analysed with its products."""
 import json
+from pathlib import Path
 
 from tcadvisor.cli.main import main
 
@@ -69,3 +70,19 @@ def test_readme_flow_init_compile_db_analyze(autotools_project, capsys):
                  "-q"]) == 0
     out = capsys.readouterr().out
     assert "remote_level" in out and "reduced accuracy" not in out
+
+
+def test_compile_db_from_make_dry_run_without_building(autotools_project, capsys):
+    """Target-only headers missing on the host: `make -n V=1` after configure lists every compile command."""
+    import subprocess
+    pr = autotools_project
+    b = pr.root / "b-dry"
+    b.mkdir()
+    subprocess.run([str(pr.repo / "configure")], cwd=b, check=True, capture_output=True)
+    dry = subprocess.run(["make", "-n", "V=1"], cwd=b, capture_output=True, text=True)
+    log = pr.root / "dry.log"
+    log.write_text(dry.stdout)
+    assert not list(b.rglob("*.o"))  # nothing was compiled
+    assert main(["compile-db", "--repo", str(pr.repo), "--from-log", str(log), "--variant", "dry"]) == 0
+    db = json.loads((pr.repo / ".tcadvisor" / "build" / "dry" / "compile_commands.json").read_text())
+    assert {Path(e["file"]).name for e in db} == {"remote.c", "main.c"}

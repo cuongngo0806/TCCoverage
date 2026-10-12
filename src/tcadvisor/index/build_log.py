@@ -61,16 +61,44 @@ def _source_arg(argv: list[str]) -> int | None:
     return found
 
 
-def _command(line: str, cwd: str | None) -> list[str] | None:
-    """argv of a compile command on this log line, or None."""
+_SEGMENT = re.compile(r"\s*(?:&&|\|\||;)\s*")
+
+
+def _argv(segment: str) -> list[str] | None:
+    """argv of one shell command if it is a compile command (`-c`), after unwrapping libtool / ccache / env."""
+    seg = segment.strip()
+    if seg.startswith("+ "):  # shell trace (set -x)
+        seg = seg[2:]
+    seg = re.sub(r"\s+\d?>\s*/dev/null|\s+2>&1", "", seg)
+    try:
+        argv = shlex.split(seg)
+    except ValueError:
+        return None
+    if not argv:
+        return None
+    if "--mode=compile" in argv:  # `/bin/sh ./libtool --tag=CXX --mode=compile g++ ...` (make -n, make -k logs)
+        rest = argv[argv.index("--mode=compile") + 1:]
+        while rest and rest[0].startswith("--"):
+            rest = rest[1:]
+        argv = rest
+    elif any(a.startswith("--mode=") for a in argv):  # libtool link / install
+        return None
+    # `ccache gcc`, `env X=1 gcc`, `${CCACHE}arm-poky-linux-gnueabi-gcc`
+    while argv and (argv[0] in ("ccache", "sccache", "distcc", "env") or "=" in argv[0]) and len(argv) > 1:
+        argv = argv[1:]
+    if not argv or not _COMPILER.match(argv[0]) or "-c" not in argv:
+        return None
+    return argv
+
+
+def _commands(line: str, cwd: str | None) -> list[tuple[list[str], bool]]:
+    """Compile commands on one (continuation-joined) log line: a plain compiler call, a libtool `compile:` echo, a
+    libtool wrapper call, or one of several shell commands joined with `&&` / `;` (as `make -n` prints them)."""
     line = line.strip()
     m = _LIBTOOL.match(line)
+    exact = bool(m)  # libtool's own echo of the command it ran: preferred over its wrapper call
     if m:
         line = m.group(1)
-    elif line.startswith("+ "):  # shell trace (set -x)
-        line = line[2:]
-    if "--mode=compile" in line or "--mode=link" in line:  # the libtool wrapper; its `libtool: compile:` follows
-        return None
 
     def test_f(mm: re.Match) -> str:
         name, alt, rest = mm.group(1), mm.group(2), mm.group(3)
@@ -78,21 +106,12 @@ def _command(line: str, cwd: str | None) -> list[str] | None:
             return rest
         return alt + rest
     line = _TEST_F.sub(test_f, line)
-    for sep in (" >/dev/null", " 2>&1", "&&", ";"):
-        if sep in line and not line.startswith(sep):
-            line = line.split(sep, 1)[0]
-    try:
-        argv = shlex.split(line)
-    except ValueError:
-        return None
-    if not argv:
-        return None
-    # `ccache gcc`, `env X=1 gcc`, `${CCACHE}arm-poky-linux-gnueabi-gcc`
-    while argv and (argv[0] in ("ccache", "sccache", "distcc", "env") or "=" in argv[0]) and len(argv) > 1:
-        argv = argv[1:]
-    if not _COMPILER.match(argv[0]) or "-c" not in argv:
-        return None
-    return argv
+    out = []
+    for seg in _SEGMENT.split(line):
+        argv = _argv(seg)
+        if argv is not None:
+            out.append((argv, exact or "--mode=compile" not in seg))
+    return out
 
 
 def _remap(path: str, prefix_map: dict[str, str]) -> str:
@@ -121,8 +140,8 @@ def parse_build_log(text: str, repo: Path, src: str | None = None, maps: dict[st
     if src:
         out.prefix_map[src.rstrip("/")] = str(repo)
     stack: list[str] = [start_dir] if start_dir else []
-    seen: set[str] = set()
-    for raw in text.splitlines():
+    seen: dict[str, int] = {}
+    for raw in re.sub(r"\\\n", " ", text).splitlines():  # join shell continuation lines (make -n output)
         m = _ENTER.match(raw.strip())
         if m:
             stack.append(m.group(1))
@@ -132,27 +151,39 @@ def parse_build_log(text: str, repo: Path, src: str | None = None, maps: dict[st
                 stack.pop()
             continue
         cwd = stack[-1] if stack else None
-        argv = _command(raw, cwd)
-        if argv is None:
-            continue
-        i = _source_arg(argv)
-        if i is None:
-            continue
-        directory = cwd or str(repo)
-        file_abs = os.path.normpath(os.path.join(directory, argv[i]))
-        mapped = _remap(file_abs, out.prefix_map)
-        if not Path(mapped).is_file() and not src:
-            guess = _auto_prefix(file_abs, repo)
-            if guess and guess[0] not in out.prefix_map:
-                out.prefix_map[guess[0]] = guess[1]
-                mapped = _remap(file_abs, out.prefix_map)
-        if mapped in seen:  # libtool compiles twice (PIC and non-PIC); keep the first
-            continue
-        seen.add(mapped)
-        if not Path(mapped).is_file():
-            out.unmapped.append(file_abs)
-        out.entries.append({"directory": directory, "file": file_abs, "arguments": argv})
-    # apply the final prefix map to every path-like token (directory, -I, file) for a self-consistent database
+        for argv, exact in _commands(raw, cwd):
+            _add(out, argv, cwd, repo, src, seen, exact)
+    _finish(out)
+    return out
+
+
+def _add(out: LogParse, argv: list[str], cwd: str | None, repo: Path, src: str | None, seen: dict[str, int],
+         exact: bool) -> None:
+    i = _source_arg(argv)
+    if i is None:
+        return
+    directory = cwd or str(repo)
+    file_abs = os.path.normpath(os.path.join(directory, argv[i]))
+    mapped = _remap(file_abs, out.prefix_map)
+    if not Path(mapped).is_file() and not src:
+        guess = _auto_prefix(file_abs, repo)
+        if guess and guess[0] not in out.prefix_map:
+            out.prefix_map[guess[0]] = guess[1]
+            mapped = _remap(file_abs, out.prefix_map)
+    entry = {"directory": directory, "file": file_abs, "arguments": argv, "_exact": exact}
+    if mapped in seen:  # PIC and non-PIC compile: keep the first; libtool's echo replaces its wrapper call
+        prev = out.entries[seen[mapped]]
+        if exact and not prev["_exact"]:
+            out.entries[seen[mapped]] = entry
+        return
+    seen[mapped] = len(out.entries)
+    if not Path(mapped).is_file():
+        out.unmapped.append(file_abs)
+    out.entries.append(entry)
+
+
+def _finish(out: LogParse) -> None:
+    """Apply the final prefix map to every path-like token (directory, -I, file): a self-consistent database."""
     final = []
     for e in out.entries:
         args = [e["arguments"][0]] + [_remap_token(a, e["directory"], out.prefix_map) for a in e["arguments"][1:]]
@@ -160,7 +191,6 @@ def parse_build_log(text: str, repo: Path, src: str | None = None, maps: dict[st
                       "file": _remap(e["file"], out.prefix_map), "arguments": args})
     out.entries = final
     out.unmapped = sorted(set(out.unmapped))
-    return out
 
 
 def _remap_token(tok: str, directory: str, prefix_map: dict[str, str]) -> str:

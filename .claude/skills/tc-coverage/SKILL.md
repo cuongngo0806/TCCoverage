@@ -46,7 +46,10 @@ $ARGUMENTS
   - autotools (`configure.ac` + `Makefile.am`, also Yocto recipes): from the build log, never by running the
     build yourself: `PY -m tcadvisor compile-db --repo . --from-log <log> --variant <name>`, where `<log>` is
     `${WORKDIR}/temp/log.do_compile` of the recipe (one per MACHINE / variant) or a local `make V=1` log. Ask the
-    user for the log path when it is not known.
+    user for the log path when it is not known. The module does not build on this host (missing target headers)?
+    A failed build is fine: after `configure`, `make -n V=1 > dry.log` (dry run) or `make -k V=1` lists every
+    compile command; never try to fix the build. No configure possible → run without a compile database
+    (codegraph, reduced accuracy).
 
 ### 0b. Build profile (first run in a workspace, or when the brief has a NOTE `no confirmed build profile`)
 

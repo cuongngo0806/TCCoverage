@@ -64,3 +64,46 @@ def test_unmapped_and_empty_log(tmp_path):
     with pytest.raises(PrerequisiteError, match="V=1"):
         write_compile_db(log, repo, tmp_path / "cc.json")
     assert "--disable-silent-rules" in NO_COMMANDS_HINT
+
+
+def test_failed_build_log_from_the_field(tmp_path):
+    """A local build that stops at a missing target header (dlt/dlt.h) still logs the full compile command."""
+    repo = tmp_path / "remotecontrolapp"
+    (repo / "src/utils").mkdir(parents=True)
+    (repo / "src/utils/Logger.cpp").write_text("int x;\n")
+    b = repo / "b"
+    b.mkdir()
+    log = f"""make[1]: Entering directory '{b}'
+/bin/sh ./libtool  --tag=CXX   --mode=compile g++ -DHAVE_CONFIG_H -I. -I..  -I/usr/include/servicelayer -I../src/utils -D_MORE_MARSHM -O2 -g -Wall -Werror -std=c++14 -fpermissive -DCAN_TYPE_DEFAULT    -g -O2 -MT libremotecontrolapp_la-Logger.lo -MD -MP -MF .deps/libremotecontrolapp_la-Logger.Tpo -c -o libremotecontrolapp_la-Logger.lo `test -f 'src/utils/Logger.cpp' || echo '../'`src/utils/Logger.cpp
+libtool: compile:  g++ -DHAVE_CONFIG_H -I. -I.. -I/usr/include/servicelayer -I../src/utils -D_MORE_MARSHM -O2 -g -Wall -Werror -std=c++14 -fpermissive -DCAN_TYPE_DEFAULT -g -O2 -MT libremotecontrolapp_la-Logger.lo -MD -MP -MF .deps/libremotecontrolapp_la-Logger.Tpo -c ../src/utils/Logger.cpp  -fPIC -DPIC -o .libs/libremotecontrolapp_la-Logger.o
+In file included from ../src/utils/Logger.cpp:14:
+../src/utils/Logger.h:16:10: fatal error: dlt/dlt.h: No such file or directory
+make[1]: *** [Makefile:639: libremotecontrolapp_la-Logger.lo] Error 1
+make[1]: Leaving directory '{b}'
+"""
+    res = parse_build_log(log, repo)
+    assert len(res.entries) == 1 and res.unmapped == []
+    e = res.entries[0]
+    assert e["file"] == str(repo / "src/utils/Logger.cpp") and e["directory"] == str(b)
+    assert "-fPIC" in e["arguments"]  # libtool's echo replaces its wrapper call
+    assert "-DCAN_TYPE_DEFAULT" in e["arguments"] and f"-I{repo}/src/utils" in e["arguments"]
+
+
+def test_make_dry_run_lines(tmp_path):
+    """`make -n` prints libtool wrapper calls and `&&`-joined, continued shell lines instead of running them."""
+    repo = _repo(tmp_path)
+    b = tmp_path / "b"
+    log = f"""make[1]: Entering directory '{b}/lib'
+/bin/bash ../libtool  --tag=CC   --mode=compile gcc -DX=1 -I. -c -o r.lo `test -f 'remote.c' || echo '{repo}/lib/'`remote.c
+/bin/bash ../libtool  --tag=CC   --mode=link gcc -o libr.la r.lo
+make[1]: Leaving directory '{b}/lib'
+make[1]: Entering directory '{b}/src'
+depbase=`echo util.o | sed 's|[^/]*$|.deps/&|;s|\\.o$||'`;\\
+g++ -std=c++17 -DY -c -o util.o {repo}/src/util.cpp &&\\
+mv -f $depbase.Tpo $depbase.Po
+make[1]: Leaving directory '{b}/src'
+"""
+    res = parse_build_log(log, repo)
+    assert [e["file"] for e in res.entries] == [str(repo / "lib/remote.c"), str(repo / "src/util.cpp")]
+    assert res.entries[0]["arguments"][:2] == ["gcc", "-DX=1"]
+    assert res.entries[1]["arguments"][0] == "g++" and "-DY" in res.entries[1]["arguments"]
