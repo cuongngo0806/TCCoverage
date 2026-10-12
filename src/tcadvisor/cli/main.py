@@ -58,9 +58,9 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--llm-endpoint", default="http://localhost:11434")
     a.add_argument("--llm-model", default="qwen2.5-coder:7b")
     a.add_argument("--llm-external-approved", action="store_true")
-    a.add_argument("--graph", choices=["auto", "codegraph", "gitnexus", "clang"], default="clang",
+    a.add_argument("--graph", choices=["auto", "codegraph", "gitnexus", "clang"], default="auto",
                    help="impact source: codegraph (MIT), gitnexus (PolyForm-Noncommercial, opt-in), clang (built-in "
-                        "libclang graph); auto = codegraph if installed else clang")
+                        "libclang graph); auto (default) = codegraph if installed else clang")
     a.add_argument("--graph-bin", help="path to the codegraph/gitnexus executable")
     a.add_argument("--index", choices=["auto", "full", "lite"], default="auto",
                    help="libclang index of every TU (full) or include scan only (lite); auto = lite with a graph provider")

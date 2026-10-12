@@ -160,6 +160,8 @@ class Project:
     def analyze(self, *extra: str, expect: int = 0) -> dict:
         args = ["analyze", "--repo", str(self.repo), "--build-dir", str(self.build), "--output-dir", str(self.out),
                 "--cache-dir", str(self.cache), "-q", *extra]
+        if "--graph" not in extra:  # the default (auto) depends on codegraph being installed
+            args += ["--graph", "clang"]
         rc = cli_main(args)
         assert rc == expect, f"exit {rc}"
         if rc != 0:

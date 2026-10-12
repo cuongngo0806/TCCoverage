@@ -62,3 +62,28 @@ code → fixed (packets for file nodes now carry the lines that reference change
 First attempt failed: agent types created mid-session are not registered until the next session → the
 workflow now references `.claude/agents/*.md` by path. Second run: 5 agents, 25/25 cases verified,
 4 additional checks, ~231k subagent tokens (vs ~60k for the headless `tcadvisor verify` path).
+
+## Provider benchmark (SC-005 regression pilot) — default = codegraph
+
+`scripts/pilot_regressions.py --graph {codegraph,gitnexus,clang}` on the SZZ regression pairs of
+`specs/004-ranking-and-recall/data/`. MRR = reciprocal rank of the real fix function in the case list.
+
+| vsomeip (40 pairs) | codegraph | gitnexus | clang |
+|---|---|---|---|
+| missed | 0 | 0 | 0 |
+| symbol-level hit (rest file-level) | 36 | 36 | 37 |
+| MRR all / dev / holdout | 0.286 / 0.163 / 0.409 | 0.287 / 0.164 / 0.409 | 0.346 / 0.209 / 0.483 |
+| fix in top-10 | 16 | 16 | 18 |
+| median cases | 677 | 314 | 899 |
+| median seconds / pair | **135** | 236 | 317 |
+
+| RocksDB (21 pairs) | codegraph | gitnexus | clang (7/21 pairs, stopped) |
+|---|---|---|---|
+| missed | 0 | 0 | 0 |
+| MRR all | **0.473** | 0.386 | same ranks as codegraph on 6 of 7; one pair rank 4043 (13 296 cases) vs 963 |
+| median seconds / pair | **48** | 444 | 1 600–3 200 |
+
+Decision: `--graph` defaults to `auto` = codegraph when installed, else the built-in libclang graph
+(the VS Code extension and `tc-verify` workflow already passed `auto`). No provider misses a regression;
+clang ranks somewhat better on a small repo but is 30–50× slower and inflates the case list on a large one;
+GitNexus is slower without better ranking and is non-commercial. The clang RocksDB run was not completed.

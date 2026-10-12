@@ -51,7 +51,7 @@ class Options:
     llm_model: str = "qwen2.5-coder:7b"
     allow_stale: bool = False
     use_run_cache: bool = True
-    graph: str = "clang"  # auto|codegraph|gitnexus|clang (spec 002)
+    graph: str = "auto"  # auto|codegraph|gitnexus|clang (spec 002); auto = codegraph if installed
     index: str = "auto"  # auto|full|lite: lite (include scan only) is the default with a graph provider
     fallback_max_tus: int = 200
     history: bool = True  # rank by bug-fix history of files (git log, local)
