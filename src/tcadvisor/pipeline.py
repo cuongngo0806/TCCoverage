@@ -4,8 +4,10 @@ deterministic parse/graph -> diff-to-node impact filtering -> (optional) LLM tex
 """
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import json
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -64,6 +66,8 @@ class Options:
     attachment_warn_mb: int = 50
     target_patterns: Path | None = None  # extra "needs the target" regexes (spec 007), JSON {category: regex}
     language: str = "vi"  # report language (vi|en); report.json text stays English, renderers translate
+    include_tests: bool = False  # unit-test code (changed tests, test callers, test includers, re-run lists)
+    test_paths: list[str] = field(default_factory=list)  # extra globs of test / mock files (config `test_paths`)
     progress: Callable[[str], None] | None = None
 
 
@@ -73,6 +77,17 @@ class _Ctx:
     new_rev: str | None = None
     fingerprint: str = ""
     notes: list[str] = field(default_factory=list)
+
+
+_MOCK_PATH = re.compile(r"(^|/)([Mm]ocks?|[Ff]akes?|[Ss]tubs?|[Uu][Tt]|testscripts?)(/|$)|(^|/)(UT_|[Mm]ock_?[A-Z_])[^/]*$|"
+                        r"_(mock|fake|stub)s?\.[^/]+$")
+_TEST_FUNCS = {"TEST", "TEST_F", "TEST_P", "TYPED_TEST", "TYPED_TEST_P"}
+
+
+def is_test_file(rel: str, extra: list[str] | None = None) -> bool:
+    """Unit-test / mock code, left out of the analysis unless `include_tests` (the report is about the product)."""
+    rel = rel.replace("\\", "/")
+    return is_test_path(rel) or bool(_MOCK_PATH.search(rel)) or any(fnmatch.fnmatch(rel, g) for g in extra or ())
 
 
 def default_cache_dir(repo: Path) -> Path:
@@ -179,6 +194,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         "llm": opts.llm, "llm_model": opts.llm_model if opts.llm else None,
         "graph": provider.name if provider else "clang", "contracts": contracts,
         "lessons": lessons.to_key(), "patterns": opts.patterns, "flow_tus": opts.flow_max_tus,
+        "tests": [opts.include_tests, sorted(opts.test_paths)],
         "target_patterns": opts.target_patterns.read_text(encoding="utf-8", errors="replace")
         if opts.target_patterns and opts.target_patterns.is_file() else None}).encode()).hexdigest()
     if opts.use_run_cache:
@@ -219,7 +235,16 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     root_risks = {}
     root_kind = {}
     changes = []
+    skipped_tests: list[dict[str, Any]] = []
+
+    def test_code(rel: str) -> bool:
+        return not opts.include_tests and is_test_file(rel, opts.test_paths)
+
     for ch in cs.changes:
+        if test_code(ch.rel_path) or (not opts.include_tests and ch.is_test_code):
+            skipped_tests.append({"path": ch.rel_path, "symbol": ch.name,
+                                  "reason": "unit-test code: not analysed (include_tests is off)"})
+            continue
         ref = graph.symbol_ref(ch.node_id) if not ch.node_id.startswith("file:") else None
         if ref is None or ch.change_kind == "removed":
             if not (repo / ch.rel_path).is_file():
@@ -301,8 +326,18 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
                 cur.risk_groups |= n.risk_groups
                 cur.edges.extend(e for e in n.edges if e not in cur.edges)
 
+    # -- unit tests (include_tests off): the report is about the product, not its test suite -------------
+    dropped = [nid for nid, n in nodes.items() if n.hop_distance > 0 and (
+        test_code(n.symbol.file_path) or (not opts.include_tests
+                                          and n.symbol.qualified_name.split("::")[-1] in _TEST_FUNCS))]
+    for nid in dropped:
+        del nodes[nid]
+    if dropped or skipped_tests:
+        ctx.notes.append(f"unit-test code left out (include_tests is off): {len(skipped_tests)} changed symbol(s), "
+                         f"{len(dropped)} impacted test function(s) / file(s)")
+
     # -- scope (--targets) ------------------------------------------------------------------------
-    out_of_scope = list(cs.out_of_scope)
+    out_of_scope = list(cs.out_of_scope) + skipped_tests
     if opts.targets:
         scope = set(opts.targets)
         unknown = scope - set(tmodel.targets if tmodel else ())
@@ -333,11 +368,22 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         from tcadvisor.classify.cases import sibling_source_cases
         from tcadvisor.graph.sources import find_guarded_targets, unresolved_source_flags
         guarded = find_guarded_targets(repo, graph, changes, roots)
+        if not opts.include_tests:
+            for t in guarded:
+                t.sources = [x for x in t.sources if not test_code(x.symbol.file_path)]
+            guarded = [t for t in guarded if t.sources]
         pattern_cases += sibling_source_cases(guarded, graph, roots)
         flags.extend(unresolved_source_flags(graph, guarded, roots))
         from tcadvisor.graph.sources import changed_function_sources
         changed_sources = changed_function_sources(graph, changes, roots, opts.max_hop_depth,
                                                    {t.target_id for t in guarded})
+        if not opts.include_tests:
+            for t in changed_sources:
+                keep = [x for x in t["sources"] if not test_code(x["symbol"]["file_path"])
+                        and x["symbol"]["qualified_name"].split("::")[-1] not in _TEST_FUNCS]
+                t["total"] -= len(t["sources"]) - len(keep)
+                t["sources"] = keep
+            changed_sources = [t for t in changed_sources if t["sources"] or t["registered_at"]]
         guarded = [t for t in guarded if any(not x.covered_by_change for x in t.sources) or t.target_id in
                    graph.facts.address_taken]
         from tcadvisor.classify.patterns import detect as detect_patterns
@@ -346,6 +392,8 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         flow_known, flow_flags = _data_paths(opts, repo, cdb, facts, cache, graph, changes, roots, lessons,
                                              pattern_cases, ctx.notes, cs.flow_facts)
         flags.extend(flow_flags)
+    if not opts.include_tests:
+        pattern_cases = [c for c in pattern_cases if not test_code(c.evidence[0].file_path)]
     cases = build_cases(nodes, root_risks, root_kind, flag_only, targets_of, tests,
                         {ch.node_id: len(ch.added_lines) + len(ch.removed_lines) for ch in changes}, history,
                         root_external, pattern_cases)
@@ -414,7 +462,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
                                                                              kv[1].symbol.line))],
         "existing_tests": [{"test": lbl, "file_path": nodes[nid].symbol.file_path, "line": nodes[nid].symbol.line,
                             "hop_distance": nodes[nid].hop_distance} for nid, lbl in sorted(tests.items(), key=lambda kv: kv[1])],
-        "test_gaps": _test_gaps(changes, roots, nodes, tests, opts.max_hop_depth),
+        "test_gaps": _test_gaps(changes, roots, nodes, tests, opts.max_hop_depth) if opts.include_tests else [],
         "affected_targets": affected,
         "test_case_candidates": [c.to_dict() for c in cases],
         "trigger_sources": [{"target": t.target.to_dict(), "reason": "guarded",

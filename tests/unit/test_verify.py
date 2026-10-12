@@ -29,7 +29,7 @@ def test_annotate_only_annotates(tmp_path):
     r = _report(tmp_path)
     before = [(c["id"], c["priority"]) for c in r["test_case_candidates"]]
     w = merge(r, {"cases": {"TC-0001": {"verdict": "confirmed", "note": "real", "extra_corner_cases": ["a=1"]},
-                            "TC-0003": {"verdict": "weak", "recheck": False}, "TC-9": {"verdict": "confirmed"},
+                            "TC-0003": {"verdict": "weak", "note": "build only", "recheck": False}, "TC-9": {"verdict": "confirmed"},
                             "TC-0002": {"verdict": "drop"}},
                   "summary": "s", "additional_checks": [{"title": "t", "why": "y"}], "models": ["haiku"]})
     assert [(c["id"], c["priority"]) for c in r["test_case_candidates"]] == before

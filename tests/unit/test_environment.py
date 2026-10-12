@@ -2,7 +2,7 @@
 from tcadvisor.classify.environment import action, assign, load_patterns
 from tcadvisor.models import SymbolRef, UncertaintyFlag
 from tcadvisor.models import TestCaseCandidate as Case
-from tcadvisor.report.render import plan_line, to_brief, to_markdown
+from tcadvisor.report.render import plan_line, split, to_ai_markdown, to_brief, to_markdown, write_outputs
 from tcadvisor.verify.annotate import merge
 from tcadvisor.verify.pack import build_packets
 
@@ -71,12 +71,37 @@ def test_pass_by_review_is_gated_and_keeps_the_case(tmp_path):
     assert len(r["test_case_candidates"]) == 2
     assert action(review) == "closed_by_review" and review["verification"]["proof"] == ["a.cpp:2"]
     assert review["verification"]["recheck"] is False
-    assert target["verification"]["verdict"] == "weak" and action(target) == "test_on_target" and len(w) == 1
+    assert target["verification"]["verdict"] == "needs_info" and action(target) == "test_on_target" and len(w) == 1
     assert r["ai_verification"]["closed_by_review"] == 1
-    assert "1 to test on target, 0 to review" in plan_line(r) and "1 closed by code review" in plan_line(r)
-    md = to_markdown(r)
-    assert "### Closed by code review (1)" in md and "*Proof*: a.cpp:2" in md and md.count(review["id"]) == 1
-    assert "CLOSED" in to_brief(r) and "TARGET" in to_brief(r)
+    assert "1 to test on target, 0 to review" in plan_line(r) and "1 closed by AI" in plan_line(r)
+    md = to_markdown(r)  # the main report lists only what needs a real test
+    assert review["id"] not in md and target["id"] in md and "report.ai-verified" in md
+    ai = to_ai_markdown(r)
+    assert "### Closed by code review (1)" in ai and "*Proof*: a.cpp:2" in ai and ai.count(review["id"]) == 1
+    assert target["id"] not in ai
+    brief = to_brief(r)
+    assert "TARGET" in brief and review["id"] not in brief and "AI-CLOSED 1 :: report.ai-verified.md" in brief
+
+
+def test_not_needed_moves_the_case_to_the_ai_report(tmp_path):
+    r = _report(tmp_path)
+    review, target = r["test_case_candidates"]
+    w = merge(r, {"cases": {target["id"]: {"verdict": "weak", "note": "recompile only: a clean build settles it"},
+                            review["id"]: {"verdict": "not_needed", "note": " "}}})
+    assert target["verification"]["verdict"] == "not_needed" and action(target) == "not_needed"
+    assert target["verification"]["recheck"] is False
+    assert review["verification"]["verdict"] == "needs_info" and len(w) == 1  # a closing verdict needs a reason
+    main, closed = split(r)
+    assert [c["id"] for c in main["test_case_candidates"]] == [review["id"]] and main["ai_closed"] == 1
+    assert [c["id"] for c in closed["test_case_candidates"]] == [target["id"]]
+    assert len(r["test_case_candidates"]) == 2  # report.json keeps every case
+    out = write_outputs({**r, "report_language": "en"}, tmp_path / "out", "all")
+    names = sorted(p.name for p in out)
+    assert "report.ai-verified.md" in names and "report.ai-verified.html" in names
+    assert "recompile only" in (tmp_path / "out" / "report.ai-verified.md").read_text(encoding="utf-8")
+    target.pop("verification")
+    write_outputs(r, tmp_path / "out", "all", same_analysis=True)
+    assert not (tmp_path / "out" / "report.ai-verified.md").exists()  # nothing closed any more: no stale file
 
 
 def test_pass_by_review_needs_resolvable_proof(tmp_path):

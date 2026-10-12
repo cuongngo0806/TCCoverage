@@ -206,7 +206,7 @@ def setup_yaml(work: Path) -> tuple[Path, Path]:
 def run(repo: Path, build: Path, out: Path) -> tuple[dict, float]:
     t = time.time()
     subprocess.run([sys.executable, "-m", "tcadvisor", "analyze", "--repo", str(repo), "--build-dir", str(build),
-                    "--working-tree", "--output-dir", str(out), "--format", "json", "--no-run-cache", "-q",
+                    "--working-tree", "--output-dir", str(out), "--format", "json", "--no-run-cache", "--include-tests", "-q",
                     "--graph", "clang"],  # thresholds were set on the libclang graph (CI has no codegraph)
                    check=True, capture_output=True, text=True)
     return json.loads((out / "report.json").read_text()), time.time() - t

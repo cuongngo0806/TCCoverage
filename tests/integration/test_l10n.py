@@ -25,7 +25,8 @@ def test_default_report_is_vietnamese_and_json_stays_english(project):
     assert r["test_case_candidates"][0]["description"].startswith("Verify")  # the contract stays English
     md = (project.out / "report.md").read_text(encoding="utf-8")
     assert "## Test case cần kiểm tra" in md and "## Test cases to check" not in md
-    assert r["l10n"][r["test_case_candidates"][0]["description"]] in md
+    assert Translator("vi")(r["test_case_candidates"][0]["description"]) in md
+    assert "l10n" not in r  # no translation map in report.json (renderers translate)
     brief = (project.out / "report.brief.txt").read_text(encoding="utf-8")
     assert "Kế hoạch test:" in brief
     html = (project.out / "report.html").read_text(encoding="utf-8")
@@ -43,3 +44,18 @@ def test_cli_default_language_is_vi(project):
             "-q"]
     assert main(args) == 0
     assert json.loads((project.out / "report.json").read_text())["report_language"] == "vi"
+
+
+def test_nested_english_is_not_swallowed_by_a_plain_placeholder():
+    T = Translator("vi")
+    text = ("Reachable from changed `HCS_NO_REQ`: `HCS_NO_REQ` (src/a.h:516) was removed; remaining users must be "
+            "updated")
+    out = T(text)
+    assert out.startswith("Đi tới được từ `HCS_NO_REQ`") and "Reachable" not in out and not T.misses()
+
+
+def test_sub_reason_tags_are_translated():
+    T = Translator("vi")
+    out = T("Recompile and re-test all code including header `a.h` (direct; it includes `b.h`) — header change, macro")
+    assert out.endswith("— header thay đổi, macro") and not T.misses()
+    assert "chữ ký thay đổi" in T("Verify the binary / layout compatibility of `X` (removed, signature change)")

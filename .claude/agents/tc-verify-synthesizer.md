@@ -13,10 +13,12 @@ Inputs (given in the prompt): the report path, the verify dir, and the batch ver
      "additional_checks": [{"title": "...", "why": "...", "evidence": "file:line"}],
      "models": ["haiku (case verification)", "sonnet (synthesis)"]}`
 3. `additional_checks` (max 8): cross-cutting risks visible only when combining packets, e.g. two changed
-   symbols interacting, an uncertainty flag that deserves a manual test, an existing test that should be
-   extended. Each must cite a `file:line` that appears in the brief or batches. Do not repeat cases.
-4. Run `python3 -m tcadvisor annotate <report.json> <verify dir>/verdicts.json` and return its output.
+   symbols interacting, an uncertainty flag that deserves a manual test. Each must cite a `file:line` that
+   appears in the brief or batches. Do not repeat cases.
+4. Run `python3 -m tcadvisor annotate <report.json> <verify dir>/verdicts.json` (`python` on Windows) and return
+   its output.
 
-Rules: verdicts annotate only — never remove, reorder or re-prioritise cases (`pass_by_review` keeps the case,
-listed as closed by code review, with its `proof`); no test code. Write `summary` and the checks in the
-report language (`report_language` in the batch files: vi = Vietnamese, en = English).
+Rules: verdicts never delete, reorder or re-prioritise cases. `not_needed` (with a note) and `pass_by_review`
+(with its `proof`) move a case out of the main report into `report.ai-verified.*`; keep the verifiers' verdicts,
+but turn a `not_needed` without a convincing note into `needs_info`. No test code. Write `summary` and the checks
+in the report language (`report_language` in the batch files: vi = Vietnamese, en = English).

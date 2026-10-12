@@ -1,7 +1,7 @@
 export const meta = {
   name: 'tc-verify',
   description: 'Graph-based impact (tcadvisor + codegraph/GitNexus) then token-lean AI verification: Haiku per batch, one Sonnet synthesis',
-  whenToUse: 'After a C++ change: get the test cases to check, verified by AI, annotated into the report shown in VS Code',
+  whenToUse: 'After a C++ change: get the test cases to check; AI closes the ones needing no real test (report.ai-verified.*)',
   phases: [
     { title: 'Analyze', detail: 'tcadvisor analyze + verify-pack (deterministic, no LLM reasoning)', model: 'haiku' },
     { title: 'Verify', detail: 'tc-case-verifier per batch of 8 packets', model: 'haiku' },
@@ -21,7 +21,7 @@ const VERDICTS = {
         type: 'object',
         properties: {
           id: { type: 'string' },
-          verdict: { type: 'string', enum: ['confirmed', 'weak', 'needs_info', 'pass_by_review'] },
+          verdict: { type: 'string', enum: ['confirmed', 'not_needed', 'needs_info', 'pass_by_review'] },
           note: { type: 'string' },
           proof: { type: 'array', items: { type: 'string' } },
           extra_corner_cases: { type: 'array', items: { type: 'string' } },
@@ -75,7 +75,7 @@ const m = await agent(
   `summary = the first line of ${reportPath.replace(/report\.json$/, 'report.brief.txt')}. Do not read other files.`,
   { label: 'analyze', phase: 'Analyze', schema: MANIFEST, model: 'haiku', effort: 'low' })
 if (!m || m.error || !m.batches.length) {
-  log(m && m.error ? `analysis failed: ${m.error}` : 'nothing to verify (no P1/P2 cases)')
+  log(m && m.error ? `analysis failed: ${m.error}` : 'nothing to verify (no cases)')
   return { summary: m && m.summary, error: m && m.error, verified: 0 }
 }
 log(`${m.summary} — ${m.batches.length} batch(es) to verify`)

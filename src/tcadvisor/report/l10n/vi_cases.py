@@ -3,9 +3,32 @@
 ``evidence/gate.py`` (risk details and hints, case descriptions and activation conditions, target reasons,
 third-party API corner cases, uncertainty flag reasons). Style guide and glossary: see ``vi.py``.
 
-Sub-reason tags in descriptions (``— mutex``, ``(modified, header change)``) stay as is: they are category tags.
+Sub-reason tags in descriptions (``— mutex``, ``(modified, header change)``) are translated item by item
+(``{l_subs}``, ``{t_sub}``: see ``SUB_REASONS`` below).
 """
 from __future__ import annotations
+
+SUB_REASONS: list[tuple[str, str]] = [
+    ("header change", "header thay đổi"),
+    ("inline change", "thân inline thay đổi"),
+    ("member change", "thành viên thay đổi"),
+    ("signature change", "chữ ký thay đổi"),
+    ("debug release", "debug / release"),
+    ("macro", "macro"),
+    ("target", "target"),
+    ("noexcept change", "noexcept thay đổi"),
+    ("throw added", "luồng exception thay đổi"),
+    ("logging", "chỉ log"),
+    ("removed guard", "điều kiện chặn bị xoá"),
+    ("test code", "code test"),
+    ("move semantics", "ngữ nghĩa move"),
+    ("raw pointer", "pointer thô"),
+    ("reference", "reference"),
+    ("atomic", "atomic"),
+    ("lock order", "thứ tự lock"),
+    ("mutex", "mutex"),
+    ("external call", "gọi API bên ngoài"),
+]
 
 ENTRIES: list[tuple[str, str]] = [
     # ---- cases.py: labels -----------------------------------------------------------------------
@@ -21,6 +44,8 @@ ENTRIES: list[tuple[str, str]] = [
     ("removed", "bị xoá"),
     ("file", "file"),
     ("explicit", "được chỉ định trực tiếp"),
+    # sub-reason tags (`sub_reason` with spaces) in case descriptions and the changed-symbol table
+    *SUB_REASONS,
     # hop words
     ("direct", "trực tiếp"),
     ("indirect, {n} hops", "gián tiếp, {n} hop"),
@@ -41,24 +66,24 @@ ENTRIES: list[tuple[str, str]] = [
     ("(no CMake target owns this file)", "(không có CMake target nào sở hữu file này)"),
 
     # ---- cases.py: descriptions -----------------------------------------------------------------
-    ("Verify the {t_group} of `{sym}` ({t_kind}, {sub})", "Kiểm tra {t_group} của `{sym}` ({t_kind}, {sub})"),
+    ("Verify the {t_group} of `{sym}` ({t_kind}, {t_sub})", "Kiểm tra {t_group} của `{sym}` ({t_kind}, {t_sub})"),
     ("Verify the {t_group} of `{sym}` ({t_kind})", "Kiểm tra {t_group} của `{sym}` ({t_kind})"),
     ("Verify how `{sym}` handles failures and unusual behaviour of the third-party API it now calls ({t_group} first)",
      "Kiểm tra cách `{sym}` xử lý lỗi và hành vi bất thường của API bên thứ ba mà nó giờ gọi tới (ưu tiên {t_group})"),
-    ("Re-run existing test `{test}` and check it still covers the {t_group} of the change (it {t_via}; {t_hop}) — {subs}",
-     "Chạy lại test hiện có `{test}` và kiểm tra nó vẫn bao phủ {t_group} của thay đổi (nó {t_via}; {t_hop}) — {subs}"),
+    ("Re-run existing test `{test}` and check it still covers the {t_group} of the change (it {t_via}; {t_hop}) — {l_subs}",
+     "Chạy lại test hiện có `{test}` và kiểm tra nó vẫn bao phủ {t_group} của thay đổi (nó {t_via}; {t_hop}) — {l_subs}"),
     ("Re-run existing test `{test}` and check it still covers the {t_group} of the change (it {t_via}; {t_hop})",
      "Chạy lại test hiện có `{test}` và kiểm tra nó vẫn bao phủ {t_group} của thay đổi (nó {t_via}; {t_hop})"),
-    ("Recompile and re-test all code including header `{path}` ({t_hop}; it {t_via}) — {subs}",
-     "Biên dịch lại và test lại toàn bộ code include header `{path}` ({t_hop}; nó {t_via}) — {subs}"),
+    ("Recompile and re-test all code including header `{path}` ({t_hop}; it {t_via}) — {l_subs}",
+     "Biên dịch lại và test lại toàn bộ code include header `{path}` ({t_hop}; nó {t_via}) — {l_subs}"),
     ("Recompile and re-test all code including header `{path}` ({t_hop}; it {t_via})",
      "Biên dịch lại và test lại toàn bộ code include header `{path}` ({t_hop}; nó {t_via})"),
-    ("Rebuild and smoke-test translation unit `{path}` ({t_hop}; it {t_via}) — {subs}",
-     "Build lại và smoke-test translation unit `{path}` ({t_hop}; nó {t_via}) — {subs}"),
+    ("Rebuild and smoke-test translation unit `{path}` ({t_hop}; it {t_via}) — {l_subs}",
+     "Build lại và chạy thử nhanh file nguồn `{path}` ({t_hop}; nó {t_via}) — {l_subs}"),
     ("Rebuild and smoke-test translation unit `{path}` ({t_hop}; it {t_via})",
-     "Build lại và smoke-test translation unit `{path}` ({t_hop}; nó {t_via})"),
-    ("Re-verify the {t_group} of `{sym}`, which {t_via} ({t_hop}) — {subs}",
-     "Kiểm tra lại {t_group} của `{sym}`, vì nó {t_via} ({t_hop}) — {subs}"),
+     "Build lại và chạy thử nhanh file nguồn `{path}` ({t_hop}; nó {t_via})"),
+    ("Re-verify the {t_group} of `{sym}`, which {t_via} ({t_hop}) — {l_subs}",
+     "Kiểm tra lại {t_group} của `{sym}`, vì nó {t_via} ({t_hop}) — {l_subs}"),
     ("Re-verify the {t_group} of `{sym}`, which {t_via} ({t_hop})",
      "Kiểm tra lại {t_group} của `{sym}`, vì nó {t_via} ({t_hop})"),
     # merge_pattern_cases: the same code found by two reasons
@@ -282,14 +307,14 @@ ENTRIES: list[tuple[str, str]] = [
      "Biên trước đây: `{expr}` ngay dưới, bằng và ngay trên {lit}"),
 
     # ---- environment.py: why a case needs the target ----------------------------------------------
-    ("concurrency: interleavings and timing are only observable when running ({loc})",
-     "đồng thời: thứ tự xen kẽ và timing chỉ quan sát được khi chạy ({loc})"),
-    ("memory lifetime: use-after-free / leaks / dangling references appear at run time ({loc})",
-     "vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy ({loc})"),
-    ("data layout: sizeof / alignment / padding depend on the target compiler and ABI ({loc})",
-     "layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target ({loc})"),
-    ("build configuration: behaviour depends on the macros / options of the target build ({loc})",
-     "cấu hình build: hành vi phụ thuộc vào các macro / option của bản build cho target ({loc})"),
+    ("concurrency: interleavings and timing are only observable when running ({kind} at {loc})",
+     "đồng thời: thứ tự xen kẽ và timing chỉ quan sát được khi chạy ({kind} tại {loc})"),
+    ("memory lifetime: use-after-free / leaks / dangling references appear at run time ({kind} at {loc})",
+     "vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy ({kind} tại {loc})"),
+    ("data layout: sizeof / alignment / padding depend on the target compiler and ABI ({kind} at {loc})",
+     "layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target ({kind} tại {loc})"),
+    ("build configuration: behaviour depends on the macros / options of the target build ({kind} at {loc})",
+     "cấu hình build: hành vi phụ thuộc vào các macro / option của bản build cho target ({kind} tại {loc})"),
     ("runtime routing ({category}): {t_reason}", "phụ thuộc chỉ xác định lúc chạy ({category}): {t_reason}"),
     ("hardware access", "truy cập phần cứng"),
     ("interrupt", "interrupt"),
@@ -392,6 +417,10 @@ ENTRIES: list[tuple[str, str]] = [
      "branch was never parsed (configurations in compile_commands.json: {configs})",
      "thay đổi trong {loc} được bao bởi `{condition}`; {names} có cùng giá trị trong mọi lệnh biên dịch, nên nhánh "
      "còn lại chưa bao giờ được phân tích (các cấu hình trong compile_commands.json: {configs})"),
+    ("change in {loc} is guarded by `{condition}`; without compile_commands.json the build configurations that enable "
+     "it are unknown",
+     "thay đổi trong {loc} được bao bởi `{condition}`; không có compile_commands.json nên chưa biết cấu hình build "
+     "nào bật nhánh này"),
     ("`{name}` depends on {words} but compile_commands.json only contains the {configs} configuration",
      "`{name}` phụ thuộc vào {words} nhưng compile_commands.json chỉ chứa cấu hình {configs}"),
 ]

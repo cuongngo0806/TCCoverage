@@ -139,11 +139,17 @@ def assign(cases: list[TestCaseCandidate], repo: Path, root_lines: dict[str, lis
         c.verify_by, c.target_reasons = ("target" if reasons else "review"), reasons
 
 
+AI_CLOSED = ("closed_by_review", "not_needed")  # buckets listed in report.ai-verified.*, not in the main report
+
+
 def action(case: dict[str, Any]) -> str:
-    """Final bucket of a report case: `test_on_target` | `review` (not yet reviewed) | `closed_by_review`."""
+    """Final bucket of a report case: `test_on_target` | `review` (not yet reviewed) | `closed_by_review` (an AI
+    proved from the code it cannot fail) | `not_needed` (an AI judged that no real test is needed, with a note)."""
+    verdict = (case.get("verification") or {}).get("verdict")
+    if verdict == "pass_by_review":
+        return "closed_by_review"
+    if verdict in ("not_needed", "weak"):  # `weak`: verdict files written before `not_needed` existed
+        return "not_needed"
     if case.get("verify_by", "target") == "target":
         return "test_on_target"
-    v = case.get("verification")
-    if v and v.get("verdict") == "pass_by_review":
-        return "closed_by_review"
-    return "test_on_target" if v else "review"  # an AI read it and could not close it -> run it
+    return "test_on_target" if verdict else "review"  # an AI read it and could not close it -> run it

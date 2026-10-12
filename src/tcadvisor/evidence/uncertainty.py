@@ -65,7 +65,12 @@ def detect(changes: list[SymbolChange], roots: dict[str, SymbolRef], g: Graph, c
             names = {w for c in ch.conditions for w in _IDENT.findall(c)} - _PP_WORDS
             single_config = [n for n in sorted(names)
                              if all(n in d for d in all_defines) or not any(n in d for d in all_defines)]
-            if ch.kind == "file" or single_config:
+            if not configs:  # no compile database: nothing says which builds enable the branch
+                flags.append(UncertaintyFlag(
+                    "build_config_incomplete_macro",
+                    f"change in {ch.rel_path}:{ch.line} is guarded by `{' && '.join(ch.conditions)}`; without "
+                    "compile_commands.json the build configurations that enable it are unknown", ref))
+            elif ch.kind == "file" or single_config:
                 which = ", ".join(f"`{n}`" for n in (single_config or sorted(names))) or "the condition"
                 state = ("is undefined in every compile command, so this branch was never parsed"
                          if single_config and not any(single_config[0] in d for d in all_defines)

@@ -1,8 +1,10 @@
 """Merge AI verification verdicts into report.json (annotation only: constitution III).
 
-Verdicts never add, remove, reorder or re-prioritise cases; they only attach `verification`.
-`pass_by_review` (spec 007) moves a case to "closed by code review" — still listed — and is accepted only for a
-case the deterministic pass marked `verify_by: review`, with a note and a proof `file:line` that resolves.
+Verdicts never add, delete, reorder or re-prioritise cases; they only attach `verification`. Two verdicts close a
+case: it leaves the main report (the cases to test for real) for `report.ai-verified.*`, and report.json keeps it.
+`pass_by_review` (spec 007) is accepted only for a case the deterministic pass marked `verify_by: review`, with a note
+and a proof `file:line` that resolves. `not_needed` (no real test needed: a build settles it, or the change cannot
+reach this code's behaviour) is accepted with a note. `weak` (older verdict files) is read as `not_needed`.
 """
 from __future__ import annotations
 
@@ -13,7 +15,8 @@ from typing import Any
 
 from tcadvisor.models import UsageError
 
-VERDICTS = {"confirmed", "weak", "needs_info", "pass_by_review"}
+VERDICTS = {"confirmed", "needs_info", "not_needed", "pass_by_review", "weak"}
+CLOSING = {"not_needed", "pass_by_review"}
 
 
 def merge(report: dict[str, Any], verdicts: dict[str, Any]) -> list[str]:
@@ -31,11 +34,16 @@ def merge(report: dict[str, Any], verdicts: dict[str, Any]) -> list[str]:
             continue
         note = str(v.get("note", ""))[:600]
         proof = [str(x)[:200] for x in (v.get("proof") or [])][:3]
+        if verdict == "weak":
+            verdict = "not_needed"
+        if verdict == "not_needed" and not note.strip():
+            warnings.append(f"{cid}: not_needed not accepted, it needs a note saying why no real test is needed")
+            verdict = "needs_info"
         if verdict == "pass_by_review":
             if case.get("verify_by") != "review":
                 warnings.append(f"{cid}: pass_by_review not accepted, the case must be tested on the target "
                                 f"({'; '.join(case.get('target_reasons') or ['no deterministic review eligibility'])[:200]})")
-                verdict = "weak"
+                verdict = "needs_info"
             elif not note.strip() or not proof or not all(_resolves(repo, p) for p in proof):
                 warnings.append(f"{cid}: pass_by_review not accepted, it needs a note and proof file:line that resolve")
                 verdict = "needs_info"
@@ -43,7 +51,7 @@ def merge(report: dict[str, Any], verdicts: dict[str, Any]) -> list[str]:
             "verdict": verdict,
             "note": note,
             "extra_corner_cases": [str(x)[:300] for x in (v.get("extra_corner_cases") or [])][:6],
-            "recheck": verdict != "pass_by_review",
+            "recheck": verdict not in CLOSING,
             "by": "ai",
             **({"proof": proof} if verdict == "pass_by_review" else {}),
         }
@@ -60,6 +68,8 @@ def merge(report: dict[str, Any], verdicts: dict[str, Any]) -> list[str]:
         "verified_cases": sum(1 for c in report["test_case_candidates"] if "verification" in c),
         "closed_by_review": sum(1 for c in report["test_case_candidates"]
                                 if (c.get("verification") or {}).get("verdict") == "pass_by_review"),
+        "not_needed": sum(1 for c in report["test_case_candidates"]
+                          if (c.get("verification") or {}).get("verdict") == "not_needed"),
         "warnings": warnings,
     }
     return warnings

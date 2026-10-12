@@ -1,7 +1,7 @@
 """Self-contained interactive HTML report: impact flow graph + filterable case list.
 
 No external scripts or fonts are loaded (works offline, nothing leaves the machine — Principle VI).
-Inside the VS Code webview, file:line links open the editor via ``postMessage``.
+file:line links open the file in VS Code (``vscode://`` URLs) when it is installed.
 """
 from __future__ import annotations
 
@@ -79,6 +79,7 @@ table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid var(--li
 @media print{.noprint,.chips,input[type=search],#ord,.btn,.drop,#count{display:none!important}
  body{background:#fff;color:#000}.panel,.tr{border-color:#999;background:#fff}.case{break-inside:avoid}.rp{display:block}
  .thumb{max-width:100%;max-height:none}}
+.aipart .tr,.aipart #trSec{display:none}
 </style></head><body>
 <header><h1>TC Coverage — change impact &amp; test cases</h1><div class="muted" id="sub"></div>
 <div class="tiles" id="tiles"></div><section id="trSec"></section></header>
@@ -92,8 +93,8 @@ table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid var(--li
 <span><i class="sw" style="border-color:var(--warn);border-style:dashed"></i>uncertain</span>
 <span>click a node to filter the cases · hover to trace the path</span></div>
 <div id="graphWrap"><svg id="graph" role="img" aria-label="impact graph"></svg></div><div id="detail" class="muted"></div></div>
-<h2>Test cases to check</h2>
-<div class="panel"><div class="chips" id="actChips"></div><div class="chips" id="prioChips"></div><div class="chips" id="grpChips"></div>
+<h2 id="casesTitle">Test cases to check</h2>
+<div class="panel"><div id="aiNote" class="muted"></div><div class="chips" id="actChips"></div><div class="chips" id="prioChips"></div><div class="chips" id="grpChips"></div>
 <input type="search" id="q" placeholder="Filter by symbol, file, text…">
 <select id="ord" title="List order" style="margin-left:8px;padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg)"><option value="rel">Order: relevance</option><option value="ai">Order: AI-triaged</option></select><span class="muted" id="count" style="margin-left:8px"></span>
 <div id="cases"></div></div>
@@ -114,13 +115,17 @@ function loc(f,l){const u='vscode://file/'+encodeURI((repo+'/'+f).replace(/\\/g,
 document.addEventListener('click',e=>{const a=e.target.closest('a.loc');if(a&&vs){e.preventDefault();vs.postMessage({type:'open',file:a.dataset.f,line:+a.dataset.l})}});
 const C=R.test_case_candidates, by=p=>C.filter(c=>c.priority===p).length;
 // spec 007: same rule as classify/environment.py action()
-const act=c=>(c.verify_by||'target')==='target'?'test_on_target':c.verification&&c.verification.verdict==='pass_by_review'?'closed_by_review':c.verification?'test_on_target':'review';
-const AL={test_on_target:'Test on target',review:'Review code',closed_by_review:'Closed by code review'};
+const act=c=>{const v=(c.verification||{}).verdict;if(v==='pass_by_review')return'closed_by_review';if(v==='not_needed'||v==='weak')return'not_needed';
+ return(c.verify_by||'target')==='target'||c.verification?'test_on_target':'review'};
+const AL={test_on_target:'Test on target',review:'Review code',closed_by_review:'Closed by code review',not_needed:'No real test needed (AI)'};
 const nA=a=>C.filter(c=>act(c)===a).length;
+if(R.report_part==='ai_closed'){document.getElementById('casesTitle').textContent='Cases closed by AI (no real test needed)';
+ document.body.classList.add('aipart')} // nothing to record here: results belong to report.html
+else if(R.ai_closed)document.getElementById('aiNote').textContent=`${R.ai_closed} case(s) closed by AI are listed separately in report.ai-verified.html.`;
 const llm=R.llm_degraded?'degraded':R.llm_enabled?'on':'off';
 const ci=R.change_input;
 document.getElementById('sub').textContent=`${ci.mode} · ${ci.commit_range||(ci.working_tree?'working tree':(ci.symbols_requested||[]).join(', '))} · ${repo}`;
-const tiles=[[C.length,'test cases'],[nA('test_on_target'),'test on target'],[nA('review'),'review code'],[nA('closed_by_review'),'closed by review'],[by('P1'),'P1'],[by('P2'),'P2'],[by('P3'),'P3'],[R.uncertainty_flags.length,'uncertain'],
+const tiles=[[C.length,'test cases'],[nA('test_on_target'),'test on target'],[nA('review'),'review code'],[nA('closed_by_review')+nA('not_needed')+(R.ai_closed||0),'closed by AI'],[by('P1'),'P1'],[by('P2'),'P2'],[by('P3'),'P3'],[R.uncertainty_flags.length,'uncertain'],
 [(R.changed_symbols||[]).length,'changed symbols'],[(R.affected_targets||[]).length,'targets'],[R.cache_hit?'hit':'miss','cache'],[llm,'LLM']];
 document.getElementById('tiles').innerHTML=tiles.map(t=>`<div class="tile"><b>${esc(t[0])}</b><span>${t[1]}</span></div>`).join('');
 if(R.no_detected_impact)document.getElementById('noimpact').innerHTML='<div class="panel empty"><b>No detected impact.</b><br>The change touches no indexed symbol semantically (comments, whitespace, non-C++ files). This is a result, not a failure.</div>';
@@ -275,7 +280,7 @@ svg.addEventListener('click',e=>{const g=e.target.closest('.node');if(!g)return;
 const st={a:new Set(Object.keys(AL)),p:new Set(['P1','P2','P3']),g:new Set(Object.keys(GL)),q:''};
 function chips(el,vals,set,lab){el.innerHTML=vals.map(v=>`<button class="chip ${set.has(v)?'on':''}" data-v="${v}">${esc(lab(v))} (${C.filter(c=>c.priority===v||c.risk_group===v||act(c)===v).length})</button>`).join('');
  el.onclick=e=>{const b=e.target.closest('.chip');if(!b)return;const v=b.dataset.v;set.has(v)?set.delete(v):set.add(v);b.classList.toggle('on');render()}}
-chips(document.getElementById('actChips'),Object.keys(AL),st.a,v=>AL[v]);
+chips(document.getElementById('actChips'),Object.keys(AL).filter(a=>nA(a)),st.a,v=>AL[v]);
 chips(document.getElementById('prioChips'),['P1','P2','P3'],st.p,v=>v);
 chips(document.getElementById('grpChips'),Object.keys(GL).filter(g=>C.some(c=>c.risk_group===g)),st.g,v=>GL[v]);
 document.getElementById('q').oninput=e=>{st.q=e.target.value.toLowerCase();render()};
@@ -288,15 +293,15 @@ function render(){const list=printing?C.slice():C.filter(c=>st.a.has(act(c))&&st
  (!st.q||JSON.stringify(c).toLowerCase().includes(st.q))&&inFilter(c.key));
  if(ordEl.value==='ai')list.sort((x,y)=>aiKey(x)-aiKey(y)); // stable: relevance order inside each verdict
  document.getElementById('count').textContent=`${list.length} / ${C.length}`;
- document.getElementById('cases').innerHTML=list.length?list.map(c=>`<div class="case"><span class="prio ${c.priority}">${c.priority}</span> <b class="mono">${c.id}</b><span class="act ${act(c)}">${AL[act(c)]}</span><span class="grp">${GL[c.risk_group]}${c.sub_reason?' · '+esc(c.sub_reason):''}</span><span class="grp">hop ${c.hop_distance}</span>${c.bug_history?`<span class="grp" title="bug-fix commits touching this file in the last 12 months">${c.bug_history} recent fixes</span>`:''}
+ document.getElementById('cases').innerHTML=list.length?list.map(c=>`<div class="case"><span class="prio ${c.priority}">${c.priority}</span> <b class="mono">${c.id}</b><span class="act ${act(c)}">${AL[act(c)]}</span><span class="grp">${GL[c.risk_group]}${c.sub_reason?' · '+esc(c.sub_label||c.sub_reason):''}</span><span class="grp">hop ${c.hop_distance}</span>${c.bug_history?`<span class="grp" title="bug-fix commits touching this file in the last 12 months">${c.bug_history} recent fixes</span>`:''}
  <div>${esc(c.description)}</div><div class="muted">When: ${esc(c.activation_condition)}</div>
  <ul>${c.evidence.map(e=>`<li>${evHtml(e)}</li>`).join('')}</ul>
  ${c.path?`<div class="muted">Path: ${c.path.map(x=>`<code>${esc(x.symbol.qualified_name)}</code> <span class="grp">${esc(x.role)}${x.checked?' · checked':''}</span> ${loc(x.symbol.file_path,x.line)}`).join(' → ')}</div>`:''}
  ${(c.corner_cases||[]).length?`<div class="muted" style="margin-top:4px">Corner cases:</div><ul>${c.corner_cases.map(h=>`<li>${esc(h)}</li>`).join('')}</ul>`:''}
- <div class="muted">Targets: ${esc(c.related_cmake_targets.join(', '))}</div>${(c.target_reasons||[]).length?`<div class="muted">Needs the target: ${c.target_reasons.map(esc).join(' · ')}</div>`:''}${c.verification&&c.verification.proof?`<div class="muted">Proof: ${c.verification.proof.map(esc).join(', ')}</div>`:''}${c.verification?`<div class="ai"><span class="aib ${c.verification.verdict}">AI · ${esc(c.verification.verdict)}${c.verification.recheck?' · re-check':''}</span> ${esc(c.verification.note)}${c.verification.extra_corner_cases.length?'<ul>'+c.verification.extra_corner_cases.map(h=>`<li>${esc(h)}</li>`).join('')+'</ul>':''}</div>`:''}<div class="tr" data-k="${esc(c.key)}">${trHtml(c)}</div></div>`).join(''):'<div class="empty">No cases match.</div>'}
+ <div class="muted">Targets: ${esc(c.related_cmake_targets.join(', '))}</div>${(c.target_reasons||[]).length?`<div class="muted">Needs the target: ${c.target_reasons.map(esc).join(' · ')}</div>`:''}${c.verification&&c.verification.proof?`<div class="muted">Proof: ${c.verification.proof.map(esc).join(', ')}</div>`:''}${c.verification?`<div class="ai"><span class="aib ${c.verification.verdict}">AI · ${esc(c.verification.label||c.verification.verdict)}${c.verification.recheck?' · re-check':''}</span> ${esc(c.verification.note)}${c.verification.extra_corner_cases.length?'<ul>'+c.verification.extra_corner_cases.map(h=>`<li>${esc(h)}</li>`).join('')+'</ul>':''}</div>`:''}<div class="tr" data-k="${esc(c.key)}">${trHtml(c)}</div></div>`).join(''):'<div class="empty">No cases match.</div>'}
 render();
 const AV=R.ai_verification;
-if(AV)document.getElementById('aiSec').innerHTML=`<h2>AI verification <span class="muted" style="font-size:13px;font-weight:400">annotations only — no case is removed</span></h2><div class="panel"><div>${esc(AV.summary)}</div><div class="muted">verified cases: ${AV.verified_cases} · models: ${esc((AV.models||[]).join(', ')||'-')}</div>`+
+if(AV)document.getElementById('aiSec').innerHTML=`<h2>AI verification <span class="muted" style="font-size:13px;font-weight:400">cases closed by AI are in report.ai-verified.html, never deleted</span></h2><div class="panel"><div>${esc(AV.summary)}</div><div class="muted">verified cases: ${AV.verified_cases} · models: ${esc((AV.models||[]).join(', ')||'-')}</div>`+
  (AV.additional_checks.length?'<ul>'+AV.additional_checks.map(a=>`<li><b>${esc(a.title)}</b> — ${esc(a.why)} <span class="mono muted">${esc(a.evidence)}</span></li>`).join('')+'</ul>':'')+'</div>';
 const TSA=R.trigger_sources||[],TS=TSA.filter(t=>(t.reason||'guarded')==='guarded'),TC=TSA.filter(t=>t.reason==='changed');
 if(TSA.length)document.getElementById('srcSec').innerHTML=TS.map(t=>`<h2>Trigger sources of <code>${esc(t.target.qualified_name)}</code></h2><div class="panel tw"><div class="muted">Guard added in ${t.covered_by.map(c=>'<code>'+esc(c)+'</code>').join(', ')}: <code>${esc(t.guard.join('; '))}</code></div><table><tr><th>Source</th><th>Kind</th><th>Guard</th><th></th></tr>`+
@@ -338,13 +343,17 @@ def _vi_template() -> str:
     return out
 
 
-def to_html(report: dict[str, Any]) -> str:
+def to_html(report: dict[str, Any], part: str = "main") -> str:
+    """``part``: ``main`` = the cases that still need a real test (report.html), ``ai_closed`` = the cases an AI closed
+    (report.ai-verified.html); see ``render.split``."""
     from tcadvisor.report.l10n import Translator, localize
     from tcadvisor.report.results import empty_block
     T = Translator(report.get("report_language", "en"))
     block = report.get("test_results") or empty_block(report, report.get("metrics", {}).get("attachment_warn_mb", 50))
     # the page shows the report in its language; case ids / keys (read back by results.py) are never translated
-    shown = localize(report, T)
+    from tcadvisor.report.render import case_labels, split
+    shown = localize(split(report)[0 if part == "main" else 1], T)
+    case_labels(shown, T)
     data = {k: v for k, v in shown.items() if k != "test_results"}  # attachments live once, in the results block
     pre, rest = localized_template(T.lang).split("__DATA__")
     mid, post = rest.split("__RESULTS__")

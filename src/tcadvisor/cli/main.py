@@ -10,7 +10,7 @@ from pathlib import Path
 
 from tcadvisor import __version__
 from tcadvisor.models import PrerequisiteError, UsageError
-from tcadvisor.config import GRAPHS, LANGUAGES, resolve
+from tcadvisor.config import AI_VERIFY, GRAPHS, LANGUAGES, resolve
 
 
 class _Parser(argparse.ArgumentParser):
@@ -54,6 +54,12 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--format", choices=["md", "json", "html", "both", "all"], default="all",
                    help="'both' = md+json (contract), 'all' = md+json+html (default)")
     a.add_argument("--targets", help="comma-separated CMake targets to restrict the scope to (default: config)")
+    a.add_argument("--include-tests", action=argparse.BooleanOptionalAction, default=None,
+                   help="also analyse unit-test / mock code (changed tests, tests calling the change, re-run lists); "
+                        "default: include_tests in <repo>/.tcadvisor/config.json, else off")
+    a.add_argument("--ai-verify", choices=list(AI_VERIFY),
+                   help="AI-verify the cases after the analysis: off, chat (the AI chat front-end does it) or claude "
+                        "(this command runs the headless Claude Code CLI); default: ai_verify in the config, else off")
     llm = a.add_mutually_exclusive_group()
     llm.add_argument("--llm", dest="llm", action="store_true")
     llm.add_argument("--no-llm", dest="llm", action="store_false")
@@ -91,8 +97,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="report.json (default: report.json in the output dir of --repo, see `tcadvisor config`)")
     v.add_argument("--repo", type=Path, default=Path("."), help="repository whose report to pack (default: .)")
     v.add_argument("--out", type=Path, help="default: <report dir>/verify")
-    v.add_argument("--priorities", default="P1,P2")
-    v.add_argument("--max-cases", type=int, default=60)
+    v.add_argument("--priorities", default="P1,P2,P3")
+    v.add_argument("--max-cases", type=int, default=120)
     v.add_argument("--batch", type=int, default=8, help="packets per verifier call")
     v.add_argument("--scope", choices=["all", "review"], default="all",
                    help="review = only cases that may be closed by reading code (cheapest way to shrink the "
@@ -106,8 +112,8 @@ def build_parser() -> argparse.ArgumentParser:
     vf.add_argument("--verify-model", default="haiku")
     vf.add_argument("--synth-model", default="sonnet")
     vf.add_argument("--parallel", type=int, default=4)
-    vf.add_argument("--priorities", default="P1,P2")
-    vf.add_argument("--max-cases", type=int, default=60)
+    vf.add_argument("--priorities", default="P1,P2,P3")
+    vf.add_argument("--max-cases", type=int, default=120)
     vf.add_argument("--scope", choices=["all", "review"], default="all",
                     help="review = only AI-review cases that may be closed by reading code")
     vf.add_argument("--budget-usd", type=float, help="per-call spending cap passed to claude --max-budget-usd")
@@ -120,10 +126,17 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("report", type=Path)
     r.add_argument("--output-dir", type=Path)
     r.add_argument("--language", choices=list(LANGUAGES), help="re-render in this language (default: the report's)")
-    ini = sub.add_parser("init", help="set up a repository: write .tcadvisor/config.json (and, with --copilot, the "
-                                      "GitHub Copilot prompts /tc-coverage and /tc-verify)")
+    ini = sub.add_parser("init", help="set up a repository: write .tcadvisor/config.json and the AI front-ends (the "
+                                      "tc-coverage skill for Claude Code and GitHub Copilot)")
     ini.add_argument("--repo", type=Path, default=Path("."))
-    ini.add_argument("--copilot", action="store_true", help="also write .github/prompts/tc-*.prompt.md")
+    ini.add_argument("--ai", default="claude,copilot",
+                     help="AI front-ends to install: claude (.claude/skills + .claude/agents), copilot (.github/skills "
+                          "+ .github/prompts), both (default) or none")
+    ini.add_argument("--copilot", action="store_true", help=argparse.SUPPRESS)  # before --ai: copilot is included
+    ini.add_argument("--include-tests", action=argparse.BooleanOptionalAction, default=None,
+                     help="analyse unit-test / mock code too (default: off)")
+    ini.add_argument("--ai-verify", choices=list(AI_VERIFY),
+                     help="AI filter after each analysis (default: chat when an AI front-end is installed, else off)")
     ini.add_argument("--force", action="store_true", help="overwrite existing files")
     ini.add_argument("--graph", choices=list(GRAPHS))
     ini.add_argument("--language", choices=list(LANGUAGES))
@@ -147,7 +160,8 @@ def _analyze(ns: argparse.Namespace) -> int:
     from tcadvisor.report.render import summary_line, to_brief, write_outputs
 
     cfg = resolve(ns.repo, graph=ns.graph, language=ns.language, build_dir=ns.build_dir, output_dir=ns.output_dir,
-                  targets=ns.targets, max_hop_depth=ns.max_hop_depth)
+                  targets=ns.targets, max_hop_depth=ns.max_hop_depth, include_tests=ns.include_tests,
+                  ai_verify=ns.ai_verify)
     if cfg["max_hop_depth"] < 1 or ns.split_threshold < 1:
         raise UsageError("--max-hop-depth and --split-threshold must be >= 1")
     if ns.target_patterns:
@@ -167,19 +181,40 @@ def _analyze(ns: argparse.Namespace) -> int:
         index=ns.index, jobs=ns.jobs, history=ns.history,
         contracts=ns.contracts, lessons=ns.lessons, previous_report=ns.previous_report,
         flow_max_tus=ns.flow_max_tus, patterns=ns.patterns, attachment_warn_mb=ns.attachment_warn_mb,
-        target_patterns=ns.target_patterns)
+        target_patterns=ns.target_patterns, include_tests=cfg["include_tests"], test_paths=cfg["test_paths"])
     report = run(opts)
     files = write_outputs(report, cfg["output_dir"], ns.format)
+    if cfg["ai_verify"] == "claude" and report["test_case_candidates"]:
+        report = _ai_verify(cfg["output_dir"] / "report.json", say)
     if ns.print == "json":
         print(json.dumps(report, indent=2))
     elif ns.print == "brief":
         print(to_brief(report), end="")
         print(f"REPORT {cfg['output_dir']}")  # where report.html / report.json are (for AI chat front-ends)
+        if cfg["ai_verify"] == "chat" and report["test_case_candidates"] and not report.get("ai_verification"):
+            # read by the tc-coverage skill / Copilot prompt: verify before answering (config ai_verify: chat)
+            print("AI-VERIFY required: run verify-pack, verify every batch, then annotate (ai_verify is 'chat')")
     else:
         print(summary_line(report))
         for f in files:
             print(f"  wrote {f}")
     return 0
+
+
+def _ai_verify(report_path: Path, say) -> dict:
+    """config ai_verify = claude: AI-verify right after the analysis (the setting is the approval)."""
+    from tcadvisor.report.render import write_outputs
+    from tcadvisor.verify.runner import verify
+    try:
+        res = verify(report_path, approved=True, progress=say, priorities={"P1", "P2", "P3"})
+    except UsageError as exc:  # e.g. no `claude` on PATH: the analysis stands, unfiltered
+        print(f"warning: AI verification skipped: {exc}", file=sys.stderr)
+        return json.loads(report_path.read_text(encoding="utf-8"))
+    if res["errors"]:
+        print("warning: AI verification: " + "; ".join(res["errors"]), file=sys.stderr)
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    write_outputs(report, report_path.parent, "all", same_analysis=True)
+    return report
 
 
 def _results(ns: argparse.Namespace) -> int:
@@ -273,11 +308,20 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(effective(ns.repo), indent=2, ensure_ascii=False))
             return 0
         if ns.command == "init":
-            from tcadvisor.integrations.init import init
+            from tcadvisor.integrations.init import AIS, init, next_steps
+            ais = tuple(a.strip() for a in ns.ai.split(",") if a.strip() and a.strip() != "none")
+            if ns.ai.strip() in ("all", "both"):
+                ais = AIS
+            if any(a not in AIS for a in ais):
+                raise UsageError(f"--ai: choose from {', '.join(AIS)} or none, not {ns.ai!r}")
             for path, status in init(ns.repo, {"graph": ns.graph, "language": ns.language, "build_dir": ns.build_dir,
                                                "output_dir": ns.output_dir, "targets": ns.targets,
-                                               "max_hop_depth": ns.max_hop_depth}, ns.copilot, ns.force):
+                                               "max_hop_depth": ns.max_hop_depth, "include_tests": ns.include_tests,
+                                               "ai_verify": ns.ai_verify}, ais, ns.force):
                 print(f"{status}: {path}")
+            from tcadvisor.config import load_config
+            for step in next_steps(load_config(ns.repo.resolve())):
+                print(f"next: {step}")
             return 0
         if ns.command == "render":
             from tcadvisor.report.render import write_outputs

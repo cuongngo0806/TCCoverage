@@ -4,7 +4,8 @@
 English template (every occurrence, in list order). Fragments carry enough surrounding quotes / tags to be unique and
 never touch CSS, identifiers, JSON keys or the machine-read blocks (``#data``, ``#results``). ``html.py`` fails loudly
 when an English fragment is no longer in the template, so a template edit cannot silently drop a translation.
-Machine values shown as is (sub-reason codes, edge relations, uncertainty categories, change mode) stay in English.
+Machine values shown as is (edge relations, uncertainty categories, change mode) stay in English; sub-reason tags
+and AI verdicts are shown through labels translated in Python (``render.case_labels``).
 """
 from __future__ import annotations
 
@@ -24,7 +25,7 @@ HTML: list[tuple[str, str]] = [
     ('<span>click a node to filter the cases · hover to trace the path</span>',
      '<span>bấm vào một node để lọc test case · rê chuột để xem đường đi</span>'),
     ('aria-label="impact graph"', 'aria-label="graph ảnh hưởng"'),
-    ('<h2>Test cases to check</h2>', '<h2>Test case cần kiểm tra</h2>'),
+    ('<h2 id="casesTitle">Test cases to check</h2>', '<h2 id="casesTitle">Test case cần kiểm tra</h2>'),
     ('placeholder="Filter by symbol, file, text…"', 'placeholder="Lọc theo symbol, file, nội dung…"'),
     ('title="List order"', 'title="Thứ tự danh sách"'),
     ('>Order: relevance</option>', '>Thứ tự: mức liên quan</option>'),
@@ -34,18 +35,23 @@ HTML: list[tuple[str, str]] = [
      "thread_safety:'Thread safety',exception_safety:'Exception safety',build_config:'Build config'};",
      "const GL={logic:'Logic',abi_layout:'ABI / layout',ownership_lifetime:'Sở hữu / vòng đời',"
      "thread_safety:'An toàn thread',exception_safety:'An toàn exception',build_config:'Cấu hình build'};"),
-    ("const AL={test_on_target:'Test on target',review:'Review code',closed_by_review:'Closed by code review'};",
-     "const AL={test_on_target:'Test trên target',review:'Review code',closed_by_review:'Đã đóng bằng review code'};"),
+    ("const AL={test_on_target:'Test on target',review:'Review code',closed_by_review:'Closed by code review',"
+     "not_needed:'No real test needed (AI)'};",
+     "const AL={test_on_target:'Test trên target',review:'Review code',closed_by_review:'Đã đóng bằng review code',"
+     "not_needed:'Không cần test thực tế (AI)'};"),
+    ("'Cases closed by AI (no real test needed)'", "'Các case AI đã đóng (không cần test thực tế)'"),
+    ("`${R.ai_closed} case(s) closed by AI are listed separately in report.ai-verified.html.`",
+     "`${R.ai_closed} case đã được AI đóng, liệt kê riêng trong report.ai-verified.html.`"),
     ("const llm=R.llm_degraded?'degraded':R.llm_enabled?'on':'off';",
      "const llm=R.llm_degraded?'suy giảm':R.llm_enabled?'bật':'tắt';"),
     ("(ci.working_tree?'working tree':", "(ci.working_tree?'working tree (chưa commit)':"),
     ("const tiles=[[C.length,'test cases'],[nA('test_on_target'),'test on target'],[nA('review'),'review code'],"
-     "[nA('closed_by_review'),'closed by review'],[by('P1'),'P1'],[by('P2'),'P2'],[by('P3'),'P3'],"
+     "[nA('closed_by_review')+nA('not_needed')+(R.ai_closed||0),'closed by AI'],[by('P1'),'P1'],[by('P2'),'P2'],[by('P3'),'P3'],"
      "[R.uncertainty_flags.length,'uncertain'],\n"
      "[(R.changed_symbols||[]).length,'changed symbols'],[(R.affected_targets||[]).length,'targets'],"
      "[R.cache_hit?'hit':'miss','cache'],[llm,'LLM']];",
      "const tiles=[[C.length,'test case'],[nA('test_on_target'),'test trên target'],[nA('review'),'review code'],"
-     "[nA('closed_by_review'),'đã đóng bằng review'],[by('P1'),'P1'],[by('P2'),'P2'],[by('P3'),'P3'],"
+     "[nA('closed_by_review')+nA('not_needed')+(R.ai_closed||0),'AI đã đóng'],[by('P1'),'P1'],[by('P2'),'P2'],[by('P3'),'P3'],"
      "[R.uncertainty_flags.length,'chưa chắc chắn'],\n"
      "[(R.changed_symbols||[]).length,'symbol đã thay đổi'],[(R.affected_targets||[]).length,'target'],"
      "[R.cache_hit?'hit':'miss','cache'],[llm,'LLM']];"),
@@ -125,15 +131,13 @@ HTML: list[tuple[str, str]] = [
     ('<div class="muted">Targets: ', '<div class="muted">Target: '),
     ('<div class="muted">Needs the target: ', '<div class="muted">Cần target vì: '),
     ('<div class="muted">Proof: ', '<div class="muted">Bằng chứng (proof): '),
-    ("AI · ${esc(c.verification.verdict)}${c.verification.recheck?' · re-check':''}",
-     "AI · ${esc({confirmed:'xác nhận',needs_info:'cần thêm thông tin',weak:'yếu',pass_by_review:'đạt qua review'}"
-     "[c.verification.verdict]||c.verification.verdict)}${c.verification.recheck?' · cần kiểm tra lại':''}"),
+    ("${c.verification.recheck?' · re-check':''}", "${c.verification.recheck?' · cần kiểm tra lại':''}"),
     ("'<div class=\"empty\">No cases match.</div>'", "'<div class=\"empty\">Không có case nào khớp.</div>'"),
     # ---------- sections ----------
-    ('<h2>AI verification <span class="muted" style="font-size:13px;font-weight:400">annotations only — '
-     'no case is removed</span></h2>',
-     '<h2>Kiểm tra bằng AI <span class="muted" style="font-size:13px;font-weight:400">chỉ là chú thích — '
-     'không case nào bị xoá</span></h2>'),
+    ('<h2>AI verification <span class="muted" style="font-size:13px;font-weight:400">cases closed by AI are in '
+     'report.ai-verified.html, never deleted</span></h2>',
+     '<h2>Kiểm tra bằng AI <span class="muted" style="font-size:13px;font-weight:400">case AI đã đóng nằm trong '
+     'report.ai-verified.html, không bao giờ bị xoá</span></h2>'),
     ('verified cases: ${AV.verified_cases} · models: ', 'case đã kiểm tra: ${AV.verified_cases} · model: '),
     ('<h2>Trigger sources of <code>', '<h2>Nguồn kích hoạt của <code>'),
     ('<div class="muted">Guard added in ${', '<div class="muted">Điều kiện chặn (guard) được thêm trong ${'),
