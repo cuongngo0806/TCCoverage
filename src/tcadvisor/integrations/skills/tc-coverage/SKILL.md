@@ -1,6 +1,6 @@
 ---
 name: tc-coverage
-description: "Find the test cases (corner cases, side effects, impacted callers, risk groups) a C++/CMake change must be checked against, AI-filter the ones that need no real test, and point to the visual impact-flow report. Use when the user asks what to test for a commit / diff / branch / function, wants test coverage of a change, impact analysis, blast radius, or side-effect review. Args: a commit range (A..B), 'working-tree', or symbol names."
+description: "Find the test cases (corner cases, side effects, impacted callers, risk groups) a C/C++ change (CMake or autotools / Yocto module) must be checked against, AI-filter the ones that need no real test, and point to the visual impact-flow report. Use when the user asks what to test for a commit / diff / branch / function, wants test coverage of a change, impact analysis, blast radius, or side-effect review. Args: a commit range (A..B), 'working-tree', or symbol names."
 argument-hint: "[HEAD~1..HEAD | working-tree | ns::Class::method,...]"
 ---
 
@@ -19,33 +19,55 @@ $ARGUMENTS
 
 ## 0. Setup (only when something is missing)
 
-- `tcadvisor` not installed: `pip install "git+https://github.com/cuongngo0806/tccoverage"` (Python ≥ 3.10).
-  Use the Python that has it (`python` on Windows, `python3` elsewhere): `python -m tcadvisor ...`.
-- Settings live in `.tcadvisor/config.json` of the analysed repository (`graph`, `language`, `build_dir`,
-  `output_dir`, `targets`, `max_hop_depth`, `include_tests`, `test_paths`, `ai_verify`). `python -m tcadvisor config
-  --repo .` prints the effective values. No file and the defaults do not fit → `python -m tcadvisor init --repo .`.
+- Interpreter: `.tcadvisor/config.json` key `python` (written by `tcadvisor init`, e.g. a Linux virtual
+  environment `~/.venvs/tcadvisor/bin/python`); without it use `python3`. Below, `PY` = that interpreter.
+- `tcadvisor` not installed: `python3 -m venv ~/.venvs/tcadvisor && ~/.venvs/tcadvisor/bin/pip install
+  "git+https://github.com/cuongngo0806/tccoverage"` (Python ≥ 3.10).
+- Settings live in `.tcadvisor/config.json` of the analysed repository; `PY -m tcadvisor config --repo .` prints
+  every key with its value and source. No file → `PY -m tcadvisor init --repo .` (writes all keys with defaults).
 - Impact source codegraph missing (exit code 1 says so): `npm i -g @colbymchenry/codegraph`. Never switch to
   another `--graph` yourself.
-- Better accuracy: a build dir with `compile_commands.json` and the CMake File API reply:
-  `mkdir -p build/.cmake/api/v1/query && touch build/.cmake/api/v1/query/codemodel-v2 &&
-  cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON`.
+- Compile database (better accuracy; required with `graph: clang`):
+  - CMake: `mkdir -p build/.cmake/api/v1/query && touch build/.cmake/api/v1/query/codemodel-v2 &&
+    cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON`.
+  - autotools (`configure.ac` + `Makefile.am`, also Yocto recipes): from the build log, never by running the
+    build yourself: `PY -m tcadvisor compile-db --repo . --from-log <log> --variant <name>`, where `<log>` is
+    `${WORKDIR}/temp/log.do_compile` of the recipe (one per MACHINE / variant) or a local `make V=1` log. Ask the
+    user for the log path when it is not known.
+
+### 0b. Build profile (first run in a workspace, or when the brief has a NOTE `no confirmed build profile`)
+
+The module may be built in several variants (machines, product types, configure options). Confirm them once so
+cases on code no variant builds are listed apart instead of in the checklist:
+
+1. `PY -m tcadvisor profile --repo . --detect --json` → `system`, `switches`, `variants` (with the switch values
+   the builds reveal) and `unset` (switches whose value is unknown per variant).
+2. Show the user the variants and their known values in a short table; ask which variants are really built /
+   shipped, their names, and the value (on / off / number) of the `unset` switches that matter. Do not guess.
+3. Save the confirmed JSON (the proposal with the kept variants and the user's values, `value_source` `user` for
+   them): `PY -m tcadvisor profile --repo . --save -` with the JSON on stdin. A NOTE saying the build description
+   changed (profile `stale`) → repeat 1-3.
 
 ## 1. Analyse (one command, brief output only)
 
 ```
-python -m tcadvisor analyze --repo . <mode> --print brief -q
+PY -m tcadvisor analyze --repo . <mode> --print brief -q
 ```
 
 - `<mode>`: `working-tree` or empty → `--working-tree`; `A..B` → `--commit-range A..B`; a branch name →
   `--commit-range <merge-base with main>..<branch>`; names with `::` or identifiers → `--symbols a,b` (never a
   file path).
-- Do **not** pass `--graph`, `--language`, `--build-dir`, `--output-dir`, `--targets`, `--include-tests` or
-  `--max-hop-depth` unless the user asks: they come from the config. Unit-test code is left out unless
+- Do **not** pass `--graph`, `--language`, `--build-dir`, `--output-dir`, `--targets`, `--include-tests`,
+  `--max-hop-depth`, `--build-system` or `--variants` unless the user asks: they come from the config (one variant
+  for one run: `--variants a,b`; everything: `--no-variant-filter`). Unit-test code is left out unless
   `include_tests` is true (the report is about the product, not its unit tests).
 - Exit `1` = prerequisite missing: show the message with its fix and stop. `2` = wrong arguments: fix once.
   `3` = internal error: show stderr and stop.
-- The last lines: `REPORT <dir>` (where report.json / report.html are) and, when `ai_verify` is `chat`,
-  `AI-VERIFY required`.
+- The last lines: `REPORT <dir>` (this run's own folder `.tcadvisor/reports/<time>-<change>/`; earlier runs are
+  never overwritten, `.tcadvisor/reports/latest` points at the newest), `AI-VERIFY required` when `ai_verify` is
+  `chat`, and `report: <dir>`.
+- `PROFILE <state> <variants>` and `NOT-BUILT <id> <file:line> :: <variant: condition>` lines: cases on code no
+  confirmed variant builds (they are in the report's "Not built in the confirmed variants" section, not deleted).
 
 ## 2. AI filter (when the brief says `AI-VERIFY required`, or the user asks to verify / reduce the list)
 
@@ -53,7 +75,7 @@ Goal: keep in the main report only the cases that really need a test on the real
 others with a reason; they move to `report.ai-verified.md` / `.html` (never deleted, report.json keeps them).
 Only packed code windows are read — never explore the repository.
 
-1. `python -m tcadvisor verify-pack --repo .` prints a manifest: `report`, `verdicts` (where to write the
+1. `PY -m tcadvisor verify-pack --repo .` prints a manifest: `report`, `verdicts` (where to write the
    result), `report_language` and the `batches` files (≤ 8 packets each).
 2. For each batch file (read only that file; in Claude Code you may give each batch to a `tc-case-verifier`
    subagent in parallel), decide for **every** case id:
@@ -87,7 +109,7 @@ Only packed code windows are read — never explore the repository.
    (`vi` = Vietnamese, `en` = English); ids, verdict values, symbols and `file:line` unchanged.
    `additional_checks` (max 8): cross-cutting risks visible only when combining packets, each citing a
    `file:line` from the batches; never a repeat of a case.
-4. `python -m tcadvisor annotate <report> <verdicts>`; report its warnings. Then read `<REPORT dir>/report.brief.txt`
+4. `PY -m tcadvisor annotate <report> <verdicts>`; report its warnings. Then read `<REPORT dir>/report.brief.txt`
    again: it now lists only the cases left to test, and an `AI-CLOSED n` line.
 
 ## 3. Token discipline
@@ -96,7 +118,8 @@ Only packed code windows are read — never explore the repository.
 - Details of one case: `python -c "import json;r=json.load(open('<dir>/report.json'));print([c for c in
   r['test_case_candidates'] if c['id']=='TC-0003'])"`. Code: at most ~30 lines around an evidence `file:line`,
   only for P1 cases.
-- Line tags (`CHANGED`, `UNCERTAIN`, `SOURCES`, `AI-ALSO`, `AI-CLOSED`, `NOTE`, `REPORT`) are markers; the text
+- Line tags (`CHANGED`, `UNCERTAIN`, `SOURCES`, `AI-ALSO`, `AI-CLOSED`, `NOTE`, `REPORT`, `PROFILE`, `NOT-BUILT`)
+  are markers; the text
   after them is in the report language. In Claude Code, a brief with > 40 cases can be summarised by the
   `tc-coverage-analyst` subagent.
 
@@ -108,10 +131,13 @@ Only packed code windows are read — never explore the repository.
    corner cases (also the AI ones) and the evidence code.
 3. P2/P3: one line each (or "N more" with the report path).
 4. Every `UNCERTAIN` line: category and reason as given. Never drop one.
-5. `AI-ALSO` checks, then the targets to rebuild / retest.
+5. `AI-ALSO` checks, then the targets to rebuild / retest (CMake targets or autotools programs / libraries).
+   With a build profile: "N cases on code not built in <variants>" (one line; they need no test for these
+   variants).
 6. `report.html` in the `REPORT` dir: visual impact flow and a form to record each case's result (verdict +
-   evidence; `--previous-report <filled.html>` carries results over, `tcadvisor results <filled.html>` checks
-   completeness). `report.ai-verified.html`: the cases the AI closed, with its reasons.
+   evidence: paste a screenshot with Ctrl+V, it shows inline; Save report writes one self-contained file). The
+   next analysis carries the results of the latest run over by case key; `tcadvisor results <filled.html>` checks
+   completeness. `report.ai-verified.html`: the cases the AI closed, with its reasons.
 
 ## Rules
 

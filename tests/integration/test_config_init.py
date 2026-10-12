@@ -141,3 +141,39 @@ def test_ai_verify_claude_closes_cases_into_the_ai_report(project, tmp_path, mon
     ai = (project.out / "report.ai-verified.md").read_text()
     assert "TC-0001" in ai and "a clean build settles it" in ai
     assert (project.out / "report.ai-verified.html").is_file()
+
+
+def test_restored_ai_and_analysis_settings_come_from_the_config(project, tmp_path, capsys):
+    """Spec 012 US6: settings the removed VS Code extension held (Claude binary, models, budget, graph binary,
+    analysis options) are config keys honoured by `analyze` and `verify`."""
+    import stat
+    log = tmp_path / "argv.log"
+    fake = tmp_path / "my-claude"  # not on PATH: only claude_bin finds it
+    fake.write_text("#!/usr/bin/env python3\nimport json,re,sys\n"
+                    f"open({str(log)!r},'a').write(' '.join(sys.argv[1:])+'\\n')\nprompt=sys.stdin.read()\n"
+                    "ids=sorted(set(re.findall(r'TC-\\d{4}',prompt)))\n"
+                    "res={'summary':'s','additional_checks':[]} if 'VERDICTS:' in prompt else "
+                    "{'cases':{i:{'verdict':'confirmed','note':'n'} for i in ids}}\n"
+                    "print(json.dumps({'result':json.dumps(res),'total_cost_usd':0,'usage':{}}))\n")
+    fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+    cfg = project.repo / ".tcadvisor" / "config.json"
+    cfg.parent.mkdir(exist_ok=True)
+    cfg.write_text(json.dumps({"graph": "clang", "language": "en", "build_dir": str(project.build),
+                               "ai_verify": "claude", "claude_bin": str(fake), "verify_model": "model-a",
+                               "synth_model": "model-b", "budget_usd": 0.25, "verify_priorities": "P1,P2,P3",
+                               "attachment_warn_mb": 7, "history": False, "format": "all"}))
+    project.edit("src/util.cpp", "if (n > 3) return 3;", "if (n > 4) return 4;")
+    project.commit()
+    assert main(["analyze", "--repo", str(project.repo), "--commit-range", "HEAD~1..HEAD", "--cache-dir",
+                 str(project.cache), "-q"]) == 0
+    calls = log.read_text().splitlines()
+    assert calls and all("--max-budget-usd 0.25" in c for c in calls)
+    assert any("--model model-a" in c for c in calls) and any("--model model-b" in c for c in calls)
+    rep = json.loads((project.repo / ".tcadvisor" / "reports" / "latest" / "report.json").read_text())
+    assert rep["metrics"]["attachment_warn_mb"] == 7
+    # `verify` on an existing report: the report's repository config applies, a flag still wins
+    log.write_text("")
+    report = project.repo / ".tcadvisor" / "reports" / "latest" / "report.json"
+    assert main(["verify", str(report), "--ai-external-approved", "--verify-model", "model-c"]) == 0
+    calls = log.read_text().splitlines()
+    assert any("--model model-c" in c for c in calls) and all("--max-budget-usd 0.25" in c for c in calls)

@@ -1,9 +1,11 @@
 # TCCoverage — Change Impact & Test Case Advisor
 
-For a C++/CMake change, `tcadvisor` tells you **which test cases to check**: the changed symbols,
-their risk category (logic, ABI/layout, ownership/lifetime, thread safety, exception safety, build
-config), every caller / subclass / user / includer up to N hops, corner cases to exercise, the CMake
-targets to rebuild/retest, and the blind spots that need manual review. Results come as Markdown,
+For a change in a C/C++ module — built with **CMake** or with **autotools** (`configure.ac` + `Makefile.am`,
+e.g. a **Yocto** recipe) — `tcadvisor` tells you **which test cases to check**: the changed symbols, their risk
+category (logic, ABI/layout, ownership/lifetime, thread safety, exception safety, build config), every caller /
+subclass / user / includer up to N hops, corner cases to exercise, the targets (CMake targets or autotools
+programs / libraries) to rebuild/retest, and the blind spots that need manual review. **Linux is the primary
+platform** (build hosts, Yocto containers). Results come as Markdown,
 JSON, a token-lean brief, and an **interactive HTML impact-flow report**.
 
 ![report](docs/report-leveldb-verified.png)
@@ -25,18 +27,34 @@ Two front-ends share the same engine:
 | CLI | `tcadvisor analyze …` | CI / pre-submit, scripting |
 | AI chat skill | `/tc-coverage HEAD~1..HEAD` in Claude Code or GitHub Copilot (agent mode), installed by `tcadvisor init` | conversational review: the AI filters the cases and answers with concrete test scenarios |
 
-## Quick start (any repository)
+## Quick start (Linux)
 
 ```bash
-pip install "git+https://github.com/cuongngo0806/tccoverage"   # Python >= 3.10
-npm i -g @colbymchenry/codegraph                                 # the default impact source (MIT)
-cd <your repo> && tcadvisor init                                 # config + skill for Claude Code and Copilot
+sudo apt install -y python3-venv python3-pip git                 # Debian / Ubuntu build host or Yocto container
+python3 -m venv ~/.venvs/tcadvisor
+~/.venvs/tcadvisor/bin/pip install "git+https://github.com/cuongngo0806/tccoverage"   # Python >= 3.10, libclang wheel
+export PATH="$HOME/.venvs/tcadvisor/bin:$PATH"
+npm i -g @colbymchenry/codegraph                                 # the default impact source (MIT; needs Node.js)
+cd <your module> && tcadvisor init                               # config + skill for Claude Code and Copilot
 ```
 
-`tcadvisor init` writes `.tcadvisor/config.json`, the `tc-coverage` skill (`.claude/skills/` for Claude Code,
-`.github/skills/` for Copilot), the Claude subagents (`.claude/agents/`) and the Copilot prompts `/tc-coverage`,
-`/tc-verify` (`.github/prompts/`). `--ai claude`, `--ai copilot` or `--ai none` installs fewer; existing files are
-kept unless `--force`. Then ask your assistant `/tc-coverage working-tree` (or a commit range).
+Modules built by **Yocto with autotools**: follow [docs/linux-yocto.md](docs/linux-yocto.md) — compile flags come
+from the recipe's `log.do_compile` (`tcadvisor compile-db --from-log …`), and `tcadvisor profile` confirms the
+build variants once so cases on code that no shipped variant builds are listed apart.
+
+`tcadvisor init` writes `.tcadvisor/config.json` (every setting with its default, and the Python interpreter it ran
+with), the `tc-coverage` skill (`.claude/skills/` for Claude Code, `.github/skills/` for Copilot), the Claude
+subagents (`.claude/agents/`) and the Copilot prompts `/tc-coverage`, `/tc-verify` (`.github/prompts/`).
+`--ai claude`, `--ai copilot` or `--ai none` installs fewer; existing files are kept unless `--force`. Then ask your
+assistant `/tc-coverage working-tree` (or a commit range).
+
+Reports are written **inside the workspace**, one folder per analysis that later runs never overwrite:
+`.tcadvisor/reports/<YYYYMMDD-HHMMSS>-<change>/report.html`, with `.tcadvisor/reports/latest` pointing at the
+newest. The folder is ignored through `.git/info/exclude` (no tracked file is touched). Delete old run folders
+yourself when you no longer need them.
+
+macOS and Windows: best effort (the Python package and the CMake flow work; the Yocto / autotools guide and the
+CI target Linux).
 
 What the report contains by default:
 
@@ -158,9 +176,12 @@ tcadvisor analyze ... --previous-report filled.html   # after more edits: result
                                                       # 'needs re-check' where the code behind a case changed
 ```
 
-Each case has a stable `key` (what the case is about, not its position) and a `code_fingerprint`. A new
-analysis never silently drops a filled report in its output directory: it is copied to
-`report.results-backup-<time>.html` first.
+Evidence: drop files, pick them, or **paste a screenshot (Ctrl+V)** into a case's evidence box — images show inline
+in the case, open full size on click and are printed; the saved report stays one self-contained file.
+
+Each case has a stable `key` (what the case is about, not its position) and a `code_fingerprint`. Every analysis
+writes its own run folder, so a filled report is never overwritten; the next analysis carries the results of the
+latest run's filled `report.html` over by case key (`--previous-report` picks another one).
 
 ## Graph providers and project config
 
@@ -171,24 +192,48 @@ tcadvisor analyze ... --graph codegraph|gitnexus|clang --language vi|en
 ```
 
 `<repo>/.tcadvisor/config.json` holds the workspace settings shared by every way of running the tool — CLI,
-Claude Code and GitHub Copilot chat (`tcadvisor init` writes it; `tcadvisor config` prints what a run will use):
+Claude Code and GitHub Copilot chat (`tcadvisor init` writes every key with its default; `tcadvisor config` prints
+each key, its value and whether it comes from the config file or the default; `--json` for tools). Unknown keys
+stop the run and name the closest valid key.
 
 ```json
 {"graph": "codegraph", "language": "vi", "build_dir": "build", "include_tests": false, "ai_verify": "chat",
- "output_dir": "../tcadvisor-report/myrepo", "targets": ["DoorLock"], "max_hop_depth": 2}
+ "targets": ["remoteapp"], "verify_model": "haiku", "budget_usd": 0.5, "python": "/home/me/.venvs/tcadvisor/bin/python"}
 ```
 
 | Key | Default | Meaning |
 |---|---|---|
+| **core** | | |
 | `graph` | `codegraph` | impact source: `codegraph`, `gitnexus` or `clang` |
 | `language` | `vi` | report language: `vi` or `en` |
-| `build_dir` | `build` | CMake build dir (compile_commands.json, File API), relative to the repo |
-| `output_dir` | `../tcadvisor-report/<repo>` | report dir, relative to the repo; must resolve outside it |
-| `targets` | all | CMake targets to restrict the scope to |
+| `build_dir` | `build` | build dir with `compile_commands.json` (CMake: and the File API reply), relative to the repo; autotools: the compile database of the build profile / `compile-db` is used when this is not set |
+| `output_dir` | `.tcadvisor/reports` | report root, relative to the repo; one run folder per analysis inside it |
+| `targets` | all | CMake targets or autotools products to restrict the scope to |
 | `max_hop_depth` | `2` | caller levels to follow |
 | `include_tests` | `false` | also analyse unit-test / mock code (`--include-tests`) |
 | `test_paths` | `[]` | extra globs of unit-test / mock files, e.g. `["src/**/sim_*"]` |
 | `ai_verify` | `off` (`init`: `chat`) | AI filter after each analysis: `off`, `chat` (the skill does it), `claude` (`analyze` runs the headless Claude Code CLI; the setting approves sending packed code windows) |
+| **build (spec 012)** | | |
+| `build_system` | `auto` | `cmake`, `autotools` or `auto` (`CMakeLists.txt` / `configure.ac` at the repo root) |
+| `build` | none | the confirmed build profile (`tcadvisor profile`): variants with their compile database and switch values |
+| **analysis** | | |
+| `graph_bin` | PATH | codegraph / GitNexus executable |
+| `contracts`, `lessons`, `target_patterns` | `.tcadvisor/…` when present | third-party API contracts, team lessons, extra "needs the target" regexes (JSON files) |
+| `index` | `auto` | `full` libclang index, `lite` include scan, `auto` = lite with a graph provider |
+| `jobs` | CPU count | parallel libclang workers |
+| `patterns` / `history` | `true` / `true` | data paths + trigger sources + lesson patterns / bug-fix history ranking |
+| `flow_max_tus`, `split_threshold` | `4`, `50` | TUs parsed for data paths; changed symbols above which the run is split |
+| `cache_dir` | `<repo>/../.tcadvisor-cache/<repo>` | index cache (outside the repo) |
+| `allow_stale_compile_db` | `false` | accept a compile database older than the CMake files |
+| **report** | | |
+| `format` | `all` | `md`, `json`, `html`, `both` (md+json), `all` |
+| `attachment_warn_mb` | `50` | the HTML report warns above this much embedded evidence |
+| **AI verification** | | |
+| `python` | interpreter of `init` | the Python the skill / agents run `-m tcadvisor` with (e.g. a virtual environment) |
+| `claude_bin` | PATH | Claude Code CLI for `ai_verify: claude` / `tcadvisor verify` |
+| `verify_model`, `synth_model` | `haiku`, `sonnet` | model per batch / for the single synthesis call |
+| `budget_usd` | none | spending cap per model call (`claude --max-budget-usd`) |
+| `verify_priorities`, `verify_max_cases`, `verify_parallel` | `P1,P2,P3`, `120`, `4` | which cases are packed, how many, parallel calls |
 
 Precedence: command-line flag > config file > built-in default. With a config, `tcadvisor analyze --working-tree` needs no other argument. The configured source is
 **always** the one used: if it is missing or fails, the run stops (exit 1) with the install command; a root the source cannot resolve becomes an uncertainty flag,
@@ -207,7 +252,7 @@ with it, change classification and CMake target mapping are exact.
 ## AI verification (optional, explicit opt-in)
 
 ```bash
-tcadvisor verify ../tcadvisor-report/report.json --ai-external-approved   # Haiku per batch + 1 Sonnet call
+tcadvisor verify .tcadvisor/reports/latest/report.json --ai-external-approved   # verify_model per batch + 1 synth_model call
 ```
 
 Sends only packed code windows (≤40 lines per impacted symbol) through the Claude Code CLI. Verdicts never delete a
@@ -216,30 +261,37 @@ list to test.
 
 ## Install
 
-```bash
-pip install -e .            # Python ≥ 3.10, pulls the libclang wheel
-```
-
-Prepare the analysed project once (the advisor only reads these artifacts, it never configures your build):
+See *Quick start (Linux)*. From a checkout: `python3 -m venv .venv && .venv/bin/pip install -e .` (Python ≥ 3.10,
+pulls the libclang wheel; no system clang needed to analyse). The advisor only reads build artefacts, it never
+configures or runs your build:
 
 ```bash
+# CMake
 mkdir -p build/.cmake/api/v1/query && touch build/.cmake/api/v1/query/codemodel-v2
 cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+# autotools (local build; Yocto: docs/linux-yocto.md)
+autoreconf -fi && mkdir -p b && cd b && ../configure && make V=1 2>&1 | tee ../build.log && cd ..
+tcadvisor compile-db --repo . --from-log build.log --variant default
 ```
 
 ## CLI
 
 ```bash
-tcadvisor analyze --repo /path/repo --build-dir /path/repo/build --commit-range HEAD~1..HEAD \
-                  --output-dir ../tcadvisor-report [--targets RemoteDoorLock,RemoteDoorUnlock]
+tcadvisor analyze --repo /path/repo --commit-range HEAD~1..HEAD [--targets remoteapp,libremote]
+                                                     # report: /path/repo/.tcadvisor/reports/<time>-<change>/
 tcadvisor analyze ... --working-tree                 # uncommitted changes
 tcadvisor analyze ... --symbols rca::RemoteDoorLock::processOrderResp
 tcadvisor analyze ... --print brief                  # compact output for AI assistants / PR comments
-tcadvisor render ../tcadvisor-report/report.json     # re-render md/html
+tcadvisor analyze ... --variants imx8-basic           # only this build variant (profile); --no-variant-filter: none
+tcadvisor compile-db --from-log log.do_compile --variant imx8-basic   # autotools / Yocto compile flags
+tcadvisor profile [--detect --json | --save FILE|- | --show]          # confirm the build variants
+tcadvisor config                                     # every setting, its value and source
+tcadvisor render .tcadvisor/reports/latest/report.json   # re-render md/html
 tcadvisor cache clear --repo /path/repo
 ```
 
 Exit codes: 0 ok · 1 prerequisite (compile db / File API missing or stale) · 2 usage · 3 internal.
+`--exact-output-dir` writes straight into `--output-dir` without a run folder (scripts, benchmarks).
 Outputs: `report.md` (with Mermaid flow), `report.json` (schema: `specs/001-change-impact-test-advisor/contracts/output-schema.json`),
 `report.html`, `report.brief.txt`; after an AI filter also `report.ai-verified.md` / `.html` (the closed cases).
 

@@ -1,6 +1,6 @@
 # TCCoverage — Change Impact & Test Case Advisor
 
-Given a C++/CMake change (commit range, working tree, or explicit symbols) `tcadvisor` produces an
+Given a C/C++ change in a CMake or autotools (Yocto) module (commit range, working tree, or explicit symbols) `tcadvisor` produces an
 **evidence-backed list of test cases to check** (risk group, priority, corner cases, impacted
 callers/targets) plus a visual impact-flow report. It never writes tests, runs tests or edits the
 analysed repo.
@@ -11,13 +11,14 @@ analysed repo.
   `index/` (libclang + compile_commands + CMake File API) → `ingest/` (git diff → changed symbols) →
   `graph/impact.py` (bounded traversal) → `classify/` (rules.py risk groups, cases.py priority) →
   `evidence/` (uncertainty flags, evidence gate) → `llm/` (optional, off by default) → `report/`.
-- `tests/` — pytest; `tests/conftest.py` builds a synthetic CMake project (needs cmake + clang).
+- `tests/` — pytest; `tests/conftest.py` builds a synthetic CMake project (needs cmake + clang) and an autotools module
+  (`autotools_project`, needs autoconf/automake/libtool/make; skipped otherwise).
 - `src/tcadvisor/integrations/` — AI front-ends `tcadvisor init` installs into the analysed repo: `skills/tc-coverage/SKILL.md`
   (one skill for Claude Code `.claude/skills` and Copilot `.github/skills`), `claude/agents/`, `copilot/*.prompt.md`.
   This repo's `.claude/skills/tc-coverage` + `.claude/agents/tc-*` are copies (test-enforced: edit the package, then
   `tcadvisor init --repo . --ai claude --force` and delete the generated `.tcadvisor/`).
-- `src/tcadvisor/config.py` — `<repo>/.tcadvisor/config.json` (graph, language, build_dir, output_dir, targets, max_hop_depth,
-  include_tests, test_paths, ai_verify), shared by CLI / AI chat; `tcadvisor init [--ai claude,copilot|none]` (`integrations/init.py`).
+- `src/tcadvisor/config.py` — `<repo>/.tcadvisor/config.json` (every key in `DEFAULTS`: core, build profile, analysis, report,
+  AI verification; `tcadvisor config` shows value + source), shared by CLI / AI chat; `tcadvisor init [--ai claude,copilot|none]` (`integrations/init.py`).
 - Unit-test code is left out unless `include_tests` (`pipeline.is_test_file`); benchmark scripts pass `--include-tests`.
 - AI verdicts `not_needed` / `pass_by_review` close a case: `report.*` lists the cases still to test, `report.ai-verified.*`
   the closed ones (`report/render.split`); report.json keeps all.
@@ -36,6 +37,10 @@ analysed repo.
   Rule / hint changes: also run `scripts/seeded_regressions.py` (victims, corners, MRR on dev and holdout).
 - `src/tcadvisor/classify/environment.py` — spec 009 (`specs/007-target-vs-review`): `verify_by` target|review per case; AI `pass_by_review`
   (gated in `verify/annotate.py`) closes review cases with proof — see `docs/workflow.md`.
+- Spec 012 (`specs/012-linux-yocto-autotools`, Linux-first): `report/runs.py` (one run folder per analysis in
+  `<repo>/.tcadvisor/reports`, `latest`), `index/automake.py` (configure.ac + Makefile.am → TargetModel),
+  `index/build_log.py` (`tcadvisor compile-db --from-log`, Yocto `log.do_compile`), `index/variants.py` +
+  `classify/variants.py` (`tcadvisor profile`, `not_built`), restored VS Code settings as config keys; guide `docs/linux-yocto.md`.
 - `specs/001-change-impact-test-advisor/` — speckit spec/plan/tasks; `.specify/memory/constitution.md` — rules.
 
 ## Commands
@@ -44,7 +49,7 @@ analysed repo.
 pip install -e '.[dev]'                       # libclang wheel + pytest/jsonschema
 python3 -m pytest -q                          # full suite (~20 s)
 python3 -m pytest -q tests/unit               # fast
-python3 -m tcadvisor analyze --repo R --build-dir B --working-tree --output-dir OUT --print brief
+python3 -m tcadvisor analyze --repo R --working-tree --print brief   # report: R/.tcadvisor/reports/<run>/ (--exact-output-dir OUT for scripts)
 python3 scripts/eval_real_project.py --quiet   # real-project acceptance (needs network + cmake)
 python3 scripts/seeded_regressions.py          # 31 seeded side-effect regressions: leveldb dev + holdout, yaml-cpp
 python3 scripts/seeded_regressions.py --min-victims yamlcpp=8 --min-corners yamlcpp=9   # CI recall gate (per-set thresholds)

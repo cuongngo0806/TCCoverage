@@ -550,7 +550,9 @@ def main(argv: list[str] | None = None) -> int:
                                                "ai_verify": ns.ai_verify}, ais, ns.force):
                 print(f"{status}: {path}")
             from tcadvisor.config import load_config
-            for step in next_steps(load_config(ns.repo.resolve())):
+            from tcadvisor.index.automake import detect_build_system
+            for step in next_steps({**load_config(ns.repo.resolve()),
+                                    "_system": detect_build_system(ns.repo.resolve())}):
                 print(f"next: {step}")
             return 0
         if ns.command == "render":

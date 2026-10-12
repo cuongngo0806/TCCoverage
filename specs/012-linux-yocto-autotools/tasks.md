@@ -76,11 +76,11 @@ Independent test: quickstart V3 (variant `basic` only ⇒ FEATURE_X cases in `no
 
 Independent test: quickstart V4 (guide followed on a clean Linux container).
 
-- [ ] T038 [P] [US4] Rewrite README.md "Install" + "Quick start" Linux-first (apt packages, venv, `pip install -e .`, Node only for codegraph), config table: `output_dir` default `.tcadvisor/reports`, new `build` key; "Test report" section: run folders, `latest`, no backup copies; best-effort note for macOS/Windows
-- [ ] T039 [P] [US4] New docs/linux-yocto.md: module source (`devtool modify`, externalsrc, plain checkout), per-`MACHINE` `bitbake -c compile <recipe>`, `tcadvisor compile-db --from-log $BUILDDIR/tmp/work/<arch>/<recipe>/<ver>/temp/log.do_compile --src … --variant …`, local build `make V=1 2>&1 | tee build.log`, `bear`/`compiledb` alternatives, `tcadvisor profile`, analyse, open `.tcadvisor/reports/latest/report.html`, cleaning old runs, troubleshooting (silent rules, path mapping)
-- [ ] T040 [US4] Update packaged front-ends: src/tcadvisor/integrations/skills/tc-coverage/SKILL.md (first run: `profile --detect --json` → ask the user → `profile --save -`; report path from `REPORT` line / `latest`), src/tcadvisor/integrations/claude/agents/*.md, src/tcadvisor/integrations/copilot/*.prompt.md; then `tcadvisor init --repo . --ai claude --force` and delete the generated `.tcadvisor/` (copies test-enforced)
-- [ ] T041 [US4] `next_steps` in src/tcadvisor/integrations/init.py: autotools ⇒ `compile-db --from-log …` + `profile`; CMake ⇒ current hint
-- [ ] T042 [P] [US4] Update CLAUDE.md layout/commands (spec 012 entry, new modules, `profile`, `compile-db`) and docs/workflow.md report path
+- [X] T038 [P] [US4] Rewrite README.md "Install" + "Quick start" Linux-first (apt packages, venv, `pip install -e .`, Node only for codegraph), config table: `output_dir` default `.tcadvisor/reports`, new `build` key; "Test report" section: run folders, `latest`, no backup copies; best-effort note for macOS/Windows
+- [X] T039 [P] [US4] New docs/linux-yocto.md: module source (`devtool modify`, externalsrc, plain checkout), per-`MACHINE` `bitbake -c compile <recipe>`, `tcadvisor compile-db --from-log $BUILDDIR/tmp/work/<arch>/<recipe>/<ver>/temp/log.do_compile --src … --variant …`, local build `make V=1 2>&1 | tee build.log`, `bear`/`compiledb` alternatives, `tcadvisor profile`, analyse, open `.tcadvisor/reports/latest/report.html`, cleaning old runs, troubleshooting (silent rules, path mapping)
+- [X] T040 [US4] Update packaged front-ends: src/tcadvisor/integrations/skills/tc-coverage/SKILL.md (first run: `profile --detect --json` → ask the user → `profile --save -`; report path from `REPORT` line / `latest`), src/tcadvisor/integrations/claude/agents/*.md, src/tcadvisor/integrations/copilot/*.prompt.md; then `tcadvisor init --repo . --ai claude --force` and delete the generated `.tcadvisor/` (copies test-enforced)
+- [X] T041 [US4] `next_steps` in src/tcadvisor/integrations/init.py: autotools ⇒ `compile-db --from-log …` + `profile`; CMake ⇒ current hint
+- [X] T042 [P] [US4] Update CLAUDE.md layout/commands (spec 012 entry, new modules, `profile`, `compile-db`) and docs/workflow.md report path
 
 ## Phase 7: US5 — Paste screenshots as evidence (P3)
 
@@ -95,14 +95,14 @@ Independent test: quickstart V5 (paste ⇒ inline image, survives save/reopen of
 
 Independent test: config with `verify_model`, `budget_usd`, `graph_bin`, `contracts`, `attachment_warn_mb` ⇒ used by `analyze` (fake `claude` records its arguments) and shown by `tcadvisor config` with source.
 
-- [ ] T050 [P] [US6] Unit tests tests/unit/test_config_keys.py: every new key validated (types/ranges: `budget_usd` > 0, `verify_max_cases` ≥ 1, `verify_parallel` 1–16, `index` ∈ `auto|full|lite`, `format` ∈ `md|json|html|both|all`, `verify_priorities` ⊆ `P1,P2,P3`), unknown key ⇒ `UsageError` with closest match (`difflib.get_close_matches`), precedence flag > config > default
+- [X] T050 [P] [US6] Unit tests tests/unit/test_config_keys.py: every new key validated (types/ranges: `budget_usd` > 0, `verify_max_cases` ≥ 1, `verify_parallel` 1–16, `index` ∈ `auto|full|lite`, `format` ∈ `md|json|html|both|all`, `verify_priorities` ⊆ `P1,P2,P3`), unknown key ⇒ `UsageError` with closest match (`difflib.get_close_matches`), precedence flag > config > default
 - [X] T051 [US6] Add keys of FR-026/FR-027/FR-031 (`claude_bin`, `verify_model`, `synth_model`, `budget_usd`, `verify_priorities`, `verify_max_cases`, `verify_parallel`, `graph_bin`, `contracts`, `lessons`, `target_patterns`, `index`, `jobs`, `patterns`, `history`, `flow_max_tus`, `split_threshold`, `attachment_warn_mb`, `cache_dir`, `allow_stale_compile_db`, `format`, `python`) to `DEFAULTS` / `_check` in src/tcadvisor/config.py; reject unknown keys; `resolve()` returns `{key: (value, source)}` for `tcadvisor config`
 - [X] T052 [US6] In src/tcadvisor/cli/main.py change argparse defaults of the matching `analyze` / `verify` / `verify-pack` flags to `None` and fill them from `resolve()`; `_ai_verify` passes `claude_bin`, models, `budget_usd`, priorities, `verify_max_cases`, `verify_parallel` to src/tcadvisor/verify/runner.py `verify`
 - [X] T053 [US6] `tcadvisor config` prints key / value / source table (and `--json`) in src/tcadvisor/cli/main.py
 - [X] T054 [US6] `tcadvisor init` writes every key with its default and `python` = `sys.executable` (src/tcadvisor/integrations/init.py); existing values kept unless `--force`
-- [ ] T055 [US6] Skill / agents / prompts read `python` from `tcadvisor config --json` instead of guessing `python`/`python3` (src/tcadvisor/integrations/skills/tc-coverage/SKILL.md, claude/agents/*.md, copilot/*.prompt.md); re-copy into .claude/ as in T040
-- [ ] T056 [US6] Integration test tests/integration/test_config_init.py: `init` writes all keys; `ai_verify: claude` with a fake `claude` receives `--model <verify_model>` and `--max-budget-usd <budget_usd>`; `graph_bin` used by the provider; README config table lists every key (test reads the table)
-- [ ] T057 [P] [US6] README.md config table grouped (core / build / analysis / AI verification / report) with every key, default and meaning
+- [X] T055 [US6] Skill / agents / prompts read `python` from `tcadvisor config --json` instead of guessing `python`/`python3` (src/tcadvisor/integrations/skills/tc-coverage/SKILL.md, claude/agents/*.md, copilot/*.prompt.md); re-copy into .claude/ as in T040
+- [X] T056 [US6] Integration test tests/integration/test_config_init.py: `init` writes all keys; `ai_verify: claude` with a fake `claude` receives `--model <verify_model>` and `--max-budget-usd <budget_usd>`; `graph_bin` used by the provider; README config table lists every key (test reads the table)
+- [X] T057 [P] [US6] README.md config table grouped (core / build / analysis / AI verification / report) with every key, default and meaning
 
 ## Phase 8: Polish & cross-cutting
 

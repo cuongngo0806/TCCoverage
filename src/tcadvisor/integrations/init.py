@@ -83,8 +83,14 @@ def next_steps(cfg: dict[str, Any]) -> list[str]:
     steps = []
     if cfg.get("graph", "codegraph") == "codegraph" and not shutil.which("codegraph"):
         steps.append("install the impact source: npm i -g @colbymchenry/codegraph")
-    steps.append("optional, better accuracy: configure the build with -DCMAKE_EXPORT_COMPILE_COMMANDS=ON and an empty "
-                 "<build>/.cmake/api/v1/query/codemodel-v2 file")
+    if cfg.get("_system") == "autotools":
+        steps.append("compile flags of this autotools module: tcadvisor compile-db --repo . --from-log "
+                     "<${WORKDIR}/temp/log.do_compile of the recipe, or a 'make V=1' log> --variant <name> "
+                     "(once per build variant; docs/linux-yocto.md)")
+        steps.append("confirm the build variants once: tcadvisor profile (or let the AI assistant ask you)")
+    else:
+        steps.append("optional, better accuracy: configure the build with -DCMAKE_EXPORT_COMPILE_COMMANDS=ON and an "
+                     "empty <build>/.cmake/api/v1/query/codemodel-v2 file")
     steps.append("then ask your assistant: /tc-coverage working-tree (Claude Code or Copilot agent mode), or run "
                  "tcadvisor analyze --working-tree")
     return steps
