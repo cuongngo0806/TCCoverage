@@ -127,7 +127,8 @@ def fix_history(repo: Path, until_rev: str | None, months: int = 12) -> dict[str
     date = git(repo, "log", "-1", "--format=%cI", until_rev or "HEAD", check=False).strip()
     if not date:
         return {}
-    since = (datetime.datetime.fromisoformat(date) - datetime.timedelta(days=30 * months)).isoformat()
+    end = datetime.datetime.fromisoformat(date.replace("Z", "+00:00"))  # git may print "Z"; Python 3.10 rejects it
+    since = (end - datetime.timedelta(days=30 * months)).isoformat()
     out = git(repo, "log", f"--before={date}", f"--since={since}", "-i", "-E", f"--grep={_FIX_SUBJECT}",
               "--no-merges", "--name-only", "--format=", check=False)
     counts: dict[str, int] = {}
