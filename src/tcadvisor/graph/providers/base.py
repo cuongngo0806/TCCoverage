@@ -176,7 +176,6 @@ def copy_subgraph(src: Graph, dst: Graph, root: str, depth: int) -> bool:
     return copied
 
 
-CODEGRAPH_MISSING = "codegraph not installed"
 CODEGRAPH_INSTALL = "npm i -g @colbymchenry/codegraph"
 
 
@@ -185,10 +184,6 @@ def get_provider(name: str, repo: Path, depth: int, bin_path: str | None = None)
     from tcadvisor.graph.providers.gitnexus import GitNexusProvider
 
     if name == "clang":
-        return None
-    if name == "auto":
-        if os.environ.get("TCADVISOR_CODEGRAPH") or shutil.which("codegraph"):
-            return CodegraphProvider(repo, depth, bin_path)
         return None
     if name == "codegraph":
         return CodegraphProvider(repo, depth, bin_path)

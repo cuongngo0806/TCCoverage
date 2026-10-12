@@ -159,13 +159,34 @@
         "tcCoverage.graphProvider": {
           "type": "string",
           "enum": [
-            "auto",
+            "",
             "codegraph",
             "gitnexus",
             "clang"
           ],
-          "default": "codegraph",
-          "markdownDescription": "Where impact comes from. `codegraph` (MIT, default) is required: if it is missing the run stops and offers to install it; `auto` = codegraph if installed, else libclang; `gitnexus` is PolyForm-Noncommercial \u2014 enable only if your organisation allows it; `clang` = built-in libclang graph (needs compile_commands.json)."
+          "enumDescriptions": [
+            "From the repository's .tcadvisor/config.json, else codegraph",
+            "codegraph (MIT, default)",
+            "GitNexus (PolyForm-Noncommercial: enable only if your organisation allows it)",
+            "Built-in libclang graph (needs compile_commands.json)"
+          ],
+          "default": "",
+          "markdownDescription": "Where impact comes from. The chosen source is always used: if it is missing or fails, the run stops (a missing codegraph offers to install it). Empty = `graph` in the repository's `.tcadvisor/config.json`, else `codegraph`."
+        },
+        "tcCoverage.reportLanguage": {
+          "type": "string",
+          "enum": [
+            "",
+            "vi",
+            "en"
+          ],
+          "enumDescriptions": [
+            "From the repository's .tcadvisor/config.json, else Vietnamese",
+            "Ti\u1ebfng Vi\u1ec7t (default)",
+            "English"
+          ],
+          "default": "",
+          "markdownDescription": "Language of the report (Markdown, HTML, brief). Empty = `language` in the repository's `.tcadvisor/config.json`, else `vi`."
         },
         "tcCoverage.graphBin": {
           "type": "string",

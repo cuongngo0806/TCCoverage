@@ -33,8 +33,9 @@ $ARGUMENTS
   --output-dir <repo>/../tcadvisor-report --print brief -q
 ```
 
-Impact comes from codegraph (the default `--graph codegraph`; if it is missing the run stops with the
-install command — tell the user, never switch to `--graph clang` on your own; `--graph gitnexus` only if the user opted in — PolyForm-Noncommercial license). **You never trace
+Impact comes from the configured source (`graph` in `<repo>/.tcadvisor/config.json`, else codegraph; do not
+pass `--graph` unless the user asks). If it is missing the run stops with the install command — tell the user,
+never switch to another `--graph` on your own; `--graph gitnexus` only if the user opted in — PolyForm-Noncommercial license). **You never trace
 impact yourself; you only verify it** (step 3b).
 
 (If `tcadvisor` is not installed: `pip install -e <this TCCoverage repo>` first.)

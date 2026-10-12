@@ -1,4 +1,5 @@
 """Graph providers (spec 002). Real-tool tests run only when the tool is installed."""
+import json
 import shutil
 
 import pytest
@@ -127,11 +128,32 @@ def test_default_graph_requires_codegraph(project, monkeypatch, capsys):
     assert "codegraph not installed" in capsys.readouterr().err
 
 
-def test_auto_without_codegraph_notes_install(project, monkeypatch):
-    from tcadvisor.graph.providers import base
+def test_config_file_selects_the_source_and_flag_overrides_it(project, monkeypatch, capsys):
+    from tcadvisor.cli.main import main
     _hide_codegraph(monkeypatch)
+    cfg = project.repo / ".tcadvisor" / "config.json"
+    cfg.parent.mkdir(exist_ok=True)
+    cfg.write_text('{"graph": "clang", "language": "en"}')
     project.edit("src/util.cpp", "if (n > 3) return 3;", "if (n > 4) return 4;")
     project.commit()
-    r = project.analyze("--commit-range", "HEAD~1..HEAD", "--graph", "auto")
-    assert r["graph_provider"] == "clang"
-    assert any(base.CODEGRAPH_INSTALL in n for n in r["run_notes"])
+    base_args = ["analyze", "--repo", str(project.repo), "--build-dir", str(project.build), "--output-dir",
+                 str(project.out), "--cache-dir", str(project.cache), "--commit-range", "HEAD~1..HEAD", "-q"]
+    assert main(base_args) == 0
+    r = json.loads((project.out / "report.json").read_text())
+    assert (r["graph_provider"], r["report_language"]) == ("clang", "en")
+    assert main(base_args + ["--graph", "codegraph"]) == 1  # the flag wins; a missing source stops the run
+    assert "codegraph not installed" in capsys.readouterr().err
+    cfg.write_text('{"graph": "auto"}')
+    assert main(base_args) == 2  # an unknown source is never guessed
+
+
+def test_unresolved_root_is_flagged_not_traced_with_libclang(project, tmp_path):
+    fake = tmp_path / "codegraph"  # a codegraph that knows no definition
+    fake.write_text('#!/bin/sh\ncase "$1" in impact) echo \'{"definitions": []}\';; esac\n')
+    fake.chmod(0o755)
+    project.edit("src/util.cpp", "if (n > 3) return 3;", "if (n > 4) return 4;")
+    project.commit()
+    r = project.analyze("--commit-range", "HEAD~1..HEAD", "--graph", "codegraph", "--graph-bin", str(fake))
+    assert r["graph_provider"] == "codegraph"
+    assert any("could not resolve `clampRetries`" in f["reason"] for f in r["uncertainty_flags"])
+    assert not any(n["hop_distance"] > 0 for n in r["impact_nodes"])

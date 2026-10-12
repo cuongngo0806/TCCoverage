@@ -51,9 +51,8 @@ class Options:
     llm_model: str = "qwen2.5-coder:7b"
     allow_stale: bool = False
     use_run_cache: bool = True
-    graph: str = "codegraph"  # auto|codegraph|gitnexus|clang (spec 002); clang only when asked for
+    graph: str = "codegraph"  # codegraph|gitnexus|clang (spec 002): the configured source is never switched
     index: str = "auto"  # auto|full|lite: lite (include scan only) is the default with a graph provider
-    fallback_max_tus: int = 200
     history: bool = True  # rank by bug-fix history of files (git log, local)
     jobs: int | None = None
     graph_bin: str | None = None
@@ -64,6 +63,7 @@ class Options:
     patterns: bool = True  # spec 006: data paths, trigger sources, lesson patterns
     attachment_warn_mb: int = 50
     target_patterns: Path | None = None  # extra "needs the target" regexes (spec 007), JSON {category: regex}
+    language: str = "vi"  # report language (vi|en); report.json text stays English, renderers translate
     progress: Callable[[str], None] | None = None
 
 
@@ -105,6 +105,7 @@ def run(opts: Options) -> dict[str, Any]:
         cache.close()
     # tester results (spec 006): applied after the run cache, never part of the analysis itself (FR-613)
     report.setdefault("metrics", {})["attachment_warn_mb"] = opts.attachment_warn_mb
+    report["report_language"] = opts.language
     if previous is not None:
         report["test_results"] = carry_over(previous, report, opts.attachment_warn_mb)
     return report
@@ -112,13 +113,9 @@ def run(opts: Options) -> dict[str, Any]:
 
 def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: float) -> dict[str, Any]:
     say = opts.progress or (lambda _m: None)
-    from tcadvisor.graph.providers.base import CODEGRAPH_INSTALL, CODEGRAPH_MISSING, get_provider
+    from tcadvisor.graph.providers.base import get_provider
     provider = get_provider(opts.graph, repo, opts.max_hop_depth, opts.graph_bin)
     early_notes: list[str] = []
-    if opts.graph == "auto" and provider is None:
-        early_notes.append(f"{CODEGRAPH_MISSING}: impact comes from the built-in libclang graph (slower, larger case "
-                           f"lists on big repos); install it with `{CODEGRAPH_INSTALL}`")
-        say(early_notes[-1])
     try:
         cdb = CompileDatabase.load(opts.build_dir.resolve(), repo, allow_stale=opts.allow_stale)
     except PrerequisiteError as exc:
@@ -240,7 +237,6 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     flows: dict[str, list[str]] = {}
     if provider is not None:
         from tcadvisor.graph.providers.base import Root, build_overlay
-        from tcadvisor.graph.providers.base import copy_subgraph
         say(f"impact via {provider.name}")
         proots = [Root(ch.node_id, roots[ch.node_id].qualified_name, roots[ch.node_id].qualified_name.split("::")[-1],
                        roots[ch.node_id].kind, roots[ch.node_id].file_path, roots[ch.node_id].line) for ch in changes
@@ -258,34 +254,11 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
             if fid.startswith("file:"):
                 overlay.dependents[fid].extend(d for d in deps if d.relation == "include")
         provider_flags = list(pres.flags)
-        fallback = graph
-        if pres.missed and lite and cdb.entries:
-            # the lite index has no call graph: build the full libclang index only now that it is needed
-            # ... restricted to the TUs that include a missed root's file (from the lite include graph)
-            missed_files = {roots[r].file_path for r in pres.missed}
-            # a definition in foo.cpp is used through its declaring header (foo.h): include same-stem headers
-            stems = {Path(f).stem for f in missed_files}
-            missed_files |= {inc for src, inc, _l in facts.includes if src in missed_files and Path(inc).stem in stems}
-            sub = [e for e in cdb.entries if missed_files & facts.tu_files.get(
-                e.file.relative_to(repo).as_posix() if e.file.is_relative_to(repo) else "", set())]
-            if len(sub) > opts.fallback_max_tus:
-                # bounded cost (constitution V): flag instead of re-indexing most of the code base
-                ctx.notes.append(f"libclang fallback skipped: {len(sub)} TUs include the unresolved roots "
-                                 f"(> --fallback-max-tus {opts.fallback_max_tus}); they are flagged for manual review")
-                sub = []
-            if sub:
-                say(f"{len(pres.missed)} root(s) unresolved by {provider.name}: libclang fallback over {len(sub)} TU(s)")
-                ctx.notes.append(f"{len(pres.missed)} root(s) unresolved by {provider.name}; their dependents come from "
-                                 f"a libclang index of the {len(sub)} translation unit(s) that include them")
-                full_facts, _st = build_index(repo, CompileDatabase(cdb.build_dir, sub, cdb.digest), cache,
-                                              progress=say, jobs=opts.jobs)
-                fallback = build_graph(full_facts, tmodel, repo)
-        for rid in pres.missed:  # provider could not resolve this root: use the libclang graph, else flag it
-            if not copy_subgraph(fallback, overlay, rid, opts.max_hop_depth):
-                provider_flags.append(UncertaintyFlag(
-                    "dynamic_runtime_dependency",
-                    f"{provider.name} could not resolve `{roots[rid].qualified_name}` and no compile-database graph is "
-                    "available; its dependents are unknown — review manually", roots[rid]))
+        for rid in pres.missed:  # the configured source is never replaced by another graph: flag the blind spot
+            provider_flags.append(UncertaintyFlag(
+                "dynamic_runtime_dependency",
+                f"{provider.name} could not resolve `{roots[rid].qualified_name}`; its dependents are unknown "
+                "— review manually", roots[rid]))
         graph = overlay
         ctx.notes.extend(dict.fromkeys(pres.notes))
         flows = pres.flows

@@ -10,6 +10,7 @@ from pathlib import Path
 
 from tcadvisor import __version__
 from tcadvisor.models import PrerequisiteError, UsageError
+from tcadvisor.config import GRAPHS, LANGUAGES, resolve
 
 
 class _Parser(argparse.ArgumentParser):
@@ -58,14 +59,15 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--llm-endpoint", default="http://localhost:11434")
     a.add_argument("--llm-model", default="qwen2.5-coder:7b")
     a.add_argument("--llm-external-approved", action="store_true")
-    a.add_argument("--graph", choices=["auto", "codegraph", "gitnexus", "clang"], default="codegraph",
-                   help="impact source: codegraph (MIT), gitnexus (PolyForm-Noncommercial, opt-in), clang (built-in "
-                        "libclang graph); default codegraph (required, never silently replaced); auto = codegraph if installed else clang")
+    a.add_argument("--graph", choices=list(GRAPHS),
+                   help="impact source: codegraph (MIT, default), gitnexus (PolyForm-Noncommercial, opt-in) or clang "
+                        "(built-in libclang graph); default from <repo>/.tcadvisor/config.json, else codegraph. The "
+                        "chosen source is never replaced: if it is missing or fails, the run stops")
+    a.add_argument("--language", choices=list(LANGUAGES),
+                   help="report language: vi (default) or en; default from <repo>/.tcadvisor/config.json, else vi")
     a.add_argument("--graph-bin", help="path to the codegraph/gitnexus executable")
     a.add_argument("--index", choices=["auto", "full", "lite"], default="auto",
                    help="libclang index of every TU (full) or include scan only (lite); auto = lite with a graph provider")
-    a.add_argument("--fallback-max-tus", type=int, default=200,
-                   help="max TUs to parse with libclang when the graph provider cannot resolve a root (else flag)")
     a.add_argument("--no-history", dest="history", action="store_false",
                    help="do not use the files' bug-fix history (git log) as a ranking signal")
     a.add_argument("--target-patterns", type=Path, metavar="JSON",
@@ -113,6 +115,7 @@ def build_parser() -> argparse.ArgumentParser:
     r = sub.add_parser("render", help="re-render md/html/brief from an existing report.json")
     r.add_argument("report", type=Path)
     r.add_argument("--output-dir", type=Path)
+    r.add_argument("--language", choices=list(LANGUAGES), help="re-render in this language (default: the report's)")
     rs = sub.add_parser("results", help="summarise the test results recorded in a filled report.html "
                                         "(exit 0 complete, 4 incomplete or any fail)")
     rs.add_argument("report", type=Path)
@@ -133,6 +136,7 @@ def _analyze(ns: argparse.Namespace) -> int:
         load_patterns(ns.target_patterns)  # usage error before any indexing
     if ns.llm:
         check_endpoint(ns.llm_endpoint, ns.llm_external_approved)
+    cfg = resolve(ns.repo, graph=ns.graph, language=ns.language)
     symbols = parse_symbol_args(ns.symbols, ns.symbols_file) if (ns.symbols or ns.symbols_file) else None
     say = (lambda m: None) if ns.quiet else (lambda m: print(f"[tcadvisor] {m}", file=sys.stderr))
     opts = Options(
@@ -140,8 +144,8 @@ def _analyze(ns: argparse.Namespace) -> int:
         symbols=symbols, max_hop_depth=ns.max_hop_depth, split_threshold=ns.split_threshold, cache_dir=ns.cache_dir,
         output_dir=ns.output_dir, targets=[t.strip() for t in ns.targets.split(",")] if ns.targets else None,
         llm=ns.llm, llm_endpoint=ns.llm_endpoint, llm_model=ns.llm_model, allow_stale=ns.allow_stale_compile_db,
-        use_run_cache=not ns.no_run_cache, progress=say, graph=ns.graph, graph_bin=ns.graph_bin,
-        index=ns.index, jobs=ns.jobs, fallback_max_tus=ns.fallback_max_tus, history=ns.history,
+        use_run_cache=not ns.no_run_cache, progress=say, graph=cfg["graph"], language=cfg["language"], graph_bin=ns.graph_bin,
+        index=ns.index, jobs=ns.jobs, history=ns.history,
         contracts=ns.contracts, lessons=ns.lessons, previous_report=ns.previous_report,
         flow_max_tus=ns.flow_max_tus, patterns=ns.patterns, attachment_warn_mb=ns.attachment_warn_mb,
         target_patterns=ns.target_patterns)
@@ -244,6 +248,8 @@ def main(argv: list[str] | None = None) -> int:
         if ns.command == "render":
             from tcadvisor.report.render import write_outputs
             rep = json.loads(ns.report.read_text(encoding="utf-8"))
+            if ns.language:
+                rep["report_language"] = ns.language
             for f in write_outputs(rep, ns.output_dir or ns.report.parent, "all", same_analysis=True):
                 print(f"wrote {f}")
             return 0
