@@ -10,7 +10,7 @@ from pathlib import Path
 
 from tcadvisor import __version__
 from tcadvisor.models import PrerequisiteError, UsageError
-from tcadvisor.config import AI_VERIFY, BUILD_SYSTEMS, FORMATS, GRAPHS, INDEX_MODES, LANGUAGES, resolve
+from tcadvisor.config import AI_VERIFY, BUILD_SYSTEMS, FORMATS, GRAPHS, INDEX_MODES, LANGUAGES, resolve, resolve_sources
 
 
 class _Parser(argparse.ArgumentParser):
@@ -157,6 +157,15 @@ def build_parser() -> argparse.ArgumentParser:
     ini.add_argument("--output-dir", help="report root, relative to the repository root (default .tcadvisor/reports)")
     ini.add_argument("--targets", help="comma-separated build targets / products")
     ini.add_argument("--max-hop-depth", type=int)
+    cd = sub.add_parser("compile-db", help="write compile_commands.json from a build log (Yocto log.do_compile or "
+                                           "make V=1 output); the build itself is never run")
+    cd.add_argument("--from-log", type=Path, required=True, metavar="LOG")
+    cd.add_argument("--repo", type=Path, default=Path("."))
+    cd.add_argument("--src", metavar="PATH", help="source dir of the build (Yocto ${S}) when it is not the workspace; "
+                    "mapped onto --repo (default: detected from the log)")
+    cd.add_argument("--map", action="append", default=[], metavar="OLD=NEW", help="extra path prefix mapping")
+    cd.add_argument("--variant", help="record the result as this build-profile variant (name [A-Za-z0-9._-]+)")
+    cd.add_argument("--out", type=Path, help="default: <repo>/.tcadvisor/build/<variant|default>/compile_commands.json")
     cf = sub.add_parser("config", help="print every setting a run on the repository uses, with its source "
                                        "(flag aside): config file or built-in default")
     cf.add_argument("--repo", type=Path, default=Path("."))
@@ -175,13 +184,19 @@ def _analyze(ns: argparse.Namespace) -> int:
     from tcadvisor.report.render import summary_line, to_brief, write_outputs
     from tcadvisor.report.runs import change_label, latest_run, new_run_folder, update_latest
 
-    cfg = resolve(ns.repo, graph=ns.graph, language=ns.language, build_dir=ns.build_dir, output_dir=ns.output_dir,
+    cfg, src = resolve_sources(ns.repo, graph=ns.graph, language=ns.language, build_dir=ns.build_dir, output_dir=ns.output_dir,
                   targets=ns.targets, max_hop_depth=ns.max_hop_depth, include_tests=ns.include_tests,
                   ai_verify=ns.ai_verify, build_system=ns.build_system, graph_bin=ns.graph_bin,
                   contracts=ns.contracts, lessons=ns.lessons, target_patterns=ns.target_patterns, index=ns.index,
                   jobs=ns.jobs, patterns=ns.patterns, history=ns.history, flow_max_tus=ns.flow_max_tus,
                   split_threshold=ns.split_threshold, attachment_warn_mb=ns.attachment_warn_mb,
                   cache_dir=ns.cache_dir, allow_stale_compile_db=ns.allow_stale_compile_db, format=ns.format)
+    if src["build_dir"] == "default":  # a compile database recorded by `tcadvisor compile-db` / the build profile
+        from tcadvisor.config import variant_compile_db
+        names = [v.strip() for v in ns.variants.split(",")] if ns.variants else None
+        found = variant_compile_db(ns.repo, cfg, names)
+        if found is not None:
+            cfg["build_dir"] = found
     if cfg["max_hop_depth"] < 1 or cfg["split_threshold"] < 1:
         raise UsageError("--max-hop-depth and --split-threshold must be >= 1")
     if cfg["target_patterns"]:
@@ -306,6 +321,51 @@ def _ai_verify(report_path: Path, say, cfg: dict) -> dict:
     return report
 
 
+def _compile_db(ns: argparse.Namespace) -> int:
+    from tcadvisor.config import _VARIANT_NAME, update_file
+    from tcadvisor.index.build_log import log_sha256, write_compile_db
+    from tcadvisor.ingest.git import git_exclude
+    repo = ns.repo.resolve()
+    if not (repo / ".git").exists():
+        raise UsageError(f"--repo '{repo}' is not a git repository root")
+    if ns.variant and not _VARIANT_NAME.match(ns.variant):
+        raise UsageError("--variant must match [A-Za-z0-9._-]+")
+    maps = {}
+    for m in ns.map:
+        old, sep, new = m.partition("=")
+        if not sep or not old or not new:
+            raise UsageError(f"--map expects OLD=NEW, not {m!r}")
+        maps[old.rstrip("/")] = new
+    out = (ns.out or repo / ".tcadvisor" / "build" / (ns.variant or "default") / "compile_commands.json").resolve()
+    git_exclude(repo, ".tcadvisor/build/")
+    res = write_compile_db(ns.from_log, repo, out, ns.src, maps)
+    print(f"wrote {out}: {len(res.entries)} compile command(s)")
+    for old, new in res.prefix_map.items():
+        print(f"  path map {old} -> {new}")
+    if res.unmapped:
+        print(f"warning: {len(res.unmapped)} source(s) not found in the workspace (pass --src / --map): "
+              + ", ".join(res.unmapped[:5]), file=sys.stderr)
+    if ns.variant:
+        rel = out.relative_to(repo).as_posix() if out.is_relative_to(repo) else str(out)
+        log = ns.from_log.resolve()
+        bdir = next((str(d) for e in res.entries for d in (Path(e["directory"]), *Path(e["directory"]).parents)
+                     if (d / "config.status").is_file()), None)  # configure's output: switch values (profile)
+
+        def record(data: dict) -> None:
+            prof = data.get("build") or {"system": "autotools", "confirmed": False, "variants": []}
+            entry = next((v for v in prof["variants"] if v["name"] == ns.variant), None)
+            if entry is None:
+                entry = {"name": ns.variant}
+                prof["variants"].append(entry)
+            entry.update({"compile_db": rel, "build_log": str(log), "log_sha256": log_sha256(log)})
+            if bdir:
+                entry["build_dir"] = bdir
+            data["build"] = prof
+        update_file(repo, record)
+        print(f"recorded as build-profile variant '{ns.variant}' (confirm the profile with `tcadvisor profile`)")
+    return 0
+
+
 def _report_repo(report: Path, repo: Path | None) -> Path:
     """The repository whose config applies to an existing report (its recorded root when it still exists)."""
     if repo is not None:
@@ -408,6 +468,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if ns.command == "results":
             return _results(ns)
+        if ns.command == "compile-db":
+            return _compile_db(ns)
         if ns.command == "config":
             from tcadvisor.config import effective, effective_table
             if ns.json:

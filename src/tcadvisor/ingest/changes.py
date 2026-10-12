@@ -18,7 +18,7 @@ import clang.cindex as ci
 
 from tcadvisor.index.clang_index import (CLASS_KINDS, FUNC_KINDS, K, SYMBOL_KINDS, TRANSPARENT_EXPR, TUExtractor,
                                          is_global_var, qualified_name, symbol_kind)
-from tcadvisor.index.compile_db import CPP_EXT, CPP_HEADER_EXT, CompileDatabase
+from tcadvisor.index.compile_db import CPP_EXT, CPP_HEADER_EXT, CompileDatabase, header_args
 from tcadvisor.ingest.git import FileDiff
 
 # Logging statements (override with TCADVISOR_LOG_PATTERN). A change made only of such lines cannot alter
@@ -469,13 +469,13 @@ def _args_for_file(abs_path: Path, rel: str, cdb: CompileDatabase, tu_files: dic
         if rel in deps:
             a = cdb.args_for((repo / tu_rel).resolve())
             if a is not None:
-                return a
+                return header_args((repo / tu_rel).resolve(), a)
     # a header that is new in this change is not yet included anywhere: borrow flags from a TU in
     # the same directory so it can still be parsed for its symbols
     if abs_path.suffix.lower() in CPP_HEADER_EXT:
         for e in cdb.entries:
             if e.file.parent == abs_path.parent:
-                return e.args
+                return header_args(e.file, e.args)
     return None
 
 
@@ -497,7 +497,8 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
         suffix = Path(rel).suffix.lower()
         name = Path(rel).name
         if suffix not in CPP_EXT:
-            if name == "CMakeLists.txt" or suffix == ".cmake":
+            from tcadvisor.index.automake import is_build_file
+            if is_build_file(rel):
                 cs.changes.append(SymbolChange(
                     node_id=f"file:{rel}", rel_path=rel, change_kind="file", name=rel, kind="file", line=1,
                     added_lines=[ln for ln in fd.added_text if strip_comments(ln).strip()],

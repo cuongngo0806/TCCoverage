@@ -212,3 +212,115 @@ def groups_for(report: dict, name: str) -> set[str]:
         if s["symbol"]["qualified_name"] == name:
             out |= {r["risk_group"] for r in s["risks"]}
     return out
+
+
+# ---- spec 012: synthetic autotools module (configure.ac + Makefile.am, two variants) -------------------------------
+AUTOTOOLS_FILES = {
+    ".gitignore": "Makefile.in\n/configure\n/configure~\naclocal.m4\nautom4te.cache/\nbuild-aux/\nm4/\nconfig.h.in\n"
+                  "config.h.in~\n",
+    "configure.ac": """AC_INIT([remote], [1.0])
+AC_CONFIG_AUX_DIR([build-aux])
+AC_CONFIG_MACRO_DIRS([m4])
+AM_INIT_AUTOMAKE([foreign subdir-objects])
+AC_PROG_CC
+LT_INIT
+AC_ARG_ENABLE([feature-x], AS_HELP_STRING([--enable-feature-x], [pro feature]), [], [enable_feature_x=no])
+AM_CONDITIONAL([FEATURE_X], [test "x$enable_feature_x" = xyes])
+AS_IF([test "x$enable_feature_x" = xyes], [AC_DEFINE([HAVE_FEATURE_X], [1], [pro feature])])
+AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_FILES([Makefile lib/Makefile app/Makefile])
+AC_OUTPUT
+""",
+    "Makefile.am": "ACLOCAL_AMFLAGS = -I m4\nSUBDIRS = lib app\n",
+    "lib/Makefile.am": """lib_LTLIBRARIES = libremote.la
+libremote_la_SOURCES = remote.c remote.h
+libremote_la_CPPFLAGS = -I$(top_builddir)
+if FEATURE_X
+libremote_la_SOURCES += pro.c
+endif
+""",
+    "app/Makefile.am": """bin_PROGRAMS = remoteapp
+remoteapp_SOURCES = main.c
+remoteapp_CPPFLAGS = -I$(top_srcdir)/lib
+remoteapp_LDADD = ../lib/libremote.la
+""",
+    "lib/remote.h": "int remote_send(int code);\nint remote_level(int code);\nint pro_boost(int code);\n",
+    "lib/remote.c": """#include "config.h"
+#include "remote.h"
+
+int remote_level(int code) {
+    if (code > 3) return 3;
+    return code;
+}
+
+int remote_send(int code) {
+    int level = remote_level(code);
+#ifdef HAVE_FEATURE_X
+    level += pro_boost(level);
+#endif
+#if UNKNOWN_LIMIT > 2
+    level -= 1;
+#endif
+    return level;
+}
+""",
+    "lib/pro.c": "#include \"remote.h\"\nint pro_boost(int code) {\n    return code * 2;\n}\n",
+    "lib/orphan.c": "int orphan_helper(int x) {\n    return x + 1;\n}\n",
+    "app/main.c": """#include "remote.h"
+
+int dispatch(int code) {
+    return remote_send(code);
+}
+
+int main(void) {
+    return dispatch(1);
+}
+""",
+}
+
+
+class AutotoolsProject(Project):
+    """A git repo with an autotools module; `make_variant(variant, *configure_args)` builds it out of tree (VPATH) with
+    `make V=1` and keeps the log, as a Yocto `log.do_compile` would."""
+
+    def __init__(self, root: Path):
+        super().__init__(root)
+        self.logs: dict[str, Path] = {}
+
+    def bootstrap(self) -> None:
+        _run(["autoreconf", "-fi"], self.repo)
+
+    def make_variant(self, variant: str, *configure_args: str) -> Path:
+        b = self.root / f"b-{variant}"
+        b.mkdir(exist_ok=True)
+        _run([str(self.repo / "configure"), *configure_args], b)
+        log = self.root / f"build-{variant}.log"
+        res = subprocess.run(["make", "V=1"], cwd=b, capture_output=True, text=True)
+        log.write_text(res.stdout + res.stderr)
+        assert res.returncode == 0, res.stderr[-2000:]
+        self.logs[variant] = log
+        return log
+
+    def analyze(self, *extra: str, expect: int = 0) -> dict:
+        args = ["analyze", "--repo", str(self.repo), "--output-dir", str(self.out), "--exact-output-dir",
+                "--cache-dir", str(self.cache), "-q", "--graph", "clang", "--language", "en", *extra]
+        rc = cli_main(args)
+        assert rc == expect, f"exit {rc}"
+        if rc != 0:
+            return {}
+        report = json.loads((self.out / "report.json").read_text())
+        _REPORTS.append(report)
+        return report
+
+
+@pytest.fixture
+def autotools_project(tmp_path: Path) -> AutotoolsProject:
+    if not all(shutil.which(t) for t in ("autoreconf", "libtoolize", "make", "cc")):
+        pytest.skip("autotools (autoconf, automake, libtool, make, cc) not available")
+    pr = AutotoolsProject(tmp_path)
+    pr.repo.mkdir()
+    _run(["git", "init", "-q"], pr.repo)
+    pr.write(AUTOTOOLS_FILES)
+    pr.bootstrap()
+    pr.commit("base")
+    return pr

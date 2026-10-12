@@ -214,4 +214,19 @@ ENTRIES: list[tuple[str, str]] = [
      "filled report",
      "kết quả test được chuyển từ lần chạy gần nhất {run} (theo key của case); dùng --previous-report để chọn report "
      "đã điền khác"),
+    ("compile_commands.json not found in '{build_dir}'. Create it from the build log of this module: tcadvisor "
+     "compile-db --repo . --from-log <log.do_compile or make V=1 log> (docs/linux-yocto.md).",
+     "không tìm thấy compile_commands.json trong '{build_dir}'. Tạo nó từ log build của module này: tcadvisor "
+     "compile-db --repo . --from-log <log.do_compile hoặc log của make V=1> (docs/linux-yocto.md)."),
+    ("no compile database for this autotools module: compile flags, include paths and defines are unknown, so "
+     "preprocessor branches and header parsing use fallback flags",
+     "module autotools này chưa có compile database: không biết compile flag, include path và define, nên các nhánh "
+     "tiền xử lý và việc parse header dùng flag dự phòng"),
+    ("{where}: `{construct}` cannot be resolved without running automake / configure; products or sources it adds "
+     "are not mapped",
+     "{where}: không phân giải được `{construct}` nếu không chạy automake / configure; sản phẩm hoặc source mà nó thêm "
+     "vào không được ánh xạ"),
+    ("not built by any product: no Makefile.am lists this source",
+     "không được build bởi sản phẩm nào: không Makefile.am nào liệt kê source này"),
+    ("unknown build target(s): {names} (known: {known})", "target build không tồn tại: {names} (có: {known})"),
 ]

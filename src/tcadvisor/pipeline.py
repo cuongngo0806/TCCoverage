@@ -25,7 +25,7 @@ from tcadvisor.evidence.gate import gate
 from tcadvisor.graph.impact import Graph, build_graph, traverse
 from tcadvisor.index.clang_index import build_index
 from tcadvisor.index.cmake_targets import load_target_model
-from tcadvisor.index.compile_db import CompileDatabase
+from tcadvisor.index.compile_db import CPP_SOURCE_EXT, CompileDatabase
 from tcadvisor.ingest import git as G
 from tcadvisor.ingest.changes import ChangeSet, explicit_changes, detect_changes, is_test_path
 from tcadvisor.ingest.symbols import resolve_symbols
@@ -132,21 +132,42 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     from tcadvisor.graph.providers.base import get_provider
     provider = get_provider(opts.graph, repo, opts.max_hop_depth, opts.graph_bin)
     early_notes: list[str] = []
+    from tcadvisor.index.automake import detect_build_system, load_automake_model
+    system = opts.build_system if opts.build_system != "auto" else (detect_build_system(repo) or "cmake")
+    build_flags: list[UncertaintyFlag] = []
+    bmodel = load_automake_model(repo) if system == "autotools" else None
     try:
-        cdb = CompileDatabase.load(opts.build_dir.resolve(), repo, allow_stale=opts.allow_stale)
+        cdb = CompileDatabase.load(opts.build_dir.resolve(), repo, allow_stale=opts.allow_stale or bmodel is not None)
     except PrerequisiteError as exc:
+        if bmodel is not None:
+            exc = PrerequisiteError(f"compile_commands.json not found in '{opts.build_dir}'. Create it from the build "
+                                    "log of this module: tcadvisor compile-db --repo . --from-log <log.do_compile or "
+                                    "make V=1 log> (docs/linux-yocto.md).")
         if provider is None:
-            raise
+            raise exc
         cdb = CompileDatabase(opts.build_dir, [], "none")
         early_notes.append(f"reduced accuracy: {exc} Change classification uses fallback compiler flags; "
                            f"impact comes from {provider.name}")
-    try:
-        tmodel = load_target_model(opts.build_dir.resolve())
-    except PrerequisiteError as exc:
-        if provider is None:
-            raise
-        tmodel = None
-        early_notes.append(f"no CMake target mapping: {exc}")
+        if bmodel is not None:
+            build_flags.append(UncertaintyFlag(
+                "build_description_unresolved",
+                "no compile database for this autotools module: compile flags, include paths and defines are "
+                "unknown, so preprocessor branches and header parsing use fallback flags"))
+    if bmodel is not None:
+        tmodel = bmodel.targets
+        for u in bmodel.unresolved:
+            build_flags.append(UncertaintyFlag(
+                "build_description_unresolved",
+                f"{u.file}:{u.line}: `{u.construct}` cannot be resolved without running automake / configure; "
+                "products or sources it adds are not mapped"))
+    else:
+        try:
+            tmodel = load_target_model(opts.build_dir.resolve())
+        except PrerequisiteError as exc:
+            if provider is None:
+                raise
+            tmodel = None
+            early_notes.append(f"no CMake target mapping: {exc}")
 
     ci_ = ChangeInput(mode="explicit_symbols" if opts.symbols else "git_diff", target_repo_path=str(repo),
                       commit_range=opts.commit_range, working_tree=opts.working_tree, symbols=opts.symbols)
@@ -238,13 +259,25 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     changes = []
     skipped_tests: list[dict[str, Any]] = []
 
+    test_rels = {p.relative_to(repo).as_posix() for p in bmodel.test_sources if p.is_relative_to(repo)} \
+        if bmodel else set()
+    built_rels = {p.relative_to(repo).as_posix() for p in tmodel.file_to_targets if p.is_relative_to(repo)} \
+        if bmodel and tmodel and tmodel.targets else None
+
     def test_code(rel: str) -> bool:
-        return not opts.include_tests and is_test_file(rel, opts.test_paths)
+        return not opts.include_tests and (is_test_file(rel, opts.test_paths) or rel in test_rels)
+
+    not_built_by_product: list[dict[str, Any]] = []
 
     for ch in cs.changes:
         if test_code(ch.rel_path) or (not opts.include_tests and ch.is_test_code):
             skipped_tests.append({"path": ch.rel_path, "symbol": ch.name,
                                   "reason": "unit-test code: not analysed (include_tests is off)"})
+            continue
+        if built_rels is not None and ch.rel_path not in built_rels and Path(ch.rel_path).suffix.lower() in \
+                CPP_SOURCE_EXT and (repo / ch.rel_path).is_file():
+            not_built_by_product.append({"path": ch.rel_path, "symbol": ch.name,
+                                         "reason": "not built by any product: no Makefile.am lists this source"})
             continue
         ref = graph.symbol_ref(ch.node_id) if not ch.node_id.startswith("file:") else None
         if ref is None or ch.change_kind == "removed":
@@ -293,6 +326,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     external_flags, root_external = _add_changed_calls(repo, changes, roots, graph, ctx.notes, contracts)
     flags, flag_only = uncertainty.detect(changes, roots, graph, cdb)
     flags.extend(provider_flags)
+    flags.extend(build_flags)
     flags.extend(external_flags)
 
     # -- traversal (split per CMake target above the threshold, FR-010a) ---------------------------
@@ -338,12 +372,16 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
                          f"{len(dropped)} impacted test function(s) / file(s)")
 
     # -- scope (--targets) ------------------------------------------------------------------------
-    out_of_scope = list(cs.out_of_scope) + skipped_tests
+    out_of_scope = [({**o, "reason": "not built by any product: no Makefile.am lists this source"}
+                     if built_rels is not None and o.get("path") not in built_rels
+                     and str(o.get("reason", "")).startswith("file is not compiled by any target") else o)
+                    for o in cs.out_of_scope] + skipped_tests + not_built_by_product
     if opts.targets:
         scope = set(opts.targets)
         unknown = scope - set(tmodel.targets if tmodel else ())
         if unknown:
-            raise UsageError(f"unknown CMake target(s): {', '.join(sorted(unknown))}")
+            raise UsageError(f"unknown build target(s): {', '.join(sorted(unknown))} (known: "
+                             f"{', '.join(sorted(tmodel.targets)) if tmodel else 'none'})")
         for nid in list(nodes):
             n = nodes[nid]
             if n.targets and not (set(n.targets) & scope):
@@ -476,6 +514,8 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
                                           "covered_by_change": x.covered_by_change, "guard": x.guard}
                                          for x in t.sources]} for t in guarded] + changed_sources,
         "uncertainty_flags": [f.to_dict() for f in flags],
+        "build_model": {"system": system, "products": len(tmodel.targets) if tmodel else 0,
+                        **({"fingerprint": bmodel.fingerprint} if bmodel else {})},
         "out_of_scope": out_of_scope,
         "run_notes": ctx.notes,
         "metrics": {"duration_seconds": round(time.monotonic() - t0, 3), "index": index_stats,

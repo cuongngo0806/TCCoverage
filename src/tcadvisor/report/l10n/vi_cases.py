@@ -163,6 +163,10 @@ ENTRIES: list[tuple[str, str]] = [
     ("test code changed: {where}", "code test bị thay đổi: {where}"),
     ("only logging statements changed in {where}", "chỉ các câu lệnh log trong {where} bị thay đổi"),
     ("CMake build definition {path} changed", "định nghĩa build CMake {path} bị thay đổi"),
+    ("autotools / Yocto build definition {path} changed: products, sources, conditionals or configure options of the "
+     "module may differ; the saved build profile may be stale",
+     "định nghĩa build autotools / Yocto {path} bị thay đổi: sản phẩm, source, điều kiện hoặc option configure của "
+     "module có thể khác đi; build profile đã lưu có thể đã cũ"),
     ("macro `{name}` ({loc}) definition {t_kind}", "định nghĩa macro `{name}` ({loc}) {t_kind}"),
     ("change in {where} is inside `{condition}`", "thay đổi trong {where} nằm bên trong `{condition}`"),
     ("preprocessor directives changed near {where}: {lines}", "các chỉ thị tiền xử lý gần {where} bị thay đổi: {lines}"),

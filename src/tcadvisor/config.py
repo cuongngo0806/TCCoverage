@@ -213,3 +213,35 @@ def effective_table(repo: Path) -> list[tuple[str, Any, str]]:
     """`tcadvisor config`: (key, effective value, source) for every key."""
     cfg, src = resolve_sources(repo)
     return [(k, str(cfg[k]) if isinstance(cfg[k], Path) else cfg[k], src[k]) for k in DEFAULTS]
+
+
+def update_file(repo: Path, mutate) -> dict[str, Any]:
+    """Read the raw config JSON, apply `mutate(data)` in place, validate and write it back (keys keep their order)."""
+    path = config_path(repo)
+    data: dict[str, Any] = {}
+    if path.is_file():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise UsageError(f"cannot read {path}: {exc}") from exc
+    mutate(data)
+    for key, value in data.items():
+        _check(path, key, value)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return data
+
+
+def variant_compile_db(repo: Path, cfg: dict[str, Any], names: list[str] | None = None) -> Path | None:
+    """Directory of the compile database to index with: the first (selected) profile variant that has one, else
+    `<repo>/.tcadvisor/build/default` when `tcadvisor compile-db` wrote one there."""
+    prof = cfg.get("build") or {}
+    for v in prof.get("variants", []):
+        if names and v["name"] not in names:
+            continue
+        if v.get("compile_db"):
+            p = Path(v["compile_db"])
+            p = p if p.is_absolute() else repo.resolve() / p
+            return p.parent if p.name.endswith(".json") else p
+    d = repo.resolve() / ".tcadvisor" / "build" / "default"
+    return d if (d / "compile_commands.json").is_file() else None

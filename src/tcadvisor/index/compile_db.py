@@ -85,6 +85,24 @@ def _clean_args(raw: list[str], file: str, directory: Path) -> tuple[str, ...]:
     return tuple(out)
 
 
+def is_c_command(file: Path, args: tuple[str, ...]) -> bool:
+    """A C (not C++) translation unit: `.c` source or `-x c` / `-std=c*|gnu*` without `++` (spec 012, research R8)."""
+    if "-x" in args:
+        i = args.index("-x")
+        return i + 1 < len(args) and args[i + 1] in ("c", "c-header")
+    std = [a for a in args if a.startswith("-std=")]
+    if std:
+        return "++" not in std[-1]
+    return file.suffix == ".c"
+
+
+def header_args(tu_file: Path, args: tuple[str, ...]) -> tuple[str, ...]:
+    """Flags of the TU `tu_file` reused to parse one of its headers: a header of a C TU is parsed as C."""
+    if "-x" not in args and is_c_command(tu_file, args):
+        return ("-x", "c-header") + tuple(args)
+    return args
+
+
 @lru_cache(maxsize=1)
 def resource_dir_args() -> tuple[str, ...]:
     """Point libclang at clang's builtin headers (stddef.h, ...) when a clang binary is available."""

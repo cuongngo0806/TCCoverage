@@ -224,9 +224,15 @@ def classify(ch: SymbolChange, configurations: list[str]) -> list[RiskClassifica
     where = f"`{ch.name}` ({ch.rel_path}:{ch.line})"
 
     # ---- build_config ---------------------------------------------------------------------
-    is_cmake = ch.kind == "file" and (ch.rel_path.endswith("CMakeLists.txt") or ch.rel_path.endswith(".cmake"))
+    from tcadvisor.index.automake import is_build_file
+    is_cmake = ch.kind == "file" and is_build_file(ch.rel_path)  # CMake, autotools or Yocto build definition
     if is_cmake:
-        add("build_config", "target", f"CMake build definition {ch.rel_path} changed", configs=configurations)
+        if ch.rel_path.endswith("CMakeLists.txt") or ch.rel_path.endswith(".cmake"):
+            add("build_config", "target", f"CMake build definition {ch.rel_path} changed", configs=configurations)
+        else:
+            add("build_config", "target", f"autotools / Yocto build definition {ch.rel_path} changed: products, "
+                "sources, conditionals or configure options of the module may differ; the saved build profile may "
+                "be stale", configs=configurations)
     pp_lines = [ln.strip() for ln in changed_text if _PP_LINE.match(ln)]
     if ch.kind == "macro":
         add("build_config", "macro", f"macro {where} definition {ch.change_kind}", configs=configurations)

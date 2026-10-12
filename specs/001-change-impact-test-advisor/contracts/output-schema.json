@@ -335,6 +335,185 @@
           }
         }
       }
+    },
+    "run": {
+      "type": "object",
+      "required": [
+        "name",
+        "path"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "change": {
+          "type": "string"
+        }
+      }
+    },
+    "build_model": {
+      "type": "object",
+      "required": [
+        "system"
+      ],
+      "properties": {
+        "system": {
+          "enum": [
+            "cmake",
+            "autotools"
+          ]
+        },
+        "products": {
+          "type": "integer"
+        },
+        "fingerprint": {
+          "type": "string"
+        }
+      }
+    },
+    "build_profile": {
+      "type": "object",
+      "required": [
+        "state"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "confirmed",
+            "stale",
+            "absent",
+            "overridden",
+            "ignored"
+          ]
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "filtering": {
+          "type": "boolean"
+        }
+      }
+    },
+    "not_built": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "case",
+          "excluded_by"
+        ],
+        "properties": {
+          "case": {
+            "$ref": "#/definitions/testCaseCandidate"
+          },
+          "excluded_by": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "variant",
+                "reason"
+              ],
+              "properties": {
+                "variant": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "source_not_in_product",
+                    "conditional_dir",
+                    "preprocessor",
+                    "source_not_in_compile_db"
+                  ]
+                },
+                "condition": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "where": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "not_built_changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "excluded_by"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "line": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "excluded_by": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "variant",
+                "reason"
+              ],
+              "properties": {
+                "variant": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "source_not_in_product",
+                    "conditional_dir",
+                    "preprocessor",
+                    "source_not_in_compile_db"
+                  ]
+                },
+                "condition": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "where": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -579,7 +758,8 @@
             "uninstantiated_template",
             "dynamic_runtime_dependency",
             "di_config_routing",
-            "build_config_incomplete_macro"
+            "build_config_incomplete_macro",
+            "build_description_unresolved"
           ]
         },
         "reason": {
