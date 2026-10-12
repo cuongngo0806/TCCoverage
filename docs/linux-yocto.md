@@ -15,7 +15,8 @@ sudo apt install -y python3-venv python3-pip git          # Debian / Ubuntu; Fed
 python3 -m venv ~/.venvs/tcadvisor
 ~/.venvs/tcadvisor/bin/pip install "git+https://github.com/cuongngo0806/tccoverage"
 echo 'export PATH="$HOME/.venvs/tcadvisor/bin:$PATH"' >> ~/.bashrc && . ~/.bashrc
-tcadvisor --version
+tcadvisor --version                                      # 0.2.0 or newer
+# update later: ~/.venvs/tcadvisor/bin/pip install -U "git+…"; then `tcadvisor init --upgrade` in each workspace
 # impact source (default): needs Node.js >= 18
 npm i -g @colbymchenry/codegraph
 ```

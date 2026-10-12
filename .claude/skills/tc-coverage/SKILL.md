@@ -19,10 +19,23 @@ $ARGUMENTS
 
 ## 0. Setup (only when something is missing)
 
-- Interpreter: `.tcadvisor/config.json` key `python` (written by `tcadvisor init`, e.g. a Linux virtual
-  environment `~/.venvs/tcadvisor/bin/python`); without it use `python3`. Below, `PY` = that interpreter.
-- `tcadvisor` not installed: `python3 -m venv ~/.venvs/tcadvisor && ~/.venvs/tcadvisor/bin/pip install
-  "git+https://github.com/cuongngo0806/tccoverage"` (Python ≥ 3.10).
+- Interpreter `PY`: the `python` key of `.tcadvisor/config.json` (written by `tcadvisor init`, e.g.
+  `~/.venvs/tcadvisor/bin/python`); without it `~/.venvs/tcadvisor/bin/python` if that exists, else `python3`.
+- Check first, every session: `PY -m tcadvisor --version` must print **0.2.0 or newer**. Missing or older →
+  install / upgrade into a virtual environment (never the system Python: on Ubuntu / Debian a plain `pip install`
+  goes to `~/.local` or is refused):
+
+  ```bash
+  python3 -m venv ~/.venvs/tcadvisor        # Debian/Ubuntu without venv support: ask the user to run
+                                            # `sudo apt install python3-venv` and stop
+  ~/.venvs/tcadvisor/bin/pip install -U "git+https://github.com/cuongngo0806/tccoverage" > /tmp/tcadvisor-pip.log 2>&1
+  ~/.venvs/tcadvisor/bin/python -m tcadvisor --version || tail -30 /tmp/tcadvisor-pip.log
+  ```
+
+  The user may name a branch / tag to install (`…/tccoverage@<branch>`). Show the log tail and stop if it still
+  fails (network, proxy, no `git`): never retry the same command. After an install or upgrade run
+  `~/.venvs/tcadvisor/bin/python -m tcadvisor init --repo . --upgrade` (refreshes this skill and records the
+  interpreter in the config; config values are kept) and use `PY = ~/.venvs/tcadvisor/bin/python` from then on.
 - Settings live in `.tcadvisor/config.json` of the analysed repository; `PY -m tcadvisor config --repo .` prints
   every key with its value and source. No file → `PY -m tcadvisor init --repo .` (writes all keys with defaults).
 - Impact source codegraph missing (exit code 1 says so): `npm i -g @colbymchenry/codegraph`. Never switch to

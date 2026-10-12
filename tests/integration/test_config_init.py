@@ -177,3 +177,21 @@ def test_restored_ai_and_analysis_settings_come_from_the_config(project, tmp_pat
     assert main(["verify", str(report), "--ai-external-approved", "--verify-model", "model-c"]) == 0
     calls = log.read_text().splitlines()
     assert any("--model model-c" in c for c in calls) and all("--max-budget-usd 0.25" in c for c in calls)
+
+
+def test_init_upgrade_refreshes_front_ends_and_keeps_config(project, capsys):
+    """An older install: its skill copy is outdated and its config lacks keys; `init --upgrade` refreshes the
+    skill and adds the missing keys without touching the values the team set."""
+    cfg = project.repo / ".tcadvisor" / "config.json"
+    cfg.parent.mkdir(exist_ok=True)
+    cfg.write_text(json.dumps({"graph": "clang", "language": "en", "build_dir": "out"}))
+    skill = project.repo / ".claude" / "skills" / "tc-coverage" / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("old skill")
+    assert main(["init", "--repo", str(project.repo), "--ai", "claude"]) == 0
+    assert skill.read_text() == "old skill"  # plain init keeps it
+    assert main(["init", "--repo", str(project.repo), "--ai", "claude", "--upgrade"]) == 0
+    assert "--version" in skill.read_text() and "0.2.0" in skill.read_text()
+    data = json.loads(cfg.read_text())
+    assert (data["graph"], data["language"], data["build_dir"]) == ("clang", "en", "out")
+    assert set(data) == set(DEFAULTS) and data["python"]

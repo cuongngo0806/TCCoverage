@@ -151,6 +151,9 @@ def build_parser() -> argparse.ArgumentParser:
     ini.add_argument("--ai-verify", choices=list(AI_VERIFY),
                      help="AI filter after each analysis (default: chat when an AI front-end is installed, else off)")
     ini.add_argument("--force", action="store_true", help="overwrite existing files")
+    ini.add_argument("--upgrade", action="store_true",
+                     help="refresh the AI front-ends (skill, agents, prompts) to this version's copies and add missing "
+                          "config keys; the values already in .tcadvisor/config.json are kept")
     ini.add_argument("--graph", choices=list(GRAPHS))
     ini.add_argument("--language", choices=list(LANGUAGES))
     ini.add_argument("--build-dir", help="build dir relative to the repository root")
@@ -550,7 +553,7 @@ def main(argv: list[str] | None = None) -> int:
             for path, status in init(ns.repo, {"graph": ns.graph, "language": ns.language, "build_dir": ns.build_dir,
                                                "output_dir": ns.output_dir, "targets": ns.targets,
                                                "max_hop_depth": ns.max_hop_depth, "include_tests": ns.include_tests,
-                                               "ai_verify": ns.ai_verify}, ais, ns.force):
+                                               "ai_verify": ns.ai_verify}, ais, ns.force, ns.upgrade):
                 print(f"{status}: {path}")
             from tcadvisor.config import load_config
             from tcadvisor.index.automake import detect_build_system

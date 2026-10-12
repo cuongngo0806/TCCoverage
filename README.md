@@ -40,6 +40,9 @@ git add .tcadvisor/config.json .claude .github && git commit -m "tcadvisor setup
 ```
 
 A branch that is not merged yet: `pip install "git+https://github.com/cuongngo0806/tccoverage@<branch>"`.
+Updating: `~/.venvs/tcadvisor/bin/pip install -U "git+https://github.com/cuongngo0806/tccoverage"`, then in each
+workspace `tcadvisor init --upgrade` (refreshes the skill / agents / prompts to the installed version and adds new
+config keys; your config values are kept). `tcadvisor --version` must be 0.2.0 or newer for this guide.
 No Node.js on the host: set `"graph": "clang"` in `.tcadvisor/config.json` (built-in graph; needs a compile
 database, see below).
 

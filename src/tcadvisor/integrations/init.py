@@ -50,8 +50,10 @@ def files_for(ai: str) -> list[tuple[str, str]]:
         (f".github/prompts/{n}", pkg.joinpath(f"copilot/{n}").read_text(encoding="utf-8")) for n in COPILOT_PROMPTS]
 
 
-def init(repo: Path, settings: dict[str, Any], ais: tuple[str, ...] = AIS, force: bool = False
-         ) -> list[tuple[Path, str]]:
+def init(repo: Path, settings: dict[str, Any], ais: tuple[str, ...] = AIS, force: bool = False,
+         upgrade: bool = False) -> list[tuple[Path, str]]:
+    """`upgrade`: overwrite the AI front-end files with this version's copies, keep the config values (only missing
+    keys are added, `python` is refreshed to the interpreter running this command)."""
     repo = repo.resolve()
     if not (repo / ".git").exists():
         from tcadvisor.models import UsageError
@@ -62,6 +64,8 @@ def init(repo: Path, settings: dict[str, Any], ais: tuple[str, ...] = AIS, force
     if path.is_file() and not force:
         existing = read_file(repo)  # validates; its values win, missing keys are added
         merged = {**cfg, **existing}
+        if upgrade:
+            merged["python"] = sys.executable  # the interpreter that has this (new) version installed
         status = "kept (exists; --force to overwrite)" if merged == existing else "updated (missing keys added)"
         if merged != existing:
             path.write_text(json.dumps(merged, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -74,7 +78,7 @@ def init(repo: Path, settings: dict[str, Any], ais: tuple[str, ...] = AIS, force
         git_exclude(repo, entry)
     for ai in ais:
         for rel, text in files_for(ai):
-            out.append((repo / rel, _write(repo / rel, text, force)))
+            out.append((repo / rel, _write(repo / rel, text, force or upgrade)))
     return out
 
 
