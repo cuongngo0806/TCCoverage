@@ -13,6 +13,8 @@ analysed repo.
   `evidence/` (uncertainty flags, evidence gate) → `llm/` (optional, off by default) → `report/`.
 - `tests/` — pytest; `tests/conftest.py` builds a synthetic CMake project (needs cmake + clang).
 - `vscode-extension/` — VS Code front-end (TypeScript) calling the CLI.
+- `src/tcadvisor/config.py` — `<repo>/.tcadvisor/config.json` (graph, language, build_dir, output_dir, targets, max_hop_depth),
+  shared by CLI / extension / AI chat; `tcadvisor init [--copilot]` (`integrations/init.py`, Copilot prompts in `integrations/copilot/`).
 - `src/tcadvisor/graph/providers/` — codegraph / GitNexus / clang impact source (`.tcadvisor/config.json` `graph`, never switched); `src/tcadvisor/verify/` — packets, annotate, headless Claude runner.
 - Spec 006 (lessons + test report): `index/flow.py` + `graph/dataflow.py` (data paths A→B→C), `graph/sources.py`
   (sibling trigger sources), `classify/patterns.py` + `classify/lessons.py` (patterns, `.tcadvisor/lessons.json`),

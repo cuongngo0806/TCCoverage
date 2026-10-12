@@ -78,9 +78,20 @@ function repoRoot(): string | undefined {
   return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 }
 
+// The repository's .tcadvisor/config.json holds the settings shared with the CLI and AI chat (Claude, Copilot);
+// a VS Code setting left empty defers to it (the CLI applies the same precedence: flag > config > default).
+function repoConfig(repo: string): Record<string, unknown> {
+  try { return JSON.parse(fs.readFileSync(path.join(repo, ".tcadvisor", "config.json"), "utf8")); } catch { return {}; }
+}
+
 function outDir(repo: string): string {
-  const o = cfg().get<string>("outputDir");
-  return o ? o : path.join(path.dirname(repo), "tcadvisor-report", path.basename(repo));
+  const o = cfg().get<string>("outputDir") || (repoConfig(repo).output_dir as string | undefined);
+  if (o) { return path.isAbsolute(o) ? o : path.resolve(repo, o); }
+  return path.join(path.dirname(repo), "tcadvisor-report", path.basename(repo));
+}
+
+function pythonPath(): string {
+  return cfg().get<string>("pythonPath") || (process.platform === "win32" ? "python" : "python3");
 }
 
 // ---------------------------------------------------------------------------------- tree view
@@ -184,11 +195,13 @@ function caseNode(c: Case): Node {
 function runAnalyze(modeArgs: string[], tree: CasesProvider): Thenable<void> {
   const repo = repoRoot();
   if (!repo) { vscode.window.showErrorMessage("TC Coverage: open the analysed repository as a workspace folder."); return Promise.resolve(); }
-  const bd = cfg().get<string>("buildDir") || "build";
-  const buildDir = path.isAbsolute(bd) ? bd : path.join(repo, bd);
   const out = outDir(repo);
-  const args = ["-m", "tcadvisor", "analyze", "--repo", repo, "--build-dir", buildDir, "--output-dir", out,
-    "--max-hop-depth", String(cfg().get<number>("maxHopDepth") ?? 2), ...modeArgs, ...(cfg().get<string[]>("extraArgs") ?? [])];
+  const args = ["-m", "tcadvisor", "analyze", "--repo", repo, "--output-dir", out, ...modeArgs,
+    ...(cfg().get<string[]>("extraArgs") ?? [])];
+  const bd = cfg().get<string>("buildDir");
+  if (bd) { args.push("--build-dir", path.isAbsolute(bd) ? bd : path.join(repo, bd)); }
+  const depth = cfg().get<number | null>("maxHopDepth");
+  if (depth) { args.push("--max-hop-depth", String(depth)); }
   // empty = the repo's .tcadvisor/config.json, else codegraph / vi (the CLI resolves it; it never switches source)
   const graph = cfg().get<string>("graphProvider");
   if (graph) { args.push("--graph", graph); }
@@ -198,7 +211,7 @@ function runAnalyze(modeArgs: string[], tree: CasesProvider): Thenable<void> {
   if (gbin) { args.push("--graph-bin", gbin); }
   const targets = cfg().get<string>("targets");
   if (targets) { args.push("--targets", targets); }
-  const py = cfg().get<string>("pythonPath") || "python3";
+  const py = pythonPath();
   output.appendLine(`$ ${py} ${args.join(" ")}`);
   return vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: "TC Coverage: analysing change…" },
     () => new Promise<void>(resolve => {
@@ -226,7 +239,7 @@ function runAnalyze(modeArgs: string[], tree: CasesProvider): Thenable<void> {
 }
 
 function runPython(args: string[], title: string, cwd: string): Thenable<number> {
-  const py = cfg().get<string>("pythonPath") || "python3";
+  const py = pythonPath();
   output.appendLine(`$ ${py} ${args.join(" ")}`);
   return vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title }, () =>
     new Promise<number>(resolve => {
@@ -418,10 +431,25 @@ export function activate(ctx: vscode.ExtensionContext) {
       vscode.window.showInformationMessage(`TC Coverage: copied filter for ${t.length} test(s)`);
     }),
     vscode.commands.registerCommand("tcCoverage.openEvidence", openEvidence),
+    vscode.commands.registerCommand("tcCoverage.initRepo", async () => {
+      const r = repoRoot();
+      if (!r) { return; }
+      const pick = await vscode.window.showQuickPick([
+        { label: "Config + GitHub Copilot prompts", description: ".tcadvisor/config.json, .github/prompts/tc-coverage + tc-verify", copilot: true },
+        { label: "Config only", description: ".tcadvisor/config.json", copilot: false }],
+        { placeHolder: "TC Coverage: set up this repository (existing files are kept)" });
+      if (!pick) { return; }
+      cp.execFile(pythonPath(), ["-m", "tcadvisor", "init", "--repo", r, ...(pick.copilot ? ["--copilot"] : [])],
+        (err, out, errOut) => {
+          output.appendLine(out + errOut);
+          if (err) { vscode.window.showErrorMessage(`TC Coverage: ${(errOut || err.message).trim()}`); return; }
+          vscode.window.showInformationMessage(`TC Coverage: ${out.trim().split("\n").join(" · ")}`);
+        });
+    }),
     vscode.commands.registerCommand("tcCoverage.clearCache", () => {
       const r = repoRoot();
       if (!r) { return; }
-      cp.execFile(cfg().get<string>("pythonPath") || "python3", ["-m", "tcadvisor", "cache", "clear", "--repo", r],
+      cp.execFile(pythonPath(), ["-m", "tcadvisor", "cache", "clear", "--repo", r],
         (err, out) => vscode.window.showInformationMessage(err ? `TC Coverage: ${err.message}` : `TC Coverage: ${out.trim()}`));
     }),
     vscode.workspace.onDidChangeConfiguration(e => { if (e.affectsConfiguration("tcCoverage.showInlineHints")) { updateDiagnostics(); }

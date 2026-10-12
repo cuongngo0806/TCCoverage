@@ -20,7 +20,7 @@ tcadvisor = "tcadvisor.cli.main:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-tcadvisor = ["report/*.html", "verify/prompts/*.md"]
+tcadvisor = ["report/*.html", "verify/prompts/*.md", "integrations/copilot/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

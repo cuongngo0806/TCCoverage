@@ -18,6 +18,9 @@ device; `target_reasons` says why) or `review` (it may be closed by reading code
 Add up to 3 "extra_corner_cases" per case, concrete to the code you saw (inputs, states, ordering,
 boundary values, thread interleavings, error paths). No generic advice. No test code.
 
+Write "note" and "extra_corner_cases" in the batch's `report_language` (vi = Vietnamese, en = English); keep ids,
+verdict values, symbols and file:line unchanged.
+
 Reply with ONLY one JSON object:
 {"cases": {"TC-0001": {"verdict": "confirmed", "note": "<=25 words", "extra_corner_cases": ["..."]},
            "TC-0002": {"verdict": "pass_by_review", "note": "<=25 words", "proof": ["src/a.cpp:42"], "extra_corner_cases": []}}}
