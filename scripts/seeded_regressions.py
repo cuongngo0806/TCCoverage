@@ -203,10 +203,13 @@ def setup_yaml(work: Path) -> tuple[Path, Path]:
     return repo, build
 
 
+TESTS_FLAG = "--include-tests"  # thresholds were set with unit-test code analysed; --tests-off measures the default
+
+
 def run(repo: Path, build: Path, out: Path) -> tuple[dict, float]:
     t = time.time()
     subprocess.run([sys.executable, "-m", "tcadvisor", "analyze", "--repo", str(repo), "--build-dir", str(build),
-                    "--working-tree", "--output-dir", str(out), "--format", "json", "--no-run-cache", "--include-tests", "-q",
+                    "--working-tree", "--output-dir", str(out), "--format", "json", "--no-run-cache", TESTS_FLAG, "-q",
                     "--graph", "clang"],  # thresholds were set on the libclang graph (CI has no codegraph)
                    check=True, capture_output=True, text=True)
     return json.loads((out / "report.json").read_text()), time.time() - t
@@ -248,11 +251,16 @@ def main() -> int:
     ap.add_argument("--set", choices=["dev", "holdout", "yamlcpp", "all"], default="all")
     ap.add_argument("--json", type=Path)
     ap.add_argument("--quiet", action="store_true")
+    ap.add_argument("--tests-off", action="store_true",
+                    help="measure the default scope (unit-test code left out) instead of --include-tests")
     ap.add_argument("--min-victims", action="append", default=[], metavar="SET=N",
                     help="minimum scenarios of SET with a named victim (repeatable)")
     ap.add_argument("--min-corners", action="append", default=[], metavar="SET=N",
                     help="minimum scenarios of SET with the corner case hinted (repeatable)")
     a = ap.parse_args()
+    if a.tests_off:
+        global TESTS_FLAG
+        TESTS_FLAG = "--no-include-tests"
     try:
         min_v = _thresholds(a.min_victims)
         min_c = _thresholds(a.min_corners)
