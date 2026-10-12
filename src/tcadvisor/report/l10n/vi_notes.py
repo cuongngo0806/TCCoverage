@@ -199,4 +199,8 @@ ENTRIES: list[tuple[str, str]] = [
      "{name} là interface có {count} implementation và {consumers} nơi dùng ở mức interface; các caller gắn qua "
      "interface (ví dụ DI container hoặc dynamic dispatch) không được truy vết tới symbol cụ thể — impact thực tế có "
      "thể cao hơn."),
+    ("unit-test code left out (include_tests is off): {a} changed symbol(s), {b} impacted test function(s) / "
+     "file(s)",
+     "đã bỏ qua code unit test (include_tests đang tắt): {a} symbol thay đổi, {b} hàm / file test bị ảnh hưởng"),
+    ("unit-test code: not analysed (include_tests is off)", "code unit test: không phân tích (include_tests đang tắt)"),
 ]

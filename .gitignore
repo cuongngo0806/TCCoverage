@@ -4,5 +4,5 @@ __pycache__/
 .tcadvisor-cache/
 tcadvisor-report*/
 node_modules/
-vscode-extension/out/
-*.vsix
+build/
+dist/

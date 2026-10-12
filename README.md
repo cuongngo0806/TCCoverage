@@ -18,13 +18,37 @@ google/leveldb: [specs/002…/eval.md](specs/002-graph-providers-ai-verify/eval.
 (29/55 with the optional AI-triaged view) —
 [specs/004…/results.md](specs/004-ranking-and-recall/results.md).
 
-Three front-ends share the same engine:
+Two front-ends share the same engine:
 
 | Front-end | Where | Use |
 |---|---|---|
 | CLI | `tcadvisor analyze …` | CI / pre-submit, scripting |
-| Claude Code | `/tc-coverage HEAD~1..HEAD` (skill) + `tc-coverage-analyst` subagent | conversational review with concrete test scenarios |
-| VS Code | `vscode-extension/` (`.vsix`) | tree of cases, inline hints, report webview |
+| AI chat skill | `/tc-coverage HEAD~1..HEAD` in Claude Code or GitHub Copilot (agent mode), installed by `tcadvisor init` | conversational review: the AI filters the cases and answers with concrete test scenarios |
+
+## Quick start (any repository)
+
+```bash
+pip install "git+https://github.com/cuongngo0806/tccoverage"   # Python >= 3.11
+npm i -g @colbymchenry/codegraph                                 # the default impact source (MIT)
+cd <your repo> && tcadvisor init                                 # config + skill for Claude Code and Copilot
+```
+
+`tcadvisor init` writes `.tcadvisor/config.json`, the `tc-coverage` skill (`.claude/skills/` for Claude Code,
+`.github/skills/` for Copilot), the Claude subagents (`.claude/agents/`) and the Copilot prompts `/tc-coverage`,
+`/tc-verify` (`.github/prompts/`). `--ai claude`, `--ai copilot` or `--ai none` installs fewer; existing files are
+kept unless `--force`. Then ask your assistant `/tc-coverage working-tree` (or a commit range).
+
+What the report contains by default:
+
+- **No unit-test noise**: unit-test / mock code (paths like `test/`, `unittests/`, `UT_*`, `mock*`, plus
+  `test_paths` globs) is left out — no cases for changed tests, test functions calling the change or test files
+  including it, no re-run list. `include_tests: true` (or `--include-tests`) brings it back.
+- **Only what needs a real test**: with `ai_verify: chat` (the default `tcadvisor init` writes) the skill lets the
+  AI verify every case from packed code windows; cases it closes (`not_needed`: a clean build settles it, or the
+  change cannot reach that code; `pass_by_review`: proven from the code) move to `report.ai-verified.md` /
+  `.html` with the AI's reason. `report.md` / `report.html` keep the cases to test on the real system;
+  `report.json` keeps all of them. `ai_verify: claude` makes `tcadvisor analyze` run the same filter headless
+  through the Claude Code CLI.
 
 ## How it works (deterministic first)
 
@@ -94,7 +118,7 @@ condition `snapshot != nullptr`: call with a null snapshot (the case becomes **P
 early exit; return value `Status::Corruption(...)` → `Status::OK()`: feed malformed input; `free(e)` now runs before
 a statement using `e`: use after free; a call / assignment / term / lock no longer made; and input classes for the
 parameters used on changed lines (null, empty, 0 / max, NaN, ...). Changed symbols that no existing test reaches are
-listed as **test gaps** (report, brief `TEST-GAP`, HTML, VS Code).
+listed as **test gaps** (report, brief `TEST-GAP`, HTML) when `include_tests` is on.
 
 Measured with `scripts/seeded_regressions.py` (31 seeded "fixed here, broke there" edits on leveldb and yaml-cpp; see
 `specs/009-side-effect-corner-cases/results.md`, `specs/010-accessor-readers-ci/results.md`). Readers hidden behind
@@ -125,7 +149,7 @@ Team knowledge goes into `.tcadvisor/lessons.json` (or `--lessons FILE`):
 Cannot occur**, comment, tester, date, defect reference and attachments (screenshots, logs, any file —
 embedded in the file). Rules: *Cannot be tested* / *Cannot occur* need a justification, *Fail* needs an
 attachment or a defect reference. **Save report** writes a new single HTML file with everything inside
-(VS Code: save dialog); **Print / PDF** gives a printable record. Above `--attachment-warn-mb` (50) the
+**Print / PDF** gives a printable record. Above `--attachment-warn-mb` (50) the
 report warns about its size.
 
 ```bash
@@ -147,11 +171,10 @@ tcadvisor analyze ... --graph codegraph|gitnexus|clang --language vi|en
 ```
 
 `<repo>/.tcadvisor/config.json` holds the workspace settings shared by every way of running the tool — CLI,
-VS Code extension, Claude Code and GitHub Copilot chat (`tcadvisor init` writes it; `tcadvisor config` prints
-what a run will use):
+Claude Code and GitHub Copilot chat (`tcadvisor init` writes it; `tcadvisor config` prints what a run will use):
 
 ```json
-{"graph": "codegraph", "language": "vi", "build_dir": "build",
+{"graph": "codegraph", "language": "vi", "build_dir": "build", "include_tests": false, "ai_verify": "chat",
  "output_dir": "../tcadvisor-report/myrepo", "targets": ["DoorLock"], "max_hop_depth": 2}
 ```
 
@@ -163,16 +186,17 @@ what a run will use):
 | `output_dir` | `../tcadvisor-report/<repo>` | report dir, relative to the repo; must resolve outside it |
 | `targets` | all | CMake targets to restrict the scope to |
 | `max_hop_depth` | `2` | caller levels to follow |
+| `include_tests` | `false` | also analyse unit-test / mock code (`--include-tests`) |
+| `test_paths` | `[]` | extra globs of unit-test / mock files, e.g. `["src/**/sim_*"]` |
+| `ai_verify` | `off` (`init`: `chat`) | AI filter after each analysis: `off`, `chat` (the skill does it), `claude` (`analyze` runs the headless Claude Code CLI; the setting approves sending packed code windows) |
 
-Precedence: command-line flag > config file > built-in default; a VS Code setting left empty defers to the
-config file. With a config, `tcadvisor analyze --working-tree` needs no other argument. The configured source is
-**always** the one used: if it is missing or fails, the run stops (exit 1) with the install command (the VS Code
-extension offers an *Install codegraph* button); a root the source cannot resolve becomes an uncertainty flag,
+Precedence: command-line flag > config file > built-in default. With a config, `tcadvisor analyze --working-tree` needs no other argument. The configured source is
+**always** the one used: if it is missing or fails, the run stops (exit 1) with the install command; a root the source cannot resolve becomes an uncertainty flag,
 it is never traced with another graph. `clang` = the built-in libclang graph (needs compile_commands.json).
 codegraph's index is built in `<repo>/.codegraph/` on the first run (`codegraph init`, git-ignored via
 `.git/info/exclude`) and synced on later runs, so nothing has to be set up per repo.
 
-`language` selects the report language (Markdown, HTML, brief, VS Code view): `vi` (default) or `en`.
+`language` selects the report language (Markdown, HTML, brief): `vi` (default) or `en`.
 `report.json` keeps the English text as the machine contract and records `report_language`;
 `tcadvisor render report.json --language en` re-renders an existing report in the other language.
 
@@ -186,8 +210,9 @@ with it, change classification and CMake target mapping are exact.
 tcadvisor verify ../tcadvisor-report/report.json --ai-external-approved   # Haiku per batch + 1 Sonnet call
 ```
 
-Sends only packed code windows (≤40 lines per impacted symbol) through the Claude Code CLI. Verdicts are
-annotations; no case is ever removed by a model.
+Sends only packed code windows (≤40 lines per impacted symbol) through the Claude Code CLI. Verdicts never delete a
+case: `not_needed` / `pass_by_review` move it to `report.ai-verified.*`, `confirmed` / `needs_info` keep it in the
+list to test.
 
 ## Install
 
@@ -216,42 +241,17 @@ tcadvisor cache clear --repo /path/repo
 
 Exit codes: 0 ok · 1 prerequisite (compile db / File API missing or stale) · 2 usage · 3 internal.
 Outputs: `report.md` (with Mermaid flow), `report.json` (schema: `specs/001-change-impact-test-advisor/contracts/output-schema.json`),
-`report.html`, `report.brief.txt`.
+`report.html`, `report.brief.txt`; after an AI filter also `report.ai-verified.md` / `.html` (the closed cases).
 
-## Claude Code
+## Claude Code and GitHub Copilot
 
-Open this repo (or copy `.claude/skills/tc-coverage` and `.claude/agents/tc-coverage-analyst.md` into your
-project's `.claude/`) and run `/tc-coverage HEAD~1..HEAD`. Claude runs the CLI with `--print brief`, reads
-only evidence windows for P1 cases, and answers with concrete test scenarios — the expensive dependency
-tracing is never done by the model, which keeps token usage small. Speckit commands for Claude:
-`/speckit-specify`, `/speckit-plan`, `/speckit-tasks`, `/speckit-implement`, …
-
-## GitHub Copilot
-
-```bash
-tcadvisor init --repo <your repo> --copilot      # or VS Code: "TC Coverage: Set Up Repository"
-```
-
-writes `.tcadvisor/config.json` (kept if it exists) and two prompt files (English instructions) to commit with
-the repository:
-
-- `/tc-coverage working-tree` (or `HEAD~1..HEAD`, a branch, symbol names) in Copilot Chat, **Agent** mode:
-  Copilot runs `tcadvisor analyze --print brief`, reads only the brief and answers with a checklist of
-  concrete test scenarios.
-- `/tc-verify`: Copilot verifies the cases from `tcadvisor verify-pack` packets (verdicts, proof, extra corner
-  cases), writes `verdicts.json` and runs `tcadvisor annotate`; the report and VS Code view show the verdicts.
-
-Answers and AI-written report text follow `language` (vi / en). All settings come from `.tcadvisor/config.json`,
-so chat, the extension and the CLI analyse a workspace the same way.
-
-## VS Code
-
-```bash
-cd vscode-extension && npm install && npm run compile && npx @vscode/vsce package
-code --install-extension tc-coverage-*.vsix
-```
-
-See `vscode-extension/README.md`.
+`tcadvisor init` installs one `tc-coverage` skill for both (see *Quick start*). In Claude Code run
+`/tc-coverage HEAD~1..HEAD`; in Copilot Chat (**Agent** mode) the skill is picked up automatically, or run the
+prompt `/tc-coverage working-tree`, and `/tc-verify` to (re-)run only the AI filter. The assistant runs the CLI with
+`--print brief`, never traces dependencies itself, verifies the cases from `verify-pack` packets when `ai_verify` is
+`chat`, runs `tcadvisor annotate` and answers in the report language with concrete test scenarios. Claude Code can
+spread the verification over the `tc-case-verifier` (Haiku) and `tc-verify-synthesizer` (Sonnet) subagents.
+Speckit commands for Claude: `/speckit-specify`, `/speckit-plan`, `/speckit-tasks`, `/speckit-implement`, …
 
 ## Development
 

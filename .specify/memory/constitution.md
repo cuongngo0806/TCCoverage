@@ -1,9 +1,22 @@
 <!--
+Sync Impact Report (1.3.0, 2026-10-12)
+===================
+Version change: 1.2.0 → 1.3.0
+Modified principle: III (Deterministic-First Analysis, Bounded LLM Role) — besides "closed by code review", the LLM
+MAY close a case as "no real test needed" (`not_needed`) with a recorded reason. Closed cases leave the main report
+(the list to test on the real system) for a separate AI-verified report; report.json keeps every case with its
+verdict. Unit-test code is out of scope unless the project enables `include_tests` (listed as out of scope, never
+silently dropped).
+Rationale / sign-off: requested by the project owner after a pilot on a real workspace (one commit gave 79 cases,
+most of them unit-test re-runs and recompile-only includers). The deterministic list, ids, order and priorities are
+unchanged; the LLM still cannot add cases or evidence, and every closure stays auditable.
+Templates: none changed.
+
 Sync Impact Report (1.2.0, 2026-10-12)
 ===================
 Version change: 1.1.0 → 1.2.0
 Modified principle: IX (English-Only Documentation & Output → English Documentation, Configurable Report Language)
-— the report shown to testers (Markdown, HTML, brief, VS Code view) follows the configured report language:
+— the report shown to testers (Markdown, HTML, brief) follows the configured report language:
 Vietnamese (`vi`, default) or English (`en`). Documentation, specs, code, CLI/log messages and the text inside
 report.json (the machine contract) stay English.
 Rationale / sign-off: requested by the project owner (the testers reading the case lists work in Vietnamese).
@@ -98,7 +111,10 @@ only for two tasks: (a) writing a human-readable description of a case, and (b) 
 risk level. The LLM MUST NOT be used to discover dependencies, decide inclusion/exclusion, or
 invent evidence. Exception (1.1.0): the LLM MAY mark a case "closed by code review" only when the deterministic
 pass classified it as reviewable (no runtime/target signal) and the LLM cites proof `file:line` that resolves
-in the repository; the case stays listed under "closed by code review" with that proof, never deleted. The full codebase MUST NEVER be loaded into the LLM context — only the
+in the repository; the case stays listed under "closed by code review" with that proof, never deleted.
+Exception (1.3.0): the LLM MAY also mark a case "no real test needed" (`not_needed`) with a recorded reason (a clean
+build settles it, or the change cannot reach that code). Closed cases move from the main report to a separate
+AI-verified report and stay in report.json with their verdict; nothing is deleted. The full codebase MUST NEVER be loaded into the LLM context — only the
 already-filtered, bounded set of nodes relevant to the current diff. Rationale: determinism keeps
 the tool auditable, reproducible, and cheap; an LLM given free rein over the whole repo would be
 slow, expensive, non-reproducible, and prone to fabricating evidence.
@@ -154,7 +170,7 @@ the tool trustworthy and reviewable.
 All documentation (specs, plans, READMEs, in-tool help), source code, CLI/log messages and the text stored in
 `report.json` (the machine contract read by AI verifiers, lessons, tests and integrations) MUST be English,
 regardless of the language of the source code being analyzed. The report presented to testers (Markdown, HTML,
-brief and the VS Code view) MUST follow the configured report language — `vi` (default) or `en` — set by
+brief) MUST follow the configured report language — `vi` (default) or `en` — set by
 `--language` or `<repo>/.tcadvisor/config.json`. Translation MUST be deterministic (a fixed catalog applied at
 render time) and MUST NOT change which cases, evidence, priorities or flags are reported; a sentence without a
 translation is shown in English rather than dropped. Rationale: one engineering language keeps the tool reviewable
@@ -230,4 +246,4 @@ include an explicit check that the planned output remains a test-case list with 
 rather than dropped (Principle IV), and that scope stays fixed (Principle VIII). Violations found
 during review block progression to implementation until resolved or the constitution is amended.
 
-**Version**: 1.2.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-12
+**Version**: 1.3.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-12

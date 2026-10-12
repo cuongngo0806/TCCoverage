@@ -53,7 +53,7 @@ def call_claude(claude: str, model: str, prompt: str, budget_usd: float | None, 
 
 
 def verify(report_path: Path, *, approved: bool, claude: str | None = None, verify_model: str = "haiku",
-           synth_model: str = "sonnet", parallel: int = 4, priorities: set[str] | None = None, max_cases: int = 60,
+           synth_model: str = "sonnet", parallel: int = 4, priorities: set[str] | None = None, max_cases: int = 120,
            batch: int = 8, budget_usd: float | None = None, scope: str = "all", progress=None) -> dict[str, Any]:
     if not approved:
         raise UsageError("AI verification sends the packed code windows (not the repository) to the model provider. "
@@ -63,7 +63,7 @@ def verify(report_path: Path, *, approved: bool, claude: str | None = None, veri
         raise UsageError("Claude Code CLI ('claude') not found; install it or pass --claude-bin")
     say = progress or (lambda _m: None)
     out_dir = report_path.parent / "verify"
-    manifest = write_packets(report_path, out_dir, priorities or {"P1", "P2"}, max_cases, batch, scope)
+    manifest = write_packets(report_path, out_dir, priorities or {"P1", "P2", "P3"}, max_cases, batch, scope)
     report = json.loads(report_path.read_text(encoding="utf-8"))
     verifier = _prompt("verifier")
     usage_total = {"cost_usd": 0.0, "input_tokens": 0, "output_tokens": 0, "calls": 0}

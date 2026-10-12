@@ -2,15 +2,18 @@
 from __future__ import annotations
 
 ENTRIES: list[tuple[str, str]] = [
-    # summary / plan lines (also printed by the CLI and the VS Code notification)
+    # summary / plan lines (also printed by the CLI)
     ("{head}; {flags} uncertainty flag(s); {tests}{files} changed file(s); targets: {targets}; cache_hit: {cache}; "
      "LLM: {llm}; {secs}s",
-     "{head}; {flags} điểm chưa chắc chắn; {tests}{files} file thay đổi; target: {targets}; cache_hit: {cache}; "
-     "LLM: {llm}; {secs}s"),
-    ("Test plan: {target} to test on target, {review} to review (code reading may close them), {closed} closed by "
-     "code review",
-     "Kế hoạch test: {target} test trên target, {review} cần review (đọc code có thể đóng), {closed} đã đóng bằng "
-     "review code"),
+     "{head}; {flags} điểm chưa chắc chắn; {tests}{files} file thay đổi; target: {targets}; dùng lại kết quả cache: "
+     "{cache}; LLM: {llm}; {secs}s"),
+    ("Test plan: {target} to test on target, {review} to review (code reading may close them), {closed} closed by AI "
+     "(listed in {ai_report}.md)",
+     "Kế hoạch test: {target} test trên target, {review} cần review (đọc code có thể đóng), {closed} đã được AI đóng "
+     "(liệt kê trong {ai_report}.md)"),
+    ("-", "không có"),
+    ("true", "có"),
+    ("false", "không"),
     ("test results: {ok} pass / {bad} fail / {nt} n/t / {no} n/o / {untested} untested{recheck}; ",
      "kết quả test: {ok} đạt / {bad} không đạt / {nt} không thể test / {no} không thể xảy ra / {untested} chưa test"
      "{recheck}; "),
@@ -50,10 +53,24 @@ ENTRIES: list[tuple[str, str]] = [
      "review`); test it on the target if nobody can.",
      "- **Review code**: không có tín hiệu lúc chạy — đọc code có thể đóng case mà không cần chạy (`tcadvisor verify "
      "--scope review`); nếu không ai đóng được thì test trên target."),
-    ("- **Closed by code review**: an AI reviewer proved from the code that it cannot fail (proof file:line); listed "
-     "so the decision stays auditable.",
-     "- **Đã đóng bằng review code**: AI reviewer đã chứng minh từ code rằng case không thể lỗi (bằng chứng "
-     "file:dòng); vẫn liệt kê để quyết định có thể kiểm tra lại."),
+    ("- **Closed by AI**: an AI reviewer proved from the code that the case cannot fail, or judged that no real test "
+     "is needed (a build settles it); these cases are listed in {ai_report}.md / .html with the AI's reason, so the "
+     "decision stays auditable.",
+     "- **AI đã đóng**: AI reviewer đã chứng minh từ code rằng case không thể lỗi, hoặc đánh giá rằng không cần test "
+     "thực tế (chỉ cần build lại là đủ); các case này được liệt kê trong {ai_report}.md / .html kèm lý do của AI, để "
+     "quyết định vẫn kiểm tra lại được."),
+    ("No real test needed (AI)", "Không cần test thực tế (AI)"),
+    ("# Cases closed by AI (no real test needed)", "# Các case AI đã đóng (không cần test thực tế)"),
+    ("An AI reviewer closed these {n} case(s): it proved from the code that they cannot fail, or judged that no real "
+     "test is needed (its reason is under each case). They are not in report.md / report.html; re-open one by testing "
+     "it if you disagree.",
+     "AI reviewer đã đóng {n} case này: chứng minh từ code rằng chúng không thể lỗi, hoặc đánh giá rằng không cần "
+     "test thực tế (lý do ghi dưới từng case). Các case này không có trong report.md / report.html; nếu không đồng "
+     "ý, hãy tự test lại case đó."),
+    ("confirmed: needs a real test", "xác nhận: cần test thực tế"),
+    ("needs more information", "cần thêm thông tin"),
+    ("no real test needed", "không cần test thực tế"),
+    ("closed by code review", "đã đóng bằng review code"),
     ("Inside each group: relevance order (closest to the change, substantive before recompile-only, larger changes "
      "first); the P1/P2/P3 label is the deterministic priority.",
      "Trong mỗi nhóm: xếp theo độ liên quan (gần thay đổi nhất, thay đổi thực chất trước thay đổi chỉ cần biên dịch "
@@ -77,8 +94,7 @@ ENTRIES: list[tuple[str, str]] = [
     ("  - *AI verification*: **{verdict}**", "  - *AI kiểm tra*: **{verdict}**"),
     ("  - *Proof*: {text}", "  - *Chứng minh*: {text}"),
     ("  - *AI corner cases*: {text}", "  - *Corner case từ AI*: {text}"),
-    ("## AI verification (annotations only — cases are never removed)",
-     "## AI kiểm tra (chỉ chú thích — không bao giờ xoá case)"),
+    ("## AI verification", "## Kiểm tra bằng AI"),
     ("- verified cases: {n}; models: {models}", "- số case đã kiểm tra: {n}; model: {models}"),
     ("- [ ] **Also check** (AI): {title} — {why}{ev}", "- [ ] **Kiểm tra thêm** (AI): {title} — {why}{ev}"),
     (" (unverified AI suggestion: no resolvable file:line)", " (gợi ý AI chưa xác minh: không có file:dòng hợp lệ)"),

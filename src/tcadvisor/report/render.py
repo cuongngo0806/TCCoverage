@@ -6,8 +6,8 @@ import re
 from pathlib import Path
 from typing import Any
 
-from tcadvisor.classify.environment import action
-from tcadvisor.report.l10n import Translator, l10n_map, localize
+from tcadvisor.classify.environment import AI_CLOSED, action
+from tcadvisor.report.l10n import Translator, localize
 
 PRIO_ORDER = ("P1", "P2", "P3")
 GROUP_LABEL = {
@@ -19,6 +19,37 @@ GROUP_LABEL = {
     "build_config": "Build config",
 }
 MERMAID_MAX_NODES = 60
+AI_REPORT = "report.ai-verified"  # .md / .html: the cases an AI closed (main report: the cases to test for real)
+AI_VERDICT_LABEL = {"confirmed": "confirmed: needs a real test", "needs_info": "needs more information",
+                    "not_needed": "no real test needed", "weak": "no real test needed",
+                    "pass_by_review": "closed by code review"}
+
+
+def split(r: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """(main, ai_closed) copies of report ``r``: the main one lists the cases that still need a real test (plus
+    ``ai_closed``: how many went to the other); the other lists the cases an AI closed (`not_needed`,
+    `pass_by_review`). report.json keeps every case."""
+    cases = r["test_case_candidates"]
+    closed = [c for c in cases if action(c) in AI_CLOSED]
+    main = [c for c in cases if action(c) not in AI_CLOSED]
+    return ({**r, "test_case_candidates": main, "ai_closed": len(closed) + r.get("ai_closed", 0)},
+            {**r, "test_case_candidates": closed, "report_part": "ai_closed"})
+
+
+def sub_label(sub: str | None, T: Translator) -> str:
+    return T(sub.replace("_", " ")) if sub else ""
+
+
+def case_labels(r: dict[str, Any], T: Translator) -> None:
+    """Translated display labels (sub-reason tag, AI verdict) on the cases of a localized copy ``r`` (HTML)."""
+    cases = []
+    for c in r["test_case_candidates"]:
+        c = {**c, "sub_label": sub_label(c.get("sub_reason"), T)}
+        if c.get("verification"):
+            c["verification"] = {**c["verification"],
+                                 "label": T.ui(AI_VERDICT_LABEL.get(c["verification"]["verdict"], "needs more information"))}
+        cases.append(c)
+    r["test_case_candidates"] = cases
 
 
 def _ev_label(ev: dict[str, Any]) -> str:
@@ -40,7 +71,7 @@ def translator(r: dict[str, Any]) -> Translator:
 
 def _targets(ts: list[str], T: Translator, limit: int = 6) -> str:
     more = T.ui(" (+{n} more)", n=len(ts) - limit) if len(ts) > limit else ""
-    return (", ".join(ts[:limit]) + more) if ts else "-"
+    return (", ".join(ts[:limit]) + more) if ts else T.ui("-")
 
 
 def summary_line(r: dict[str, Any]) -> str:
@@ -56,22 +87,23 @@ def summary_line(r: dict[str, Any]) -> str:
     return T.ui("{head}; {flags} uncertainty flag(s); {tests}{files} changed file(s); targets: {targets}; "
                 "cache_hit: {cache}; LLM: {llm}; {secs}s", head=head, flags=len(r["uncertainty_flags"]),
                 tests=_test_summary(r, T), files=len(r.get("changed_files", [])),
-                targets=_targets(r["target_scope"], T), cache=str(r["cache_hit"]).lower(), llm=llm,
+                targets=_targets(r["target_scope"], T), cache=T.ui(str(r["cache_hit"]).lower()), llm=llm,
                 secs=r.get("metrics", {}).get("duration_seconds", 0))
 
 
 ACTION_LABEL = {"test_on_target": "Test on target", "review": "Review code",
-                "closed_by_review": "Closed by code review"}
-ACTION_TAG = {"test_on_target": "TARGET", "review": "REVIEW", "closed_by_review": "CLOSED"}
+                "closed_by_review": "Closed by code review", "not_needed": "No real test needed (AI)"}
+ACTION_TAG = {"test_on_target": "TARGET", "review": "REVIEW", "closed_by_review": "CLOSED", "not_needed": "CLOSED"}
 
 
 def plan_line(r: dict[str, Any]) -> str:
     n = {a: 0 for a in ACTION_LABEL}
     for c in r["test_case_candidates"]:
         n[action(c)] += 1
+    closed = n["closed_by_review"] + n["not_needed"] + r.get("ai_closed", 0)
     return translator(r).ui("Test plan: {target} to test on target, {review} to review (code reading may close "
-                            "them), {closed} closed by code review", target=n["test_on_target"], review=n["review"],
-                            closed=n["closed_by_review"])
+                            "them), {closed} closed by AI (listed in {ai_report}.md)", target=n["test_on_target"],
+                            review=n["review"], closed=closed, ai_report=AI_REPORT)
 
 
 def _mermaid_id(i: int) -> str:
@@ -131,9 +163,10 @@ def _verdict_tag(c: dict[str, Any], T: Translator) -> str:
 
 
 def to_markdown(r: dict[str, Any]) -> str:
+    """The main report: the cases that still need a real test (AI-closed ones: :func:`to_ai_markdown`)."""
     T = translator(r)
     summary, plan = summary_line(r), plan_line(r)
-    r = localize(r, T)
+    r = localize(split(r)[0], T)
     L: list[str] = [T.ui("# Change Impact & Test Case Report"), ""]
     ci = r["change_input"]
     src = ci.get("commit_range") or (T.ui("working tree") if ci.get("working_tree") else
@@ -146,7 +179,7 @@ def to_markdown(r: dict[str, Any]) -> str:
     if r.get("changed_symbols"):
         L += [T.ui("## Changed symbols"), "", T.ui("| Symbol | Change | Risk groups |"), "|---|---|---|"]
         for s in r["changed_symbols"]:
-            groups = ", ".join(sorted({T.ui(GROUP_LABEL[x['risk_group']]) + (f" ({x['sub_reason']})" if x['sub_reason'] else "")
+            groups = ", ".join(sorted({T.ui(GROUP_LABEL[x['risk_group']]) + (f" ({sub_label(x['sub_reason'], T)})" if x['sub_reason'] else "")
                                        for x in s["risks"]}))
             L.append(f"| `{_md_cell(s['symbol']['qualified_name'])}` {s['symbol']['file_path']}:{s['symbol']['line']} "
                      f"| {T.ui(s['change_kind'])} | {groups} |")
@@ -163,35 +196,15 @@ def to_markdown(r: dict[str, Any]) -> str:
                    "reviewer read the code and could not close it."),
               T.ui("- **Review code**: no runtime signal — reading the code may close it without a run "
                    "(`tcadvisor verify --scope review`); test it on the target if nobody can."),
-              T.ui("- **Closed by code review**: an AI reviewer proved from the code that it cannot fail (proof "
-                   "file:line); listed so the decision stays auditable."), "",
+              T.ui("- **Closed by AI**: an AI reviewer proved from the code that the case cannot fail, or judged that "
+                   "no real test is needed (a build settles it); these cases are listed in {ai_report}.md / .html "
+                   "with the AI's reason, so the decision stays auditable.", ai_report=AI_REPORT), "",
               T.ui("Inside each group: relevance order (closest to the change, substantive before recompile-only, "
                    "larger changes first); the P1/P2/P3 label is the deterministic priority."), ""]
-        hops = (("changed code", lambda c: c["hop_distance"] == 0), ("direct impact", lambda c: c["hop_distance"] == 1),
-                ("indirect impact", lambda c: c["hop_distance"] > 1))
-        for a, label in ACTION_LABEL.items():
-            in_a = [c for c in cases if action(c) == a]
-            if in_a:
-                L += [f"### {T.ui(label)} ({len(in_a)})", ""]
-            for title, sel in hops:
-                group = [c for c in in_a if sel(c)]
-                if not group:
-                    continue
-                L += [f"#### {T.ui(label)} — {T.ui(title)} ({len(group)})", ""]
-                for c in group:
-                    L += _md_case(c, T)
-                L.append("")
-    av = r.get("ai_verification")
-    if av:
-        L += [T.ui("## AI verification (annotations only — cases are never removed)"), "",
-              f"{_md_cell(av['summary'])}", "",
-              T.ui("- verified cases: {n}; models: {models}", n=av["verified_cases"],
-                   models=", ".join(av.get("models") or []) or "-")]
-        for a in av["additional_checks"]:
-            ev = f" ({a['evidence']})" if a["evidence"] else T.ui(" (unverified AI suggestion: no resolvable file:line)")
-            L.append(T.ui("- [ ] **Also check** (AI): {title} — {why}{ev}", title=_md_cell(a["title"]),
-                          why=_md_cell(a["why"]), ev=ev))
-        L.append("")
+        L += _md_groups(cases, T)
+    elif r.get("ai_closed"):
+        L += [T.ui("## Test cases to check"), "", plan + ".", ""]
+    L += _md_ai_section(r, T)
     if r.get("existing_tests"):
         L += [T.ui("## Existing tests to re-run"), "",
               "`--gtest_filter=" + ":".join(t["test"] for t in r["existing_tests"]) + "`", ""]
@@ -260,6 +273,58 @@ def to_markdown(r: dict[str, Any]) -> str:
     return "\n".join(L)
 
 
+def _md_groups(cases: list[dict[str, Any]], T: Translator) -> list[str]:
+    L: list[str] = []
+    hops = (("changed code", lambda c: c["hop_distance"] == 0), ("direct impact", lambda c: c["hop_distance"] == 1),
+            ("indirect impact", lambda c: c["hop_distance"] > 1))
+    for a, label in ACTION_LABEL.items():
+        in_a = [c for c in cases if action(c) == a]
+        if in_a:
+            L += [f"### {T.ui(label)} ({len(in_a)})", ""]
+        for title, sel in hops:
+            group = [c for c in in_a if sel(c)]
+            if not group:
+                continue
+            L += [f"#### {T.ui(label)} — {T.ui(title)} ({len(group)})", ""]
+            for c in group:
+                L += _md_case(c, T)
+            L.append("")
+    return L
+
+
+def _md_ai_section(r: dict[str, Any], T: Translator) -> list[str]:
+    av = r.get("ai_verification")
+    if not av:
+        return []
+    L = [T.ui("## AI verification"), "", f"{_md_cell(av['summary'])}", "",
+         T.ui("- verified cases: {n}; models: {models}", n=av["verified_cases"],
+              models=", ".join(av.get("models") or []) or "-")]
+    for a in av["additional_checks"]:
+        ev = f" ({a['evidence']})" if a["evidence"] else T.ui(" (unverified AI suggestion: no resolvable file:line)")
+        L.append(T.ui("- [ ] **Also check** (AI): {title} — {why}{ev}", title=_md_cell(a["title"]),
+                      why=_md_cell(a["why"]), ev=ev))
+    return L + [""]
+
+
+def to_ai_markdown(r: dict[str, Any]) -> str:
+    """``report.ai-verified.md``: the cases an AI closed, each with its reason (and proof), kept out of the main
+    report so that one lists only what needs a real test."""
+    T = translator(r)
+    summary = summary_line(r)
+    closed = localize(split(r)[1], T)
+    ci = closed["change_input"]
+    src = ci.get("commit_range") or (T.ui("working tree") if ci.get("working_tree") else
+                                     ", ".join(ci.get("symbols_requested") or []))
+    L = [T.ui("# Cases closed by AI (no real test needed)"), "",
+         T.ui("- **Change**: {mode} — {src}", mode=ci["mode"], src=src),
+         T.ui("- **Repository**: `{repo}`", repo=ci["target_repo_path"]), T.ui("- **Summary**: {s}", s=summary), "",
+         T.ui("An AI reviewer closed these {n} case(s): it proved from the code that they cannot fail, or judged that "
+              "no real test is needed (its reason is under each case). They are not in report.md / report.html; "
+              "re-open one by testing it if you disagree.", n=len(closed["test_case_candidates"])), ""]
+    L += _md_groups(closed["test_case_candidates"], T)
+    return "\n".join(L + _md_ai_section(closed, T))
+
+
 def _md_case(c: dict[str, Any], T: Translator) -> list[str]:
     tr = c.get("test_result") or {}
     box = "x" if tr.get("verdict") and not tr.get("needs_recheck") else " "
@@ -285,7 +350,7 @@ def _md_case(c: dict[str, Any], T: Translator) -> list[str]:
                  + (T.ui("; evidence: {names}", names=_md_cell(names)) if names else ""))
     v = c.get("verification")
     if v:
-        L.append(T.ui("  - *AI verification*: **{verdict}**", verdict=v["verdict"])
+        L.append(T.ui("  - *AI verification*: **{verdict}**", verdict=T.ui(AI_VERDICT_LABEL.get(v["verdict"], v["verdict"])))
                  + (T.ui(" — re-check") if v["recheck"] else "") + (": " + _md_cell(v["note"]) if v["note"] else ""))
         if v.get("proof"):
             L.append(T.ui("  - *Proof*: {text}", text=", ".join(v["proof"])))
@@ -299,7 +364,7 @@ def to_brief(r: dict[str, Any], limit: int = 80) -> str:
     stay English in every language: they are markers for tools and AI readers."""
     T = translator(r)
     L = [summary_line(r), plan_line(r)]
-    r = localize(r, T)
+    r = localize(split(r)[0], T)
     for s in r.get("changed_symbols", []):
         L.append(f"CHANGED {s['symbol']['qualified_name']} @{s['symbol']['file_path']}:{s['symbol']['line']} "
                  f"[{','.join(sorted({x['risk_group'] for x in s['risks']}))}]")
@@ -315,6 +380,8 @@ def to_brief(r: dict[str, Any], limit: int = 80) -> str:
             L.append("   corner: " + " | ".join(c["corner_cases"][:3]))
     if len(r["test_case_candidates"]) > limit:
         L.append(T.ui("... {n} more in report.json", n=len(r["test_case_candidates"]) - limit))
+    if r.get("ai_closed"):
+        L.append(f"AI-CLOSED {r['ai_closed']} :: {AI_REPORT}.md")
     ts_brief = [t for t in r.get("trigger_sources") or [] if t.get("reason", "guarded") == "guarded"] + [
         t for t in r.get("trigger_sources") or [] if t.get("reason") == "changed" and t.get("total", 0) >= 2][:10]
     for t in ts_brief:
@@ -376,10 +443,7 @@ def write_outputs(r: dict[str, Any], out_dir: Path, fmt: str = "both", same_anal
             written.append(backup)
     if fmt in ("json", "both", "all"):
         p = out_dir / "report.json"
-        T = translator(r)
         data = {k: v for k, v in _without_attachment_data(r).items() if k != "l10n"}
-        if T.active:  # the VS Code view shows report.json text through this map
-            data["l10n"] = l10n_map(data, T)
         p.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
         written.append(p)
     if fmt in ("md", "both", "all"):
@@ -390,6 +454,14 @@ def write_outputs(r: dict[str, Any], out_dir: Path, fmt: str = "both", same_anal
         p = out_dir / "report.html"
         p.write_text(to_html(r), encoding="utf-8")
         written.append(p)
+    has_closed = bool(split(r)[1]["test_case_candidates"])
+    for ext, render in (("md", to_ai_markdown), ("html", lambda x: to_html(x, "ai_closed"))):
+        p = out_dir / f"{AI_REPORT}.{ext}"
+        if has_closed and fmt in (ext, "both" if ext == "md" else "", "all"):
+            p.write_text(render(r), encoding="utf-8")
+            written.append(p)
+        elif not has_closed and p.is_file():
+            p.unlink()  # from an earlier verification of another analysis
     p = out_dir / "report.brief.txt"
     p.write_text(to_brief(r), encoding="utf-8")
     written.append(p)

@@ -12,9 +12,15 @@ analysed repo.
   `graph/impact.py` (bounded traversal) → `classify/` (rules.py risk groups, cases.py priority) →
   `evidence/` (uncertainty flags, evidence gate) → `llm/` (optional, off by default) → `report/`.
 - `tests/` — pytest; `tests/conftest.py` builds a synthetic CMake project (needs cmake + clang).
-- `vscode-extension/` — VS Code front-end (TypeScript) calling the CLI.
-- `src/tcadvisor/config.py` — `<repo>/.tcadvisor/config.json` (graph, language, build_dir, output_dir, targets, max_hop_depth),
-  shared by CLI / extension / AI chat; `tcadvisor init [--copilot]` (`integrations/init.py`, Copilot prompts in `integrations/copilot/`).
+- `src/tcadvisor/integrations/` — AI front-ends `tcadvisor init` installs into the analysed repo: `skills/tc-coverage/SKILL.md`
+  (one skill for Claude Code `.claude/skills` and Copilot `.github/skills`), `claude/agents/`, `copilot/*.prompt.md`.
+  This repo's `.claude/skills/tc-coverage` + `.claude/agents/tc-*` are copies (test-enforced: edit the package, then
+  `tcadvisor init --repo . --ai claude --force` and delete the generated `.tcadvisor/`).
+- `src/tcadvisor/config.py` — `<repo>/.tcadvisor/config.json` (graph, language, build_dir, output_dir, targets, max_hop_depth,
+  include_tests, test_paths, ai_verify), shared by CLI / AI chat; `tcadvisor init [--ai claude,copilot|none]` (`integrations/init.py`).
+- Unit-test code is left out unless `include_tests` (`pipeline.is_test_file`); benchmark scripts pass `--include-tests`.
+- AI verdicts `not_needed` / `pass_by_review` close a case: `report.*` lists the cases still to test, `report.ai-verified.*`
+  the closed ones (`report/render.split`); report.json keeps all.
 - `src/tcadvisor/graph/providers/` — codegraph / GitNexus / clang impact source (`.tcadvisor/config.json` `graph`, never switched); `src/tcadvisor/verify/` — packets, annotate, headless Claude runner.
 - Spec 006 (lessons + test report): `index/flow.py` + `graph/dataflow.py` (data paths A→B→C), `graph/sources.py`
   (sibling trigger sources), `classify/patterns.py` + `classify/lessons.py` (patterns, `.tcadvisor/lessons.json`),
@@ -42,7 +48,6 @@ python3 -m tcadvisor analyze --repo R --build-dir B --working-tree --output-dir 
 python3 scripts/eval_real_project.py --quiet   # real-project acceptance (needs network + cmake)
 python3 scripts/seeded_regressions.py          # 31 seeded side-effect regressions: leveldb dev + holdout, yaml-cpp
 python3 scripts/seeded_regressions.py --min-victims yamlcpp=8 --min-corners yamlcpp=9   # CI recall gate (per-set thresholds)
-cd vscode-extension && npm install && npm run compile && npm test
 ```
 
 ## Spec-driven workflow with Claude (speckit)

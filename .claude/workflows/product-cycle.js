@@ -102,8 +102,8 @@ if (blocking.length) {
 
 phase('Package')
 const pkg = await agent(
-  'In vscode-extension/: run `npm install --no-audit --no-fund && npm run compile && npx --yes @vscode/vsce@3.2.1 package ' +
-  '--allow-missing-repository --skip-license`. ok=true if a .vsix was produced; detail = its path or the error.',
+  'Run `python3 -m pip wheel --no-deps -w /tmp/tcadvisor-dist .` and check the wheel contains ' +
+  'tcadvisor/integrations/skills/tc-coverage/SKILL.md. ok=true if so; detail = the wheel path or the error.',
   { label: 'package', phase: 'Package', schema: STATUS, model: 'haiku', effort: 'low' })
 
 phase('Retro')
@@ -112,4 +112,4 @@ const retro = await agent(
   `(${t.eval}), review findings (${blocking.length} blocking fixed), package result (${pkg && pkg.detail}), and a ` +
   '"Next cycle backlog" list. Return the backlog as plain lines.',
   { label: 'retro', phase: 'Retro', model: 'haiku', effort: 'low' })
-return { specDir, eval: t.eval, blockingFixed: blocking.length, vsix: pkg && pkg.detail, backlog: retro }
+return { specDir, eval: t.eval, blockingFixed: blocking.length, wheel: pkg && pkg.detail, backlog: retro }

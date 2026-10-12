@@ -67,5 +67,7 @@ def test_test_gaps_listed(project):
     add_state_fixture(project)
     project.edit("src/store.cpp", "    return items_[i] / 2;", "    return items_[i] / 4;")
     project.commit()
-    r = project.analyze("--commit-range", "HEAD~1..HEAD")
+    r = project.analyze("--commit-range", "HEAD~1..HEAD", "--include-tests")
     assert any(g["symbol"]["qualified_name"] == "Store::get" for g in r["test_gaps"])
+    r = project.analyze("--commit-range", "HEAD~1..HEAD")  # include_tests off (default): nothing about unit tests
+    assert r["test_gaps"] == [] and r["existing_tests"] == []

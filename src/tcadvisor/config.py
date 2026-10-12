@@ -1,5 +1,12 @@
-"""Project configuration `<repo>/.tcadvisor/config.json`, shared by the CLI, the VS Code extension and the AI chat
-front-ends (Claude Code, GitHub Copilot), so every way of running the tool on a workspace uses the same settings.
+"""Project configuration `<repo>/.tcadvisor/config.json`, shared by the CLI and the AI chat front-ends (the
+`tc-coverage` skill / prompts for Claude Code and GitHub Copilot that `tcadvisor init` installs), so every way of
+running the tool on a workspace uses the same settings.
+
+`include_tests` (default false): unit-test / mock code is left out (changed tests, test functions calling the change,
+test files including it, re-run lists, test gaps); `test_paths` adds globs of such files. `ai_verify`: `off` (default),
+`chat` (the skill / Copilot prompt AI-verifies every analysis before answering) or `claude` (`tcadvisor analyze` runs
+the headless Claude Code verification itself; setting it approves sending the packed code windows to the model
+provider). Cases an AI closes leave the main report for `report.ai-verified.*`.
 
 Precedence: command-line flag > config file > built-in default. Unknown keys or invalid values are usage errors, so a
 typo never silently selects another impact source, report language or build directory. Relative paths are relative
@@ -15,9 +22,11 @@ from tcadvisor.models import UsageError
 
 GRAPHS = ("codegraph", "gitnexus", "clang")
 LANGUAGES = ("vi", "en")
+AI_VERIFY = ("off", "chat", "claude")
 DEFAULTS: dict[str, Any] = {"graph": "codegraph", "language": "vi", "build_dir": "build", "output_dir": None,
-                            "targets": None, "max_hop_depth": 2}
-CHOICES = {"graph": GRAPHS, "language": LANGUAGES}
+                            "targets": None, "max_hop_depth": 2, "include_tests": False, "test_paths": [],
+                            "ai_verify": "off"}
+CHOICES = {"graph": GRAPHS, "language": LANGUAGES, "ai_verify": AI_VERIFY}
 
 
 def config_path(repo: Path) -> Path:
@@ -31,6 +40,8 @@ def default_output_dir(repo: Path) -> Path:
 
 
 def _check(path: Path, key: str, value: Any) -> Any:
+    if key == "ai_verify" and isinstance(value, bool):
+        value = "chat" if value else "off"
     if key in CHOICES:
         if value not in CHOICES[key]:
             raise UsageError(f"{path}: '{key}' must be one of {', '.join(CHOICES[key])}, not {value!r}")
@@ -45,6 +56,12 @@ def _check(path: Path, key: str, value: Any) -> Any:
     elif key == "max_hop_depth":
         if not isinstance(value, int) or isinstance(value, bool) or value < 1:
             raise UsageError(f"{path}: 'max_hop_depth' must be an integer >= 1")
+    elif key == "include_tests":
+        if not isinstance(value, bool):
+            raise UsageError(f"{path}: 'include_tests' must be true or false")
+    elif key == "test_paths":
+        if not (isinstance(value, list) and all(isinstance(t, str) and t.strip() for t in value)):
+            raise UsageError(f"{path}: 'test_paths' must be a list of globs, e.g. [\"src/**/sim/*\"]")
     else:
         raise UsageError(f"{path}: unknown setting '{key}' (allowed: {', '.join(DEFAULTS)})")
     return value

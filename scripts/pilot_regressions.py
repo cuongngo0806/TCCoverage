@@ -210,7 +210,7 @@ def analyse(a, pair: dict, info: dict) -> dict:
     cmd = [sys.executable, "-m", "tcadvisor", "analyze", "--repo", info["wt"], "--build-dir", info["build"],
            "--commit-range", f"{pair['intro']}^..{pair['intro']}", "--output-dir", str(out), "--cache-dir",
            str(a.run_dir / f"cache-{pair['intro']}"), "--graph", a.graph, "--no-run-cache",
-           "--allow-stale-compile-db", "--max-hop-depth", str(a.max_hop_depth), "--jobs", "1", "-q",
+           "--allow-stale-compile-db", "--max-hop-depth", str(a.max_hop_depth), "--jobs", "1", "--include-tests", "-q",
            *shlex.split(a.extra_args)]
     res = subprocess.run(cmd, capture_output=True, text=True, env=ENV)
     row["seconds"] = round(time.monotonic() - t0, 1)

@@ -15,16 +15,15 @@ Two loops share one rule: **graphs decide impact, models only verify and enrich.
               ▼
  tc-verify-synthesizer ×1 (Sonnet, no tools)        ── summary + ≤8 cross-cutting "also check"
               ▼
- tcadvisor annotate ─► report (+verification) ─► VS Code tree badges / webview / inline hints
+ tcadvisor annotate ─► report.* = cases still to test   +   report.ai-verified.* = cases the AI closed (with reasons)
 ```
 
 Ways to run it — all produce the same annotated report:
 
 | Entry point | Command |
 |---|---|
-| VS Code | *TC Coverage: Analyze …* then *Verify Cases with Claude (AI)* |
 | CLI / CI | `tcadvisor analyze …` (source from `.tcadvisor/config.json`, default codegraph) then `tcadvisor verify <out>/report.json --ai-external-approved` |
-| Claude Code chat | `/tc-coverage HEAD~1..HEAD` (skill; delegates to the agents below) |
+| Claude Code / Copilot chat | `/tc-coverage HEAD~1..HEAD` (skill installed by `tcadvisor init`; with `ai_verify: chat` it always runs the AI filter; in Claude Code it delegates to the agents below) |
 | Claude Code workflow | Workflow `tc-verify` with args `{repo, buildDir, mode, graph}` |
 
 ### Model allocation and measured cost (google/leveldb `bb74ef7`, 25 cases)
@@ -40,8 +39,8 @@ Ways to run it — all produce the same annotated report:
 Same verification run as a Claude Code **workflow** (`tc-verify`: 1 Haiku analyze agent + 3 Haiku verifiers +
 1 Sonnet synthesizer): 25/25 cases verified, **~231k subagent tokens** in 69 s. Each workflow agent carries the
 full Claude Code system prompt, CLAUDE.md and tool schemas, so it is ~4× the headless CLI path
-(`tcadvisor verify`, ~60k tokens). **Use `tcadvisor verify` (or the VS Code button, which calls it) for
-day-to-day runs; use the workflow when you want the verification inside a Claude Code session.**
+(`tcadvisor verify`, ~60k tokens). **Use `tcadvisor verify` (or `ai_verify: claude` in the config, which runs it
+after every `analyze`) for day-to-day runs; use the workflow when you want the verification inside a Claude Code session.**
 
 Why it is cheap: the model never explores the repository. Code reaches it once per impacted symbol in a
 bounded window. Haiku does the many small checks; Sonnet makes the one judgement call. Opus is not used
@@ -49,8 +48,15 @@ at runtime.
 
 ### Verdict semantics (constitution III)
 
-`confirmed` / `weak` / `needs_info` are **annotations**. No case is removed, reordered or re-prioritised by a
-model. `weak` + `recheck:false` lets a reviewer skip a case consciously; the deterministic list stays auditable.
+Verdicts never delete, reorder or re-prioritise a case. `confirmed` and `needs_info` keep it in the main report (the
+cases to test on the real system). `not_needed` (with a note: a clean build settles it, or the change cannot reach
+this code) and `pass_by_review` (with proof, below) **close** it: it moves to `report.ai-verified.md` / `.html` with
+the AI's reason, and `report.json` keeps every case, so the decision stays auditable. `weak` in older verdict files
+is read as `not_needed`.
+
+Unit-test code is not part of the analysis unless `include_tests` is true in `.tcadvisor/config.json` (or
+`--include-tests`): no cases for changed tests, test functions calling the change or test files including it, no
+re-run list, no test gaps. Benchmark scripts pass `--include-tests` so their numbers stay comparable.
 
 ### Test on target vs. close by code review (spec 007, constitution 1.1.0)
 
@@ -64,10 +70,10 @@ all. Every case therefore gets a deterministic `verify_by`:
   `analyze --target-patterns patterns.json` (`{"own HAL": "\\bbsp_\\w+"}`).
 - `review` — no runtime signal. An AI verifier may answer `pass_by_review` when the code window proves the case
   cannot fail; `tcadvisor annotate` accepts it only for `review` cases, with a note and 1-3 `proof` file:line
-  that resolve, otherwise it is downgraded (`weak` / `needs_info`) and stays a test.
+  that resolve, otherwise it is downgraded to `needs_info` and stays a test.
 
 Report buckets: **Test on target** (target cases + review cases the AI could not close), **Review code** (not
-yet reviewed), **Closed by code review** (listed with proof, never hidden). Cheapest run for a large change:
+yet reviewed); in `report.ai-verified.*`: **Closed by code review** (with proof) and **No real test needed (AI)**. Cheapest run for a large change:
 
 ```bash
 python3 -m tcadvisor verify OUT/report.json --ai-external-approved --scope review --priorities P1,P2,P3
@@ -78,7 +84,7 @@ python3 -m tcadvisor verify OUT/report.json --ai-external-approved --scope revie
 Saved workflow `.claude/workflows/product-cycle.js` (args `{feature}` or `{specDir}`):
 
 ```text
- Specify ─► Plan+Tasks ─► Analyze gate ─► Implement ─► Test (+fix ≤2) ─► Review (2 lenses, +fix) ─► Package .vsix ─► Retro
+ Specify ─► Plan+Tasks ─► Analyze gate ─► Implement ─► Test (+fix ≤2) ─► Review (2 lenses, +fix) ─► Package wheel ─► Retro
     ▲                                                                                                          │
     └──────────────────────────────── next-cycle backlog (retro.md) ◄──────────────────────────────────────────┘
 ```
@@ -91,7 +97,7 @@ Saved workflow `.claude/workflows/product-cycle.js` (args `{feature}` or `{specD
 | Implement | speckit-implement, one sequential worker | Sonnet | narrow pytest per task |
 | Test | `pytest` + `scripts/eval_real_project.py` (leveldb ground truth) | Haiku | fix loop with Sonnet, max 2 |
 | Review | correctness lens ∥ constitution lens | Sonnet | blocking findings fixed |
-| Package | `npm run compile`, `vsce package` | Haiku | `.vsix` exists |
+| Package | `pip wheel` | Haiku | wheel contains the skill |
 | Retro | writes `specs/NNN/retro.md` + backlog | Haiku | backlog feeds next Specify |
 
 Token rules for every agent: start from `tasks.md`; read files by range; never load `report.json`/`report.html`

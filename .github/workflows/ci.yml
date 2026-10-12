@@ -28,13 +28,3 @@ jobs:
           --min-victims holdout=10 --min-corners holdout=10
           --min-victims yamlcpp=9 --min-corners yamlcpp=9
 
-  vscode-extension:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Compile and smoke test
-        working-directory: vscode-extension
-        run: npm ci && npm run compile && npm test
