@@ -73,14 +73,18 @@ table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid var(--li
 .drop.over{border-color:var(--accent);color:var(--accent)}
 .att{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;font-size:12.5px}
 .thumb{max-width:220px;max-height:140px;border:1px solid var(--line);border-radius:4px;display:block}
+.evimg{max-width:min(480px,100%);max-height:none;height:auto;cursor:zoom-in;flex-basis:100%}
+.drop:focus{outline:2px solid var(--accent);outline-offset:1px}
+#lightbox{position:fixed;inset:0;background:rgba(0,0,0,.86);display:none;align-items:center;justify-content:center;z-index:99;cursor:zoom-out;flex-direction:column;gap:6px}
+#lightbox.on{display:flex}#lightbox img{max-width:96vw;max-height:90vh;background:#fff}#lightbox div{color:#eee;font-size:12.5px}
 .err{color:var(--bad);font-size:12.5px;margin-top:4px}.banner{padding:8px 10px;border-radius:6px;margin-top:8px;font-weight:600}
 .banner.inc{background:var(--h1bg);color:var(--h1)}.banner.done{background:var(--okbg);color:var(--ok)}.banner.big{background:var(--badbg);color:var(--bad)}
 .rp{display:none}pre.log{white-space:pre-wrap;font-size:11px;border:1px solid var(--line);padding:6px;margin:4px 0}
 @media print{.noprint,.chips,input[type=search],#ord,.btn,.drop,#count{display:none!important}
  body{background:#fff;color:#000}.panel,.tr{border-color:#999;background:#fff}.case{break-inside:avoid}.rp{display:block}
- .thumb{max-width:100%;max-height:none}}
+ .thumb,.evimg{max-width:100%;max-height:none;break-inside:avoid}#lightbox{display:none!important}}
 .aipart .tr,.aipart #trSec{display:none}
-</style></head><body>
+</style></head><body><div id="lightbox" role="dialog" aria-label="evidence image"><img alt=""><div></div></div>
 <header><h1>TC Coverage — change impact &amp; test cases</h1><div class="muted" id="sub"></div>
 <div class="tiles" id="tiles"></div><section id="trSec"></section></header>
 <main>
@@ -156,7 +160,7 @@ function b64ToBytes(b){const s=atob(b),u=new Uint8Array(s.length);for(let i=0;i<
 function bytesToB64(u){let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)}
 const isText=a=>/^text\//.test(a.type||'')||/\.(log|txt|csv|json|xml|md|out|trace|ini|cfg|yaml|yml)$/i.test(a.name);
 function attHtml(k,id,ro){const a=RS.attachments[id];if(!a)return'';
- const img=/^image\//.test(a.type||'')?`<img class="thumb" alt="${esc(a.name)}" src="data:${esc(a.type)};base64,${a.data}">`:'';
+ const img=/^image\//.test(a.type||'')?`<img class="thumb evimg" alt="${esc(a.name)}" title="Click to view full size" src="data:${esc(a.type)};base64,${a.data}">`:'';
  let head='';if(ro&&isText(a)){try{head=new TextDecoder().decode(b64ToBytes(a.data)).split(/\r?\n/).slice(0,40).join('\n')}catch(e){}}
  return `<div class="att">${img}<span class="mono">${esc(a.name)}</span><span class="muted">${fmtB(a.size)} · sha256 ${esc(a.sha256.slice(0,12))}…</span>`+
   (ro?'':`<button class="btn" data-act="dl" data-id="${id}">Save file</button><button class="btn" data-act="rm" data-id="${id}">Remove</button>`)+
@@ -171,7 +175,7 @@ function trHtml(c){const r=RS.results[c.key];const pr=problems(r);
  `<label>Tester</label><input type="text" data-f="tester" value="${esc(R_.tester)}">`+
  `<label>Date</label><input type="date" data-f="date" value="${esc(R_.date)}">`+
  `<label>Defect ref.</label><input type="text" data-f="defect_ref" value="${esc(R_.defect_ref)}" placeholder="e.g. JIRA-1234">`+
- `<label>Evidence</label><div><div class="drop" data-act="drop">Drop screenshots / logs here or <input type="file" multiple data-act="file"></div>${(R_.attachments||[]).map(id=>attHtml(c.key,id,false)).join('')}</div></div>`+
+ `<label>Evidence</label><div><div class="drop" data-act="drop" tabindex="0" title="Click here, then paste (Ctrl+V)">Paste (Ctrl+V) or drop screenshots / logs here, or <input type="file" multiple data-act="file"></div>${(R_.attachments||[]).map(id=>attHtml(c.key,id,false)).join('')}</div></div>`+
  `<div class="err" data-err>${pr.map(esc).join(' ')}</div>`}
 function touch(k){const r=rec(k),c=byKeyCase[k];r.updated_at=new Date().toISOString();if(c){r.fingerprint=c.code_fingerprint;r.description=c.description}dirty=true;summaryBar()}
 function refreshTr(k){const el=document.querySelector(`.tr[data-k="${CSS.escape(k)}"]`);if(el)el.innerHTML=trHtml(byKeyCase[k])}
@@ -183,8 +187,8 @@ function sha256js(m){const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956
   let[a,bb,c,d,e,f,g,h]=H;for(let i=0;i<64;i++){const t1=(h+(r(e,6)^r(e,11)^r(e,25))+((e&f)^(~e&g))+K[i]+w[i])>>>0,t2=((r(a,2)^r(a,13)^r(a,22))+((a&bb)^(a&c)^(bb&c)))>>>0;h=g;g=f;f=e;e=(d+t1)>>>0;d=c;c=bb;bb=a;a=(t1+t2)>>>0}
   H[0]=(H[0]+a)>>>0;H[1]=(H[1]+bb)>>>0;H[2]=(H[2]+c)>>>0;H[3]=(H[3]+d)>>>0;H[4]=(H[4]+e)>>>0;H[5]=(H[5]+f)>>>0;H[6]=(H[6]+g)>>>0;H[7]=(H[7]+h)>>>0}
  return H.map(x=>x.toString(16).padStart(8,'0')).join('')}
-async function addFiles(k,files){const r=rec(k);for(const f of files){const buf=await f.arrayBuffer();const sha=await sha256hex(buf);const id=sha.slice(0,16);
- if(!RS.attachments[id])RS.attachments[id]={name:f.name,type:f.type||'application/octet-stream',size:f.size,sha256:sha,data:bytesToB64(new Uint8Array(buf)),added_at:new Date().toISOString()};
+async function addFiles(k,files,origin){const r=rec(k);for(const f of files){const buf=await f.arrayBuffer();const sha=await sha256hex(buf);const id=sha.slice(0,16);
+ if(!RS.attachments[id])RS.attachments[id]={name:f.name,type:f.type||'application/octet-stream',size:f.size,sha256:sha,data:bytesToB64(new Uint8Array(buf)),added_at:new Date().toISOString(),origin:origin||'file'};
  if(!r.attachments.includes(id))r.attachments.push(id)}touch(k);refreshTr(k)}
 function download(name,mime,b64){if(vs){vs.postMessage({type:'saveFile',name,data:b64});return}
  const url=URL.createObjectURL(new Blob([b64ToBytes(b64)],{type:mime}));const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}
@@ -224,7 +228,19 @@ casesEl.addEventListener('input',e=>{const tr=e.target.closest('.tr');const f=e.
  r[f]=e.target.value;if(f==='tester')store.set('tcadvisor.tester',e.target.value);touch(k);const er=tr.querySelector('[data-err]');if(er)er.textContent=problems(r).join(' ')});
 casesEl.addEventListener('dragover',e=>{const d=e.target.closest('.drop');if(d){e.preventDefault();d.classList.add('over')}});
 casesEl.addEventListener('dragleave',e=>{const d=e.target.closest('.drop');if(d)d.classList.remove('over')});
-casesEl.addEventListener('drop',e=>{const d=e.target.closest('.drop');if(!d)return;e.preventDefault();d.classList.remove('over');addFiles(d.closest('.tr').dataset.k,[...e.dataTransfer.files])});
+casesEl.addEventListener('drop',e=>{const d=e.target.closest('.drop');if(!d)return;e.preventDefault();d.classList.remove('over');addFiles(d.closest('.tr').dataset.k,[...e.dataTransfer.files],'drop')});
+function pastedName(k,f,n){const c=byKeyCase[k],ext=((f.type||'').split('/')[1]||'bin').replace('jpeg','jpg').replace(/[^a-z0-9]/gi,'');
+ const d=new Date(),p=x=>String(x).padStart(2,'0'),stamp=`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+ return `pasted-${(c&&c.id)||'case'}-${stamp}-${n+1}.${ext}`}
+casesEl.addEventListener('paste',e=>{const tr=e.target.closest('.tr');if(!tr||!tr.querySelector('.trf'))return;const k=tr.dataset.k,cd=e.clipboardData;if(!cd)return;
+ const files=[...(cd.items||[])].filter(i=>i.kind==='file').map(i=>i.getAsFile()).filter(Boolean);
+ if(files.length){e.preventDefault();addFiles(k,files.map((f,n)=>new File([f],pastedName(k,f,n),{type:f.type||'application/octet-stream'})),'paste');return}
+ const d=e.target.closest('.drop'),t=cd.getData('text/plain');
+ if(d&&t){e.preventDefault();const r=rec(k);r.comment=(r.comment?r.comment+'\n':'')+t;touch(k);refreshTr(k)}});
+const LB=document.getElementById('lightbox');
+document.addEventListener('click',e=>{const z=e.target.closest('img.evimg');if(z&&!LB.contains(z)){LB.querySelector('img').src=z.src;LB.querySelector('div').textContent=z.alt;LB.classList.add('on');return}
+ if(LB.classList.contains('on')&&LB.contains(e.target))LB.classList.remove('on')});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')LB.classList.remove('on')});
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
 window.addEventListener('beforeprint',()=>{printing=true;render()});window.addEventListener('afterprint',()=>{printing=false;render()});
 if(vs)window.addEventListener('message',e=>{const m=e.data||{};if(m.type==='saved'){dirty=false;summaryBar()}});

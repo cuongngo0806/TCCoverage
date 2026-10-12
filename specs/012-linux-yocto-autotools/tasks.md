@@ -86,10 +86,10 @@ Independent test: quickstart V4 (guide followed on a clean Linux container).
 
 Independent test: quickstart V5 (paste ⇒ inline image, survives save/reopen offline, overlay, print).
 
-- [ ] T043 [US5] In src/tcadvisor/report/html.py: evidence zone focusable (`tabindex=0`), `paste` handler reading `clipboardData.items` of kind `file` through the existing add-file path (sha256, size warning), name `pasted-<case>-<YYYYMMDD-HHMMSS>-<n>.<ext>`, `origin: "paste"`; text paste appended to the comment
-- [ ] T044 [US5] In src/tcadvisor/report/html.py: image attachments rendered as `img.evimg` (max-width 480 px) in edit and read-only views, click ⇒ full-size overlay (ESC / click closes), `@media print` images at page width and controls hidden
-- [ ] T045 [US5] vi strings for the paste hint / overlay in src/tcadvisor/report/l10n/vi_html.py; run scripts/l10n_check.py
-- [ ] T046 [US5] Test tests/integration/test_us12_evidence_paste.py (Playwright, `executablePath` `/opt/pw-browsers/chromium` when present, skip if Playwright missing): paste PNG ⇒ inline image; save ⇒ reopen offline ⇒ `naturalWidth > 0`; overlay; print media; also a static assertion that the rendered HTML contains the paste handler (runs without a browser)
+- [X] T043 [US5] In src/tcadvisor/report/html.py: evidence zone focusable (`tabindex=0`), `paste` handler reading `clipboardData.items` of kind `file` through the existing add-file path (sha256, size warning), name `pasted-<case>-<YYYYMMDD-HHMMSS>-<n>.<ext>`, `origin: "paste"`; text paste appended to the comment
+- [X] T044 [US5] In src/tcadvisor/report/html.py: image attachments rendered as `img.evimg` (max-width 480 px) in edit and read-only views, click ⇒ full-size overlay (ESC / click closes), `@media print` images at page width and controls hidden
+- [X] T045 [US5] vi strings for the paste hint / overlay in src/tcadvisor/report/l10n/vi_html.py; run scripts/l10n_check.py
+- [X] T046 [US5] Test tests/integration/test_us12_evidence_paste.py (Playwright, `executablePath` `/opt/pw-browsers/chromium` when present, skip if Playwright missing): paste PNG ⇒ inline image; save ⇒ reopen offline ⇒ `naturalWidth > 0`; overlay; print media; also a static assertion that the rendered HTML contains the paste handler (runs without a browser)
 
 ## Phase 7b: US6 — Keep every useful setting in the workspace config (P2)
 
@@ -106,7 +106,7 @@ Independent test: config with `verify_model`, `budget_usd`, `graph_bin`, `contra
 
 ## Phase 8: Polish & cross-cutting
 
-- [ ] T047 [P] Keep Playwright optional: T046 browser part uses `pytest.importorskip("playwright")`; do not add it to pyproject.toml (no new dependency rule); the static part of T046 always runs
+- [X] T047 [P] Keep Playwright optional: T046 browser part uses `pytest.importorskip("playwright")`; do not add it to pyproject.toml (no new dependency rule); the static part of T046 always runs
 - [ ] T048 Run `python3 -m pytest -q`, `python3 scripts/l10n_check.py`, `python3 scripts/eval_real_project.py --quiet`, `python3 scripts/seeded_regressions.py`; record results (SC-007) in specs/012-linux-yocto-autotools/results.md
 - [ ] T049 Measure SC-002 / SC-003 on the autotools fixture (T026/T036 numbers) and, when available, on a real Yocto module from the team; time the first-run confirmation (SC-004) and a fresh-container walkthrough of docs/linux-yocto.md (SC-005); record all in specs/012-linux-yocto-autotools/results.md
 

@@ -87,7 +87,11 @@ HTML: list[tuple[str, str]] = [
     ('<label>Defect ref.</label>', '<label>Mã lỗi (defect)</label>'),
     ('placeholder="e.g. JIRA-1234"', 'placeholder="vd. JIRA-1234"'),
     ('<label>Evidence</label>', '<label>Bằng chứng</label>'),
-    ('>Drop screenshots / logs here or <input', '>Kéo thả ảnh chụp màn hình / log vào đây hoặc <input'),
+    ('>Paste (Ctrl+V) or drop screenshots / logs here, or <input',
+     '>Dán (Ctrl+V) hoặc kéo thả ảnh chụp màn hình / log vào đây, hoặc <input'),
+    ('title="Click here, then paste (Ctrl+V)"', 'title="Bấm vào đây rồi dán (Ctrl+V)"'),
+    ('title="Click to view full size"', 'title="Bấm để xem ảnh cỡ đầy đủ"'),
+    ('aria-label="evidence image"', 'aria-label="ảnh bằng chứng"'),
     ('<h2>Test results</h2>', '<h2>Kết quả test</h2>'),
     ("[[n.pass,'pass'],[n.fail,'fail'],[n.not_testable,'cannot be tested'],[n.cannot_occur,'cannot occur'],"
      "[n.untested,'not tested'],[n.recheck,'needs re-check'],[n.invalid,'incomplete record'],[fmtB(bytes),'evidence']]",
