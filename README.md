@@ -28,7 +28,7 @@ Two front-ends share the same engine:
 ## Quick start (any repository)
 
 ```bash
-pip install "git+https://github.com/cuongngo0806/tccoverage"   # Python >= 3.11
+pip install "git+https://github.com/cuongngo0806/tccoverage"   # Python >= 3.10
 npm i -g @colbymchenry/codegraph                                 # the default impact source (MIT)
 cd <your repo> && tcadvisor init                                 # config + skill for Claude Code and Copilot
 ```
@@ -217,7 +217,7 @@ list to test.
 ## Install
 
 ```bash
-pip install -e .            # Python ≥ 3.11, pulls the libclang wheel
+pip install -e .            # Python ≥ 3.10, pulls the libclang wheel
 ```
 
 Prepare the analysed project once (the advisor only reads these artifacts, it never configures your build):

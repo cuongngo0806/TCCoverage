@@ -19,7 +19,7 @@ $ARGUMENTS
 
 ## 0. Setup (only when something is missing)
 
-- `tcadvisor` not installed: `pip install "git+https://github.com/cuongngo0806/tccoverage"` (Python ≥ 3.11).
+- `tcadvisor` not installed: `pip install "git+https://github.com/cuongngo0806/tccoverage"` (Python ≥ 3.10).
   Use the Python that has it (`python` on Windows, `python3` elsewhere): `python -m tcadvisor ...`.
 - Settings live in `.tcadvisor/config.json` of the analysed repository (`graph`, `language`, `build_dir`,
   `output_dir`, `targets`, `max_hop_depth`, `include_tests`, `test_paths`, `ai_verify`). `python -m tcadvisor config
