@@ -25,6 +25,30 @@ pasting/copying images in and show the images directly in the report."
 - The fillable report accepts evidence by drag-and-drop or file picker and shows a small thumbnail; there is no
   paste-from-clipboard and no full-size view.
 
+## Clarifications
+
+### Session 2026-10-12
+
+Answers chosen by the assistant (recommended option) because the user asked to run the next steps without
+stopping; each is open to review.
+
+- Q: Where exactly is a run folder created and how is it named? → A: `<repo>/.tcadvisor/reports/<YYYYMMDD-HHMMSS>-<change>/`
+  (`<change>` = short commit range, `working-tree` or `symbols`; a numeric suffix is added on collision), plus a
+  `<repo>/.tcadvisor/reports/latest` symlink (a `latest.txt` with the path where symlinks are not possible).
+- Q: Which languages do autotools modules use, and are C sources in scope? → A: Both C and C++ sources are in scope
+  (`.c`, `.h` as well as C++ files); a C module gets the same case list as a C++ one.
+- Q: Where does the tool get compile information for a Yocto-built autotools module? → A: From a
+  `compile_commands.json` produced by running the module's build under a compile-command recorder, either inside
+  the Yocto build (the recipe's compile step, documented recipe snippet / devshell) or a local build; its path is
+  stored in the build profile, one per variant when variants are built separately.
+- Q: How is a variant defined and how are its switch values known? → A: A variant is a named set of switch values.
+  Values come first from that variant's own compile information (defines on the command line, the generated
+  `config.h`, the `configure` options recorded by the build); switches not covered there are set by the user at
+  confirmation. The tool proposes variants from what it detects; the user names, keeps or removes them.
+- Q: Are `#if` branches filtered by the profile limited to single macros? → A: Conditions made of `defined()`,
+  integer comparisons and `&&` / `||` / `!` over switches with known values are evaluated; anything else (function-
+  like macros, values unknown in a variant) keeps the case and flags it uncertain.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Each run leaves its own report inside the project workspace (Priority: P1)
@@ -195,10 +219,11 @@ offline: the image is shown inline in that case, full-size view works, the print
 
 - **FR-001**: By default the tool MUST write reports into the analysed project's workspace, under the tool's own
   folder in that workspace (the same place as its config), not outside it.
-- **FR-002**: Every analysis MUST create a new run folder whose name is unique and human-readable (date-time and the
-  analysed change, e.g. the short commit / range or `working-tree`); an existing run folder MUST never be modified
-  or overwritten by a later run.
-- **FR-003**: The tool MUST expose the newest run folder by a stable pointer and print the run folder path at the
+- **FR-002**: Every analysis MUST create a new run folder `<repo>/.tcadvisor/reports/<YYYYMMDD-HHMMSS>-<change>/`
+  (`<change>` = short commit range, `working-tree` or `symbols`; numeric suffix on collision); an existing run
+  folder MUST never be modified or overwritten by a later run.
+- **FR-003**: The tool MUST expose the newest run folder by a stable pointer (`reports/latest` symlink, `latest.txt`
+  fallback) and print the run folder path at the
   end of every run (CLI, brief, AI front-ends).
 - **FR-004**: Report folders MUST be ignored by the workspace's version control without editing tracked files
   (local ignore), so they never show up as module changes.
@@ -219,14 +244,15 @@ offline: the image is shown inline in that case, full-size view works, the print
 
 **Autotools / Yocto build model**
 
-- **FR-010**: The tool MUST support autotools modules (`configure.ac` + `Makefile.am`) as a first-class build system
-  alongside CMake, detected automatically from the workspace, with an explicit config / flag override.
+- **FR-010**: The tool MUST support autotools modules (`configure.ac` + `Makefile.am`, C and C++ sources) as a
+  first-class build system alongside CMake, detected automatically from the workspace, with an explicit config / flag override.
 - **FR-011**: For autotools modules the tool MUST derive build products (programs, libraries) and the sources of
   each from the module's own build description, and use them wherever CMake targets are used today (case target
   names, target filtering via `targets`).
 - **FR-012**: The tool MUST use a deterministic compile database for autotools modules when one is available
-  (compile flags, include paths, defines per source) and MUST state how to produce it for a Yocto build and for a
-  local build when it is missing; without it the run continues in reduced-accuracy mode with an uncertainty flag.
+  (compile flags, include paths, defines per source — a `compile_commands.json` recorded from the module's build in
+  Yocto or locally, path kept in the build profile, one per variant when variants are built separately) and MUST
+  state how to produce it for a Yocto build and for a local build when it is missing; without it the run continues in reduced-accuracy mode with an uncertainty flag.
 - **FR-013**: Build-description constructs the tool cannot resolve statically MUST become uncertainty flags naming
   the file and construct; they MUST never be silently ignored.
 - **FR-014**: CMake projects MUST keep today's behaviour and results (no regression on the existing benchmarks).
@@ -236,6 +262,9 @@ offline: the image is shown inline in that case, full-size view works, the print
 - **FR-015**: The tool MUST detect the build flow and the variant dimensions visible in the workspace (build
   system, conditional switches in the build description, configure options / feature switches, and any variant
   list the user declares) and present them for confirmation on the first run.
+- **FR-015a**: A variant MUST be a named set of switch values. Values MUST come from the variant's own compile
+  information first (command-line defines, generated `config.h`, recorded `configure` options); the user sets the
+  remaining switches at confirmation and may rename, keep or remove proposed variants.
 - **FR-016**: The confirmed build profile (build system, build directory / compile-database location, the selected
   variants and the switch values of each) MUST be saved in the workspace config and reused by every front-end (CLI,
   Claude Code, Copilot).
@@ -245,6 +274,8 @@ offline: the image is shown inline in that case, full-size view works, the print
   (sources excluded by a build condition, preprocessor branches inactive in every selected variant) MUST be moved
   out of the main case list into a "not built in the confirmed variants" section that names the excluding
   condition; it MUST stay in the machine-readable report.
+- **FR-018a**: Preprocessor conditions built from `defined()`, integer comparisons and `&&` / `||` / `!` over switches
+  with known values MUST be evaluated per variant; other forms are not evaluated (FR-019 applies).
 - **FR-019**: When the tool cannot evaluate a condition for a variant, the case MUST stay in the main list with an
   uncertainty flag (filtering only removes what is provably not built).
 - **FR-020**: Users MUST be able to re-run the confirmation, edit the profile, and override the selected variants
@@ -269,8 +300,8 @@ offline: the image is shown inline in that case, full-size view works, the print
   change; immutable after the run.
 - **Build profile**: the confirmed build flow of a workspace — build system, where compile information comes from,
   the selected variants; saved in the workspace config; has a "possibly stale" state.
-- **Variant**: one buildable configuration of the module (e.g. a product type / machine) with values for each
-  build switch it sets.
+- **Variant**: one buildable configuration of the module (e.g. a product type / machine): a name, its switch values,
+  and optionally its own compile information.
 - **Build switch**: a condition that decides whether code is built — a build-description conditional, a configure
   option / feature, or a preprocessor macro.
 - **Build product**: a program or library the module builds, with its source list; the autotools counterpart of a
@@ -300,6 +331,7 @@ offline: the image is shown inline in that case, full-size view works, the print
 
 - The tool runs on the Linux host where the module source is checked out; for Yocto modules this is typically the
   build host / container (source via `devtool modify`, an external-source recipe or a plain checkout of the module).
+- Autotools modules may be C, C++ or mixed; all are analysed.
 - Compile information for autotools modules is obtained by the developer once per build configuration (a build
   under a compile-command recorder, locally or inside the Yocto build); the tool reads it, it never runs the Yocto
   build or `configure` itself (constitution: the tool does not configure or run builds).

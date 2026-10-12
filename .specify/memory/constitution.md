@@ -1,4 +1,17 @@
 <!--
+Sync Impact Report (1.4.0, 2026-10-12)
+===================
+Version change: 1.3.0 → 1.4.0 (MINOR: materially expanded guidance, no principle removed or weakened)
+Modified section: Technology & Tooling Constraints — target codebases become C and C++ projects built with CMake or
+GNU autotools (`configure.ac` + `Makefile.am`, including Yocto-built modules); primary platform Linux; the tool's
+own folder inside the analysed workspace (`<repo>/.tcadvisor/`, locally ignored) holds config and one immutable
+run folder per analysis; build-variant profile filtering rules.
+Principles touched: none redefined. VIII clarified by the new constraint (writing the tool's own ignored folder is
+not modifying the analysed code); IV/VII govern variant filtering (only provably-not-built code leaves the main
+list, into a listed and reasoned section; unevaluable conditions stay with an uncertainty flag).
+Rationale / sign-off: requested by the project owner after field tests on Yocto/autotools modules (spec 012).
+Templates: none changed.
+
 Sync Impact Report (1.3.0, 2026-10-12)
 ===================
 Version change: 1.2.0 → 1.3.0
@@ -178,9 +191,23 @@ across a mixed team, while testers read the case list in their own language.
 
 ## Technology & Tooling Constraints
 
-- **Target codebases**: C++ and CMake-based projects. The dependency/build model MUST be derived
-  from CMake target metadata and `compile_commands.json` (or an equivalent deterministic compile
-  database) — never guessed from file naming conventions or directory structure alone.
+- **Target codebases**: C and C++ projects built with CMake or GNU autotools (`configure.ac` +
+  `Makefile.am`, including modules built by Yocto recipes). The dependency/build model MUST be
+  derived from CMake target metadata or the products declared in `Makefile.am`, plus
+  `compile_commands.json` (or an equivalent deterministic compile database recorded from the real
+  build) — never guessed from file naming conventions or directory structure alone. Build-description
+  constructs that cannot be resolved statically MUST become uncertainty flags (Principle IV).
+- **Platform**: Linux is the primary, documented and tested platform; other platforms are
+  best-effort.
+- **Workspace footprint**: config and reports live in the tool's own folder inside the analysed
+  workspace (`<repo>/.tcadvisor/`), ignored locally without editing tracked files. Each analysis
+  writes a new run folder that later runs MUST NOT modify or overwrite. This folder is not part of
+  the analysed code, so writing it does not breach Principle VIII.
+- **Build-variant profile**: a user-confirmed profile MAY move cases whose evidence lies only in code
+  provably not compiled in any confirmed variant out of the main list, into a listed section that
+  names the excluding condition; such cases stay in report.json. A condition the tool cannot
+  evaluate keeps the case with an uncertainty flag (Principles IV, VII). Without a confirmed
+  profile nothing is filtered.
 - **No test-framework coupling**: the tool's analysis and output layers MUST NOT import, assume,
   or require any specific test framework (GoogleTest, Catch2, CTest, doctest, etc.). Framework
   adapters, if ever added, are a separate, explicitly-approved concern (see Principle VIII) and
@@ -246,4 +273,4 @@ include an explicit check that the planned output remains a test-case list with 
 rather than dropped (Principle IV), and that scope stays fixed (Principle VIII). Violations found
 during review block progression to implementation until resolved or the constitution is amended.
 
-**Version**: 1.3.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-12
+**Version**: 1.4.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-12
