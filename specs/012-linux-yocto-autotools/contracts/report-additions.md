@@ -13,7 +13,7 @@ All keys optional for older readers; `specs/001-change-impact-test-advisor/contr
      "excluded_by": [{"variant": "imx8-basic", "reason": "preprocessor", "condition": "defined(FEATURE_X)",
                       "where": "src/remote.c:120"}]}
   ],
-  "not_built_changes": [{"path": "src/pro_only.c", "symbol": "pro_init", "line": 10, "excluded_by": ["…"]}]
+  "not_built_changes": [{"path": "src/pro_only.c", "symbol": "pro_init", "line": 10, "excluded_by": [{"variant": "imx8-basic", "reason": "source_not_in_product", "condition": "if FEATURE_X", "where": "lib/Makefile.am:7"}]}]
 }
 ```
 
