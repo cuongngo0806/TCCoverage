@@ -16,7 +16,7 @@ def test_function_change_reaches_direct_and_indirect_callers(project):
     assert direct and direct[0]["evidence"][1]["relation"] == "call"
     assert any("n = 4, 5, 6" in h for c in cases_for(r, "clampRetries") for h in c["corner_cases"])
     assert r["no_detected_impact"] is False
-    assert (project.out / "report.md").read_text().count("TC-0001") == 1
+    assert (project.out / "report.md").read_text().count("**TC-0001**") == 1  # one case entry (the plan cites ids)
     assert "mermaid" in (project.out / "report.md").read_text()
     assert (project.out / "report.html").exists()
 
@@ -88,10 +88,10 @@ def test_prerequisite_failures(project, tmp_path):
     project.analyze("--working-tree", expect=1)
 
 
-def test_output_dir_inside_repo_is_rejected(project):
+def test_cache_dir_inside_repo_is_rejected(project):
     from tcadvisor.cli.main import main
     rc = main(["analyze", "--repo", str(project.repo), "--build-dir", str(project.build), "--working-tree",
-               "--output-dir", str(project.repo / "out"), "--cache-dir", str(project.cache), "-q"])
+               "--output-dir", str(project.out), "--cache-dir", str(project.repo / "cache"), "-q"])
     assert rc == 2
 
 

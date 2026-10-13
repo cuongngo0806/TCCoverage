@@ -77,7 +77,7 @@ def test_pass_by_review_is_gated_and_keeps_the_case(tmp_path):
     md = to_markdown(r)  # the main report lists only what needs a real test
     assert review["id"] not in md and target["id"] in md and "report.ai-verified" in md
     ai = to_ai_markdown(r)
-    assert "### Closed by code review (1)" in ai and "*Proof*: a.cpp:2" in ai and ai.count(review["id"]) == 1
+    assert "### Closed by code review (1)" in ai and "*Proof*: a.cpp:2" in ai and ai.count(f"**{review['id']}**") == 1
     assert target["id"] not in ai
     brief = to_brief(r)
     assert "TARGET" in brief and review["id"] not in brief and "AI-CLOSED 1 :: report.ai-verified.md" in brief

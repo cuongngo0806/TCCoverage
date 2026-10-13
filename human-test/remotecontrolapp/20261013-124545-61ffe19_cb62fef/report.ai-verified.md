@@ -1,0 +1,1605 @@
+# Các case AI đã đóng (không cần test thực tế)
+
+- **Thay đổi**: git_diff — HEAD~1..HEAD
+- **Repository**: `/home/worker/honda/nad/LGE/tsu-src/apps/remotecontrolapp`
+- **Tóm tắt**: 244 test case [P1 91 / P2 104 / P3 49]; 20 điểm chưa chắc chắn; 6 file thay đổi; target: libremotecontrolapp; dùng lại kết quả cache: có; LLM: tắt; 0.11s
+
+AI reviewer đã đóng 237 case này: chứng minh từ code rằng chúng không thể lỗi, hoặc đánh giá rằng không cần test thực tế (lý do ghi dưới từng case). Các case này không có trong report.md / report.html; nếu không đồng ý, hãy tự test lại case đó.
+
+### Không cần test thực tế (AI) (237)
+
+#### Không cần test thực tế (AI) — code bị thay đổi (12)
+
+- [ ] **TC-0002** P1 [Sở hữu / vòng đời] Kiểm tra quyền sở hữu và vòng đời đối tượng của `rca::Feature` (bị thay đổi, pointer thô)
+  - *Khi nào*: Thay đổi trực tiếp: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature` (src/features/Feature.h:269)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:269)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0003** P2 [Logic] Kiểm tra hành vi chức năng của `rca::Feature` (bị thay đổi)
+  - *Khi nào*: Thay đổi trực tiếp: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature` (src/features/Feature.h:269)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0004** P1 [ABI / layout] Kiểm tra tương thích nhị phân / layout của `rca::Feature` (bị thay đổi, thành viên thay đổi)
+  - *Khi nào*: Thay đổi trực tiếp: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature` (src/features/Feature.h:269)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:269)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0007** P2 [Logic] Kiểm tra hành vi chức năng của `rca::RemoteEngineStartCancel::processOrderResp` (bị thay đổi)
+  - *Khi nào*: Thay đổi trực tiếp: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStartCancel::processOrderResp` (src/features/RemoteEngineStartCancel.cpp:29): `true`
+  - *Bằng chứng*: `rca::RemoteEngineStartCancel::processOrderResp` (src/features/RemoteEngineStartCancel.cpp:29)
+  - *Corner case*: `isRecvStopCmd = true;` không còn được thực hiện ở đây: các nơi đọc `isRecvStopCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ.
+- [ ] **TC-0008** P2 [Logic] Kiểm tra hành vi chức năng của `rca::RemoteEngineStartCancel::completeFeature` (bị thay đổi)
+  - *Khi nào*: Thay đổi trực tiếp: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStartCancel::completeFeature` (src/features/RemoteEngineStartCancel.cpp:183): `false`
+  - *Bằng chứng*: `rca::RemoteEngineStartCancel::completeFeature` (src/features/RemoteEngineStartCancel.cpp:183)
+  - *Corner case*: `isRecvStopCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStopCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ.
+- [ ] **TC-0009** P2 [Logic] Kiểm tra hành vi chức năng của `rca::RemoteEngineStartCancel::processOrderData` (bị thay đổi)
+  - *Khi nào*: Thay đổi trực tiếp: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStartCancel::processOrderData` (src/features/RemoteEngineStartCancel.cpp:213): `false`
+  - *Bằng chứng*: `rca::RemoteEngineStartCancel::processOrderData` (src/features/RemoteEngineStartCancel.cpp:213)
+  - *Corner case*: `isRecvStopCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStopCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ.
+- [ ] **TC-0010** P2 [Logic] Kiểm tra hành vi chức năng của `rca::RemoteEngineStartCancel::deactiveFeature` (bị thay đổi)
+  - *Khi nào*: Thay đổi trực tiếp: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStartCancel::deactiveFeature` (src/features/RemoteEngineStartCancel.cpp:640): `false`
+  - *Bằng chứng*: `rca::RemoteEngineStartCancel::deactiveFeature` (src/features/RemoteEngineStartCancel.cpp:640)
+  - *Corner case*: `isRecvStopCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStopCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ.
+- [ ] **TC-0011** P2 [Logic] Kiểm tra hành vi chức năng của `rca::Feature::getIsRecvStopCmd` (bị xoá)
+  - *Khi nào*: Thay đổi trực tiếp: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature::getIsRecvStopCmd` (src/features/Feature.h:463): `return`
+  - *Bằng chứng*: `rca::Feature::getIsRecvStopCmd` (src/features/Feature.h:463)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0013** P1 [ABI / layout] Kiểm tra tương thích nhị phân / layout của `rca::Feature::getIsRecvStopCmd` (bị xoá, chữ ký thay đổi)
+  - *Khi nào*: Thay đổi trực tiếp: `rca::Feature::getIsRecvStopCmd` (src/features/Feature.h:463) đã bị xoá; các nơi còn dùng phải được cập nhật
+  - *Bằng chứng*: `rca::Feature::getIsRecvStopCmd` (src/features/Feature.h:463)
+  - *Corner case*: Mọi nơi gọi truyền đúng các tham số mới (chuyển đổi ngầm định, đối số mặc định); Việc phân giải overload không âm thầm chọn một overload khác; Function pointer / callback / mock gắn với chữ ký cũ
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0014** P1 [ABI / layout] Kiểm tra tương thích nhị phân / layout của `rca::Feature::setIsRecvStopCmd` (bị xoá, chữ ký thay đổi)
+  - *Khi nào*: Thay đổi trực tiếp: `rca::Feature::setIsRecvStopCmd` (src/features/Feature.h:478) đã bị xoá; các nơi còn dùng phải được cập nhật
+  - *Bằng chứng*: `rca::Feature::setIsRecvStopCmd` (src/features/Feature.h:478)
+  - *Corner case*: Mọi nơi gọi truyền đúng các tham số mới (chuyển đổi ngầm định, đối số mặc định); Việc phân giải overload không âm thầm chọn một overload khác; Function pointer / callback / mock gắn với chữ ký cũ
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0015** P1 [ABI / layout] Kiểm tra tương thích nhị phân / layout của `rca::RemoteEngineStart` (bị thay đổi, thành viên thay đổi)
+  - *Khi nào*: Thay đổi trực tiếp: layout dữ liệu của `rca::RemoteEngineStart` (src/features/RemoteEngineStart.h:323) bị thay đổi (thêm thành viên `isRecvStopCmd`, xoá thành viên `isRecvStartCmd`)
+  - *Bằng chứng*: `rca::RemoteEngineStart` (src/features/RemoteEngineStart.h:323)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/RemoteEngineStart.h:323); phụ thuộc chỉ xác định lúc chạy (build_config_incomplete_macro): thay đổi trong src/features/RemoteEngineStart.h:323 được bao bởi `#ifndef ENGINE_START_FEATURE_H`; `ENGINE_START_FEATURE_H` không được định nghĩa ở bất kỳ lệnh biên dịch nào, nên nhánh này chưa bao giờ được phân tích (các cấu hình trong compile_commands.json: Debug)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0016** P2 [Cấu hình build] Kiểm tra hành vi trên các cấu hình build của `rca::RemoteEngineStart` (bị thay đổi, macro)
+  - *Khi nào*: Thay đổi trực tiếp: thay đổi trong `rca::RemoteEngineStart` (src/features/RemoteEngineStart.h:323) nằm bên trong `#ifndef ENGINE_START_FEATURE_H`
+  - *Bằng chứng*: `rca::RemoteEngineStart` (src/features/RemoteEngineStart.h:323)
+  - *Corner case*: Build và chạy cả khi macro được định nghĩa và không được định nghĩa; Mọi nhánh #if/#else đều biên dịch được trên mọi cấu hình/nền tảng
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: cấu hình build: hành vi phụ thuộc vào các macro / option của bản build cho target (build_config/macro tại src/features/RemoteEngineStart.h:323); phụ thuộc chỉ xác định lúc chạy (build_config_incomplete_macro): thay đổi trong src/features/RemoteEngineStart.h:323 được bao bởi `#ifndef ENGINE_START_FEATURE_H`; `ENGINE_START_FEATURE_H` không được định nghĩa ở bất kỳ lệnh biên dịch nào, nên nhánh này chưa bao giờ được phân tích (các cấu hình trong compile_commands.json: Debug)
+  - *AI kiểm tra*: **không cần test thực tế**: Cảnh báo include guard (#ifndef *_H), không phải macro cấu hình; build sạch là đủ.
+
+#### Không cần test thực tế (AI) — ảnh hưởng trực tiếp (134)
+
+- [ ] **TC-0019** P2 [Logic] Kiểm tra lại hành vi chức năng của `onFeatureStateChanged`, vì nó gọi `rca::RemoteEngineStartCancel::deactiveFeature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStartCancel::deactiveFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStartCancel::deactiveFeature` (src/features/RemoteEngineStartCancel.cpp:640): `false`
+  - *Bằng chứng*: `onFeatureStateChanged` (src/features/RemoteEngineStartCancel.cpp:671); onFeatureStateChanged —call→ rca::RemoteEngineStartCancel::deactiveFeature (src/features/RemoteEngineStartCancel.cpp:678)
+  - *Corner case*: `isRecvStopCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStopCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ.
+- [ ] **TC-0020** P2 [Logic] Kiểm tra lại hành vi chức năng của `handleMessage`, vì nó gọi `rca::RemoteEngineStartCancel::processOrderResp` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStartCancel::processOrderResp` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStartCancel::processOrderResp` (src/features/RemoteEngineStartCancel.cpp:29): `true`
+  - *Bằng chứng*: `handleMessage` (src/features/RemoteEngineStartCancel.cpp:723); handleMessage —call→ rca::RemoteEngineStartCancel::processOrderResp (src/features/RemoteEngineStartCancel.cpp:728)
+  - *Corner case*: `isRecvStopCmd = true;` không còn được thực hiện ở đây: các nơi đọc `isRecvStopCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: I/O bus / mạng: `CAN_TYPE_GEN2P` tại src/features/RemoteEngineStartCancel.cpp:734
+  - *AI kiểm tra*: **không cần test thực tế**: RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ.
+- [ ] **TC-0021** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::Feature`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::Feature` (src/features/Feature.h:282); rca::Feature::Feature —contains→ rca::Feature (src/features/Feature.h:282)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:282)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0022** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::onFeatureStateChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::onFeatureStateChanged` (src/features/Feature.h:326); rca::Feature::onFeatureStateChanged —contains→ rca::Feature (src/features/Feature.h:326)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:326)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0023** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::getHandler`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::getHandler` (src/features/Feature.h:361); rca::Feature::getHandler —contains→ rca::Feature (src/features/Feature.h:361)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:361)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0024** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::handleIgStateChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::handleIgStateChanged` (src/features/Feature.h:367); rca::Feature::handleIgStateChanged —contains→ rca::Feature (src/features/Feature.h:367)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:367)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0025** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::handleAccStateChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::handleAccStateChanged` (src/features/Feature.h:373); rca::Feature::handleAccStateChanged —contains→ rca::Feature (src/features/Feature.h:373)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:373)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0026** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::handlePowerStateChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::handlePowerStateChanged` (src/features/Feature.h:379); rca::Feature::handlePowerStateChanged —contains→ rca::Feature (src/features/Feature.h:379)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:379)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0027** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::handlePowerModeChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::handlePowerModeChanged` (src/features/Feature.h:384); rca::Feature::handlePowerModeChanged —contains→ rca::Feature (src/features/Feature.h:384)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:384)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0028** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::handleFeatureStatusChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::handleFeatureStatusChanged` (src/features/Feature.h:390); rca::Feature::handleFeatureStatusChanged —contains→ rca::Feature (src/features/Feature.h:390)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:390)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0029** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::handleMessage`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::handleMessage` (src/features/Feature.h:396); rca::Feature::handleMessage —contains→ rca::Feature (src/features/Feature.h:396)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:396)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0030** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::getMessageList`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::getMessageList` (src/features/Feature.h:403); rca::Feature::getMessageList —contains→ rca::Feature (src/features/Feature.h:403)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:403); timing: `TimerTimeoutHandler` tại src/features/Feature.h:441
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0031** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::completeFeature`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::completeFeature` (src/features/Feature.h:408); rca::Feature::completeFeature —contains→ rca::Feature (src/features/Feature.h:408)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:408); timing: `TimerTimeoutHandler` tại src/features/Feature.h:441
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0032** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::getRemoteControlIfMgr`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::getRemoteControlIfMgr` (src/features/Feature.h:451); rca::Feature::getRemoteControlIfMgr —contains→ rca::Feature (src/features/Feature.h:451)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:451)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0033** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::getAppManager`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::getAppManager` (src/features/Feature.h:452); rca::Feature::getAppManager —contains→ rca::Feature (src/features/Feature.h:452)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:452)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0034** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::getVehicleService`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::getVehicleService` (src/features/Feature.h:453); rca::Feature::getVehicleService —contains→ rca::Feature (src/features/Feature.h:453)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:453)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0035** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::getTimerHandler`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::getTimerHandler` (src/features/Feature.h:454); rca::Feature::getTimerHandler —contains→ rca::Feature (src/features/Feature.h:454)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:454); timing: `TimerTimeoutHandler` tại src/features/Feature.h:454
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0036** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::getACCState`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::getACCState` (src/features/Feature.h:455); rca::Feature::getACCState —contains→ rca::Feature (src/features/Feature.h:455)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:455)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0037** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::getIGState`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::getIGState` (src/features/Feature.h:456); rca::Feature::getIGState —contains→ rca::Feature (src/features/Feature.h:456)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:456)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0038** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::getPowerState`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::getPowerState` (src/features/Feature.h:457); rca::Feature::getPowerState —contains→ rca::Feature (src/features/Feature.h:457)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:457)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0039** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::getEthernetState`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::getEthernetState` (src/features/Feature.h:458); rca::Feature::getEthernetState —contains→ rca::Feature (src/features/Feature.h:458)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:458)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0040** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::getPowerMode`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::getPowerMode` (src/features/Feature.h:459); rca::Feature::getPowerMode —contains→ rca::Feature (src/features/Feature.h:459)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:459)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0041** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::getIsReqAct`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::getIsReqAct` (src/features/Feature.h:460); rca::Feature::getIsReqAct —contains→ rca::Feature (src/features/Feature.h:460)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:460)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0042** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::getIsReqDeact`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::getIsReqDeact` (src/features/Feature.h:461); rca::Feature::getIsReqDeact —contains→ rca::Feature (src/features/Feature.h:461)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:461)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0043** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::setHandler`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::setHandler` (src/features/Feature.h:464); rca::Feature::setHandler —contains→ rca::Feature (src/features/Feature.h:464)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:464)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0044** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::setRemoteControlIfMgr`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::setRemoteControlIfMgr` (src/features/Feature.h:465); rca::Feature::setRemoteControlIfMgr —contains→ rca::Feature (src/features/Feature.h:465)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:465)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0045** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::setAppManager`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::setAppManager` (src/features/Feature.h:466); rca::Feature::setAppManager —contains→ rca::Feature (src/features/Feature.h:466)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:466)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0046** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::setVehicleService`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::setVehicleService` (src/features/Feature.h:467); rca::Feature::setVehicleService —contains→ rca::Feature (src/features/Feature.h:467)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:467)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0047** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::setTimerHandler`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::setTimerHandler` (src/features/Feature.h:468); rca::Feature::setTimerHandler —contains→ rca::Feature (src/features/Feature.h:468)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:468); timing: `TimerTimeoutHandler` tại src/features/Feature.h:468
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0048** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::setACCState`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::setACCState` (src/features/Feature.h:469); rca::Feature::setACCState —contains→ rca::Feature (src/features/Feature.h:469)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:469)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0049** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::setIGState`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::setIGState` (src/features/Feature.h:470); rca::Feature::setIGState —contains→ rca::Feature (src/features/Feature.h:470)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:470)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0050** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::setPowerState`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::setPowerState` (src/features/Feature.h:471); rca::Feature::setPowerState —contains→ rca::Feature (src/features/Feature.h:471)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:471)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0051** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::setEthernetStt`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::setEthernetStt` (src/features/Feature.h:472); rca::Feature::setEthernetStt —contains→ rca::Feature (src/features/Feature.h:472)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:472)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0052** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::setPowerMode`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::setPowerMode` (src/features/Feature.h:473); rca::Feature::setPowerMode —contains→ rca::Feature (src/features/Feature.h:473)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:473)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0053** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::setIsReqAct`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::setIsReqAct` (src/features/Feature.h:474); rca::Feature::setIsReqAct —contains→ rca::Feature (src/features/Feature.h:474)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:474)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0054** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `rca::Feature::setIsReqDeact`, vì nó là thành viên của `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `rca::Feature::setIsReqDeact` (src/features/Feature.h:475); rca::Feature::setIsReqDeact —contains→ rca::Feature (src/features/Feature.h:475)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.h:475)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0055** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `RemoteEngineStart`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `RemoteEngineStart` (src/features/RemoteEngineStart.h:323); RemoteEngineStart —inherit_override→ rca::Feature (src/features/RemoteEngineStart.h:323)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/RemoteEngineStart.h:323)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0056** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `RemoteEngineStartCancel`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `RemoteEngineStartCancel` (src/features/RemoteEngineStartCancel.h:40); RemoteEngineStartCancel —inherit_override→ rca::Feature (src/features/RemoteEngineStartCancel.h:40)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/RemoteEngineStartCancel.h:40)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0057** P1 [ABI / layout] Biên dịch lại và test lại toàn bộ code include header `src/features/RemoteEngineStart.h` (trực tiếp; nó include `rca::RemoteEngineStart`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart` đã thay đổi: layout dữ liệu của `rca::RemoteEngineStart` (src/features/RemoteEngineStart.h:323) bị thay đổi (thêm thành viên `isRecvStopCmd`, xoá thành viên `isRecvStartCmd`)
+  - *Bằng chứng*: `src/features/RemoteEngineStart.h` (src/features/RemoteEngineStart.h:1); src/features/RemoteEngineStart.h —include→ rca::RemoteEngineStart (src/features/RemoteEngineStart.h:323)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/RemoteEngineStart.h:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0058** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::Feature`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::Feature` (src/features/Feature.h:282); rca::Feature::Feature —contains→ rca::Feature (src/features/Feature.h:282)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0059** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::onFeatureStateChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::onFeatureStateChanged` (src/features/Feature.h:326); rca::Feature::onFeatureStateChanged —contains→ rca::Feature (src/features/Feature.h:326)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0060** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::getHandler`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::getHandler` (src/features/Feature.h:361); rca::Feature::getHandler —contains→ rca::Feature (src/features/Feature.h:361)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0061** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::handleIgStateChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::handleIgStateChanged` (src/features/Feature.h:367); rca::Feature::handleIgStateChanged —contains→ rca::Feature (src/features/Feature.h:367)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0062** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::handleAccStateChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::handleAccStateChanged` (src/features/Feature.h:373); rca::Feature::handleAccStateChanged —contains→ rca::Feature (src/features/Feature.h:373)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0063** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::handlePowerStateChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::handlePowerStateChanged` (src/features/Feature.h:379); rca::Feature::handlePowerStateChanged —contains→ rca::Feature (src/features/Feature.h:379)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0064** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::handlePowerModeChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::handlePowerModeChanged` (src/features/Feature.h:384); rca::Feature::handlePowerModeChanged —contains→ rca::Feature (src/features/Feature.h:384)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0065** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::handleFeatureStatusChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::handleFeatureStatusChanged` (src/features/Feature.h:390); rca::Feature::handleFeatureStatusChanged —contains→ rca::Feature (src/features/Feature.h:390)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0066** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::handleMessage`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::handleMessage` (src/features/Feature.h:396); rca::Feature::handleMessage —contains→ rca::Feature (src/features/Feature.h:396)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0067** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::getMessageList`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::getMessageList` (src/features/Feature.h:403); rca::Feature::getMessageList —contains→ rca::Feature (src/features/Feature.h:403)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: timing: `TimerTimeoutHandler` tại src/features/Feature.h:441
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0068** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::completeFeature`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::completeFeature` (src/features/Feature.h:408); rca::Feature::completeFeature —contains→ rca::Feature (src/features/Feature.h:408)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: timing: `TimerTimeoutHandler` tại src/features/Feature.h:441
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0069** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::getRemoteControlIfMgr`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::getRemoteControlIfMgr` (src/features/Feature.h:451); rca::Feature::getRemoteControlIfMgr —contains→ rca::Feature (src/features/Feature.h:451)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0070** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::getAppManager`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::getAppManager` (src/features/Feature.h:452); rca::Feature::getAppManager —contains→ rca::Feature (src/features/Feature.h:452)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0071** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::getVehicleService`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::getVehicleService` (src/features/Feature.h:453); rca::Feature::getVehicleService —contains→ rca::Feature (src/features/Feature.h:453)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0072** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::getTimerHandler`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::getTimerHandler` (src/features/Feature.h:454); rca::Feature::getTimerHandler —contains→ rca::Feature (src/features/Feature.h:454)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: timing: `TimerTimeoutHandler` tại src/features/Feature.h:454
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0073** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::getACCState`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::getACCState` (src/features/Feature.h:455); rca::Feature::getACCState —contains→ rca::Feature (src/features/Feature.h:455)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0074** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::getIGState`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::getIGState` (src/features/Feature.h:456); rca::Feature::getIGState —contains→ rca::Feature (src/features/Feature.h:456)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0075** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::getPowerState`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::getPowerState` (src/features/Feature.h:457); rca::Feature::getPowerState —contains→ rca::Feature (src/features/Feature.h:457)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0076** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::getEthernetState`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::getEthernetState` (src/features/Feature.h:458); rca::Feature::getEthernetState —contains→ rca::Feature (src/features/Feature.h:458)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0077** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::getPowerMode`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::getPowerMode` (src/features/Feature.h:459); rca::Feature::getPowerMode —contains→ rca::Feature (src/features/Feature.h:459)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0078** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::getIsReqAct`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::getIsReqAct` (src/features/Feature.h:460); rca::Feature::getIsReqAct —contains→ rca::Feature (src/features/Feature.h:460)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0079** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::getIsReqDeact`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::getIsReqDeact` (src/features/Feature.h:461); rca::Feature::getIsReqDeact —contains→ rca::Feature (src/features/Feature.h:461)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0080** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::setHandler`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::setHandler` (src/features/Feature.h:464); rca::Feature::setHandler —contains→ rca::Feature (src/features/Feature.h:464)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0081** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::setRemoteControlIfMgr`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::setRemoteControlIfMgr` (src/features/Feature.h:465); rca::Feature::setRemoteControlIfMgr —contains→ rca::Feature (src/features/Feature.h:465)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0082** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::setAppManager`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::setAppManager` (src/features/Feature.h:466); rca::Feature::setAppManager —contains→ rca::Feature (src/features/Feature.h:466)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0083** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::setVehicleService`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::setVehicleService` (src/features/Feature.h:467); rca::Feature::setVehicleService —contains→ rca::Feature (src/features/Feature.h:467)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0084** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::setTimerHandler`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::setTimerHandler` (src/features/Feature.h:468); rca::Feature::setTimerHandler —contains→ rca::Feature (src/features/Feature.h:468)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: timing: `TimerTimeoutHandler` tại src/features/Feature.h:468
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0085** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::setACCState`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::setACCState` (src/features/Feature.h:469); rca::Feature::setACCState —contains→ rca::Feature (src/features/Feature.h:469)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0086** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::setIGState`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::setIGState` (src/features/Feature.h:470); rca::Feature::setIGState —contains→ rca::Feature (src/features/Feature.h:470)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0087** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::setPowerState`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::setPowerState` (src/features/Feature.h:471); rca::Feature::setPowerState —contains→ rca::Feature (src/features/Feature.h:471)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0088** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::setEthernetStt`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::setEthernetStt` (src/features/Feature.h:472); rca::Feature::setEthernetStt —contains→ rca::Feature (src/features/Feature.h:472)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0089** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::setPowerMode`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::setPowerMode` (src/features/Feature.h:473); rca::Feature::setPowerMode —contains→ rca::Feature (src/features/Feature.h:473)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0090** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::setIsReqAct`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::setIsReqAct` (src/features/Feature.h:474); rca::Feature::setIsReqAct —contains→ rca::Feature (src/features/Feature.h:474)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0091** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::Feature::setIsReqDeact`, vì nó là thành viên của `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `rca::Feature::setIsReqDeact` (src/features/Feature.h:475); rca::Feature::setIsReqDeact —contains→ rca::Feature (src/features/Feature.h:475)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0092** P2 [Logic] Kiểm tra lại hành vi chức năng của `RemoteEngineStart`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `RemoteEngineStart` (src/features/RemoteEngineStart.h:323); RemoteEngineStart —inherit_override→ rca::Feature (src/features/RemoteEngineStart.h:323)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0093** P2 [Logic] Kiểm tra lại hành vi chức năng của `RemoteEngineStartCancel`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `RemoteEngineStartCancel` (src/features/RemoteEngineStartCancel.h:40); RemoteEngineStartCancel —inherit_override→ rca::Feature (src/features/RemoteEngineStartCancel.h:40)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0094** P1 [ABI / layout] Biên dịch lại và test lại toàn bộ code include header `src/features/Feature.h` (trực tiếp; nó include `rca::Feature`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/features/Feature.h` (src/features/Feature.h:1); src/features/Feature.h —include→ rca::Feature (src/features/Feature.h:269)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0095** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::Feature`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::Feature` (src/features/Feature.h:282); rca::Feature::Feature —contains→ rca::Feature (src/features/Feature.h:282)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:282)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0096** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::onFeatureStateChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::onFeatureStateChanged` (src/features/Feature.h:326); rca::Feature::onFeatureStateChanged —contains→ rca::Feature (src/features/Feature.h:326)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:326)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0097** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::getHandler`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::getHandler` (src/features/Feature.h:361); rca::Feature::getHandler —contains→ rca::Feature (src/features/Feature.h:361)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:361)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0098** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::handleIgStateChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::handleIgStateChanged` (src/features/Feature.h:367); rca::Feature::handleIgStateChanged —contains→ rca::Feature (src/features/Feature.h:367)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:367)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0099** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::handleAccStateChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::handleAccStateChanged` (src/features/Feature.h:373); rca::Feature::handleAccStateChanged —contains→ rca::Feature (src/features/Feature.h:373)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:373)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0100** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::handlePowerStateChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::handlePowerStateChanged` (src/features/Feature.h:379); rca::Feature::handlePowerStateChanged —contains→ rca::Feature (src/features/Feature.h:379)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:379)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0101** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::handlePowerModeChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::handlePowerModeChanged` (src/features/Feature.h:384); rca::Feature::handlePowerModeChanged —contains→ rca::Feature (src/features/Feature.h:384)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:384)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0102** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::handleFeatureStatusChanged`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::handleFeatureStatusChanged` (src/features/Feature.h:390); rca::Feature::handleFeatureStatusChanged —contains→ rca::Feature (src/features/Feature.h:390)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:390)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0103** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::handleMessage`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::handleMessage` (src/features/Feature.h:396); rca::Feature::handleMessage —contains→ rca::Feature (src/features/Feature.h:396)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:396)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0104** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::getMessageList`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::getMessageList` (src/features/Feature.h:403); rca::Feature::getMessageList —contains→ rca::Feature (src/features/Feature.h:403)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:403); timing: `TimerTimeoutHandler` tại src/features/Feature.h:441
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0105** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::completeFeature`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::completeFeature` (src/features/Feature.h:408); rca::Feature::completeFeature —contains→ rca::Feature (src/features/Feature.h:408)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:408); timing: `TimerTimeoutHandler` tại src/features/Feature.h:441
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0106** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::getRemoteControlIfMgr`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::getRemoteControlIfMgr` (src/features/Feature.h:451); rca::Feature::getRemoteControlIfMgr —contains→ rca::Feature (src/features/Feature.h:451)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:451)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0107** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::getAppManager`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::getAppManager` (src/features/Feature.h:452); rca::Feature::getAppManager —contains→ rca::Feature (src/features/Feature.h:452)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:452)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0108** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::getVehicleService`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::getVehicleService` (src/features/Feature.h:453); rca::Feature::getVehicleService —contains→ rca::Feature (src/features/Feature.h:453)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:453)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0109** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::getTimerHandler`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::getTimerHandler` (src/features/Feature.h:454); rca::Feature::getTimerHandler —contains→ rca::Feature (src/features/Feature.h:454)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:454); timing: `TimerTimeoutHandler` tại src/features/Feature.h:454
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0110** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::getACCState`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::getACCState` (src/features/Feature.h:455); rca::Feature::getACCState —contains→ rca::Feature (src/features/Feature.h:455)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:455)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0111** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::getIGState`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::getIGState` (src/features/Feature.h:456); rca::Feature::getIGState —contains→ rca::Feature (src/features/Feature.h:456)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:456)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0112** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::getPowerState`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::getPowerState` (src/features/Feature.h:457); rca::Feature::getPowerState —contains→ rca::Feature (src/features/Feature.h:457)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:457)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0113** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::getEthernetState`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::getEthernetState` (src/features/Feature.h:458); rca::Feature::getEthernetState —contains→ rca::Feature (src/features/Feature.h:458)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:458)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0114** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::getPowerMode`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::getPowerMode` (src/features/Feature.h:459); rca::Feature::getPowerMode —contains→ rca::Feature (src/features/Feature.h:459)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:459)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0115** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::getIsReqAct`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::getIsReqAct` (src/features/Feature.h:460); rca::Feature::getIsReqAct —contains→ rca::Feature (src/features/Feature.h:460)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:460)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0116** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::getIsReqDeact`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::getIsReqDeact` (src/features/Feature.h:461); rca::Feature::getIsReqDeact —contains→ rca::Feature (src/features/Feature.h:461)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:461)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0117** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::setHandler`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::setHandler` (src/features/Feature.h:464); rca::Feature::setHandler —contains→ rca::Feature (src/features/Feature.h:464)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:464)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0118** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::setRemoteControlIfMgr`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::setRemoteControlIfMgr` (src/features/Feature.h:465); rca::Feature::setRemoteControlIfMgr —contains→ rca::Feature (src/features/Feature.h:465)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:465)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0119** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::setAppManager`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::setAppManager` (src/features/Feature.h:466); rca::Feature::setAppManager —contains→ rca::Feature (src/features/Feature.h:466)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:466)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0120** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::setVehicleService`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::setVehicleService` (src/features/Feature.h:467); rca::Feature::setVehicleService —contains→ rca::Feature (src/features/Feature.h:467)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:467)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0121** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::setTimerHandler`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::setTimerHandler` (src/features/Feature.h:468); rca::Feature::setTimerHandler —contains→ rca::Feature (src/features/Feature.h:468)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:468); timing: `TimerTimeoutHandler` tại src/features/Feature.h:468
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0122** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::setACCState`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::setACCState` (src/features/Feature.h:469); rca::Feature::setACCState —contains→ rca::Feature (src/features/Feature.h:469)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:469)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0123** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::setIGState`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::setIGState` (src/features/Feature.h:470); rca::Feature::setIGState —contains→ rca::Feature (src/features/Feature.h:470)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:470)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0124** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::setPowerState`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::setPowerState` (src/features/Feature.h:471); rca::Feature::setPowerState —contains→ rca::Feature (src/features/Feature.h:471)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:471)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0125** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::setEthernetStt`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::setEthernetStt` (src/features/Feature.h:472); rca::Feature::setEthernetStt —contains→ rca::Feature (src/features/Feature.h:472)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:472)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0126** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::setPowerMode`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::setPowerMode` (src/features/Feature.h:473); rca::Feature::setPowerMode —contains→ rca::Feature (src/features/Feature.h:473)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:473)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0127** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::setIsReqAct`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::setIsReqAct` (src/features/Feature.h:474); rca::Feature::setIsReqAct —contains→ rca::Feature (src/features/Feature.h:474)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:474)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0128** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::Feature::setIsReqDeact`, vì nó là thành viên của `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `rca::Feature::setIsReqDeact` (src/features/Feature.h:475); rca::Feature::setIsReqDeact —contains→ rca::Feature (src/features/Feature.h:475)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.h:475)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0129** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `RemoteEngineStart`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `RemoteEngineStart` (src/features/RemoteEngineStart.h:323); RemoteEngineStart —inherit_override→ rca::Feature (src/features/RemoteEngineStart.h:323)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/RemoteEngineStart.h:323)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0130** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `RemoteEngineStartCancel`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `RemoteEngineStartCancel` (src/features/RemoteEngineStartCancel.h:40); RemoteEngineStartCancel —inherit_override→ rca::Feature (src/features/RemoteEngineStartCancel.h:40)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/RemoteEngineStartCancel.h:40)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0131** P2 [Cấu hình build] Biên dịch lại và test lại toàn bộ code include header `src/features/RemoteEngineStart.h` (trực tiếp; nó include `rca::RemoteEngineStart`) — macro
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart` đã thay đổi: thay đổi trong `rca::RemoteEngineStart` (src/features/RemoteEngineStart.h:323) nằm bên trong `#ifndef ENGINE_START_FEATURE_H`
+  - *Bằng chứng*: `src/features/RemoteEngineStart.h` (src/features/RemoteEngineStart.h:1); src/features/RemoteEngineStart.h —include→ rca::RemoteEngineStart (src/features/RemoteEngineStart.h:323)
+  - *Corner case*: Build và chạy cả khi macro được định nghĩa và không được định nghĩa; Mọi nhánh #if/#else đều biên dịch được trên mọi cấu hình/nền tảng
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: cấu hình build: hành vi phụ thuộc vào các macro / option của bản build cho target (build_config/macro tại src/features/RemoteEngineStart.h:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Cảnh báo include guard (#ifndef *_H), không phải macro cấu hình; build sạch là đủ.
+- [ ] **TC-0132** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `RemoteDoorLock`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `RemoteDoorLock` (src/features/RemoteDoorLock.h:39); RemoteDoorLock —inherit_override→ rca::Feature (src/features/RemoteDoorLock.h:39)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/RemoteDoorLock.h:39); timing: `handleTimerTimeout` tại src/features/RemoteDoorLock.h:71
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0133** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `RemoteDoorUnlock`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `RemoteDoorUnlock` (src/features/RemoteDoorUnlock.h:39); RemoteDoorUnlock —inherit_override→ rca::Feature (src/features/RemoteDoorUnlock.h:39)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/RemoteDoorUnlock.h:39)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0134** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `RemoteStartInhibition`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `RemoteStartInhibition` (src/features/RemoteStartInhibition.h:98); RemoteStartInhibition —inherit_override→ rca::Feature (src/features/RemoteStartInhibition.h:98)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/RemoteStartInhibition.h:98)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0135** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `ShoulderTapFeature`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `ShoulderTapFeature` (src/features/ShoulderTapFeature.h:28); ShoulderTapFeature —inherit_override→ rca::Feature (src/features/ShoulderTapFeature.h:28)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/ShoulderTapFeature.h:28); timing: `handleTimerTimeout` tại src/features/ShoulderTapFeature.h:51
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0136** P1 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `ShoulderTapForGW`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `ShoulderTapForGW` (src/features/ShoulderTapForGW.h:50); ShoulderTapForGW —inherit_override→ rca::Feature (src/features/ShoulderTapForGW.h:50)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/ShoulderTapForGW.h:50); timing: `handleTimerTimeout` tại src/features/ShoulderTapForGW.h:81
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0137** P2 [Logic] Kiểm tra lại hành vi chức năng của `RemoteDoorLock`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `RemoteDoorLock` (src/features/RemoteDoorLock.h:39); RemoteDoorLock —inherit_override→ rca::Feature (src/features/RemoteDoorLock.h:39)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: timing: `handleTimerTimeout` tại src/features/RemoteDoorLock.h:71
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0138** P2 [Logic] Kiểm tra lại hành vi chức năng của `RemoteDoorUnlock`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `RemoteDoorUnlock` (src/features/RemoteDoorUnlock.h:39); RemoteDoorUnlock —inherit_override→ rca::Feature (src/features/RemoteDoorUnlock.h:39)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0139** P2 [Logic] Kiểm tra lại hành vi chức năng của `RemoteStartInhibition`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `RemoteStartInhibition` (src/features/RemoteStartInhibition.h:98); RemoteStartInhibition —inherit_override→ rca::Feature (src/features/RemoteStartInhibition.h:98)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0140** P2 [Logic] Kiểm tra lại hành vi chức năng của `ShoulderTapFeature`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `ShoulderTapFeature` (src/features/ShoulderTapFeature.h:28); ShoulderTapFeature —inherit_override→ rca::Feature (src/features/ShoulderTapFeature.h:28)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: timing: `handleTimerTimeout` tại src/features/ShoulderTapFeature.h:51
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0141** P2 [Logic] Kiểm tra lại hành vi chức năng của `ShoulderTapForGW`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `ShoulderTapForGW` (src/features/ShoulderTapForGW.h:50); ShoulderTapForGW —inherit_override→ rca::Feature (src/features/ShoulderTapForGW.h:50)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: timing: `handleTimerTimeout` tại src/features/ShoulderTapForGW.h:81
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0142** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `RemoteDoorLock`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `RemoteDoorLock` (src/features/RemoteDoorLock.h:39); RemoteDoorLock —inherit_override→ rca::Feature (src/features/RemoteDoorLock.h:39)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/RemoteDoorLock.h:39); timing: `handleTimerTimeout` tại src/features/RemoteDoorLock.h:71
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0143** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `RemoteDoorUnlock`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `RemoteDoorUnlock` (src/features/RemoteDoorUnlock.h:39); RemoteDoorUnlock —inherit_override→ rca::Feature (src/features/RemoteDoorUnlock.h:39)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/RemoteDoorUnlock.h:39)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0144** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `RemoteStartInhibition`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `RemoteStartInhibition` (src/features/RemoteStartInhibition.h:98); RemoteStartInhibition —inherit_override→ rca::Feature (src/features/RemoteStartInhibition.h:98)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/RemoteStartInhibition.h:98)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0145** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `ShoulderTapFeature`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `ShoulderTapFeature` (src/features/ShoulderTapFeature.h:28); ShoulderTapFeature —inherit_override→ rca::Feature (src/features/ShoulderTapFeature.h:28)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/ShoulderTapFeature.h:28); timing: `handleTimerTimeout` tại src/features/ShoulderTapFeature.h:51
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0146** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `ShoulderTapForGW`, vì nó kế thừa từ / override `rca::Feature` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `ShoulderTapForGW` (src/features/ShoulderTapForGW.h:50); ShoulderTapForGW —inherit_override→ rca::Feature (src/features/ShoulderTapForGW.h:50)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/ShoulderTapForGW.h:50); timing: `handleTimerTimeout` tại src/features/ShoulderTapForGW.h:81
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0147** P2 [Logic] Kiểm tra lại hành vi chức năng của `processOrderResp`, vì nó gọi `rca::RemoteEngineStartCancel::processOrderData` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStartCancel::processOrderData` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStartCancel::processOrderData` (src/features/RemoteEngineStartCancel.cpp:213): `false`
+  - *Bằng chứng*: `processOrderResp` (src/features/RemoteEngineStartCancel.cpp:29); processOrderResp —call→ rca::RemoteEngineStartCancel::processOrderData (src/features/RemoteEngineStartCancel.cpp:57)
+  - *Corner case*: `isRecvStopCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStopCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ.
+- [ ] **TC-0148** P2 [Logic] Kiểm tra lại hành vi chức năng của `processReplyReq`, vì nó gọi `rca::RemoteEngineStartCancel::completeFeature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStartCancel::completeFeature`, `rca::RemoteEngineStartCancel::processOrderData` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStartCancel::completeFeature` (src/features/RemoteEngineStartCancel.cpp:183): `false`
+  - *Bằng chứng*: `processReplyReq` (src/features/RemoteEngineStartCancel.cpp:106); processReplyReq —call→ rca::RemoteEngineStartCancel::completeFeature (src/features/RemoteEngineStartCancel.cpp:147); processReplyReq —call→ rca::RemoteEngineStartCancel::processOrderData (src/features/RemoteEngineStartCancel.cpp:179)
+  - *Corner case*: `isRecvStopCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStopCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ.
+- [ ] **TC-0149** P2 [Logic] Kiểm tra lại hành vi chức năng của `processReplyReq`, vì nó gọi `rca::RemoteEngineStart::completeFeature` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `processReplyReq` (src/features/RemoteEngineStart.cpp:124); processReplyReq —call→ rca::RemoteEngineStart::completeFeature (src/features/RemoteEngineStart.cpp:169)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0150** P2 [Logic] Kiểm tra lại hành vi chức năng của `rca::RemoteEngineStart::RemoteEngineStart`, vì nó là thành viên của `rca::RemoteEngineStart` (trực tiếp)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart` (src/features/RemoteEngineStart.h:323): `false`
+  - *Bằng chứng*: `rca::RemoteEngineStart::RemoteEngineStart` (src/features/RemoteEngineStart.h:326); rca::RemoteEngineStart::RemoteEngineStart —contains→ rca::RemoteEngineStart (src/features/RemoteEngineStart.h:326)
+  - *Corner case*: Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0151** P1 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `rca::RemoteEngineStart::RemoteEngineStart`, vì nó là thành viên của `rca::RemoteEngineStart` (trực tiếp) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart` đã thay đổi: layout dữ liệu của `rca::RemoteEngineStart` (src/features/RemoteEngineStart.h:323) bị thay đổi (thêm thành viên `isRecvStopCmd`, xoá thành viên `isRecvStartCmd`)
+  - *Bằng chứng*: `rca::RemoteEngineStart::RemoteEngineStart` (src/features/RemoteEngineStart.h:326); rca::RemoteEngineStart::RemoteEngineStart —contains→ rca::RemoteEngineStart (src/features/RemoteEngineStart.h:326)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/RemoteEngineStart.h:326)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0152** P2 [Cấu hình build] Kiểm tra lại hành vi trên các cấu hình build của `rca::RemoteEngineStart::RemoteEngineStart`, vì nó là thành viên của `rca::RemoteEngineStart` (trực tiếp) — macro
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart` đã thay đổi: thay đổi trong `rca::RemoteEngineStart` (src/features/RemoteEngineStart.h:323) nằm bên trong `#ifndef ENGINE_START_FEATURE_H`
+  - *Bằng chứng*: `rca::RemoteEngineStart::RemoteEngineStart` (src/features/RemoteEngineStart.h:326); rca::RemoteEngineStart::RemoteEngineStart —contains→ rca::RemoteEngineStart (src/features/RemoteEngineStart.h:326)
+  - *Corner case*: Build và chạy cả khi macro được định nghĩa và không được định nghĩa; Mọi nhánh #if/#else đều biên dịch được trên mọi cấu hình/nền tảng
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: cấu hình build: hành vi phụ thuộc vào các macro / option của bản build cho target (build_config/macro tại src/features/RemoteEngineStart.h:326)
+  - *AI kiểm tra*: **không cần test thực tế**: Cảnh báo include guard (#ifndef *_H), không phải macro cấu hình; build sạch là đủ.
+
+#### Không cần test thực tế (AI) — ảnh hưởng gián tiếp (91)
+
+- [ ] **TC-0154** P2 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `getMessageCommonList`, vì nó gọi `rca::Feature::getMessageList` (gián tiếp, 2 hop) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `getMessageCommonList` (src/features/Feature.cpp:127); getMessageCommonList —call→ rca::Feature::getMessageList (src/features/Feature.cpp:130)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.cpp:127)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0155** P2 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `onHandleMessage`, vì nó gọi `rca::Feature::handlePowerStateChanged` (gián tiếp, 2 hop) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `onHandleMessage` (src/features/Feature.cpp:168); onHandleMessage —call→ rca::Feature::handlePowerStateChanged (src/features/Feature.cpp:182); onHandleMessage —call→ rca::Feature::completeFeature (src/features/Feature.cpp:202); onHandleMessage —call→ rca::Feature::handleFeatureStatusChanged (src/features/Feature.cpp:191)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.cpp:168)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0156** P2 [ABI / layout] Build lại và chạy thử nhanh file nguồn `src/features/RemoteEngineStart.cpp` (gián tiếp, 2 hop; nó include `src/features/RemoteEngineStart.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart` đã thay đổi: layout dữ liệu của `rca::RemoteEngineStart` (src/features/RemoteEngineStart.h:323) bị thay đổi (thêm thành viên `isRecvStopCmd`, xoá thành viên `isRecvStartCmd`)
+  - *Bằng chứng*: `src/features/RemoteEngineStart.cpp` (src/features/RemoteEngineStart.cpp:1); src/features/RemoteEngineStart.cpp —include→ src/features/RemoteEngineStart.h (src/features/RemoteEngineStart.cpp:14)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/RemoteEngineStart.cpp:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0157** P3 [Logic] Kiểm tra lại hành vi chức năng của `getMessageCommonList`, vì nó gọi `rca::Feature::getMessageList` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `getMessageCommonList` (src/features/Feature.cpp:127); getMessageCommonList —call→ rca::Feature::getMessageList (src/features/Feature.cpp:130)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0158** P3 [Logic] Kiểm tra lại hành vi chức năng của `onHandleMessage`, vì nó gọi `rca::Feature::handlePowerStateChanged` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `onHandleMessage` (src/features/Feature.cpp:168); onHandleMessage —call→ rca::Feature::handlePowerStateChanged (src/features/Feature.cpp:182); onHandleMessage —call→ rca::Feature::completeFeature (src/features/Feature.cpp:202); onHandleMessage —call→ rca::Feature::handleFeatureStatusChanged (src/features/Feature.cpp:191)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0159** P2 [ABI / layout] Build lại và chạy thử nhanh file nguồn `src/features/Feature.cpp` (gián tiếp, 2 hop; nó include `src/features/Feature.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/features/Feature.cpp` (src/features/Feature.cpp:1); src/features/Feature.cpp —include→ src/features/Feature.h (src/features/Feature.cpp:1)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.cpp:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0160** P2 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `getMessageCommonList`, vì nó gọi `rca::Feature::getMessageList` (gián tiếp, 2 hop) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `getMessageCommonList` (src/features/Feature.cpp:127); getMessageCommonList —call→ rca::Feature::getMessageList (src/features/Feature.cpp:130)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.cpp:127)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0161** P2 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `onHandleMessage`, vì nó gọi `rca::Feature::handlePowerStateChanged` (gián tiếp, 2 hop) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `onHandleMessage` (src/features/Feature.cpp:168); onHandleMessage —call→ rca::Feature::handlePowerStateChanged (src/features/Feature.cpp:182); onHandleMessage —call→ rca::Feature::completeFeature (src/features/Feature.cpp:202); onHandleMessage —call→ rca::Feature::handleFeatureStatusChanged (src/features/Feature.cpp:191)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.cpp:168)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0162** P3 [Cấu hình build] Build lại và chạy thử nhanh file nguồn `src/features/RemoteEngineStart.cpp` (gián tiếp, 2 hop; nó include `src/features/RemoteEngineStart.h`) — macro
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart` đã thay đổi: thay đổi trong `rca::RemoteEngineStart` (src/features/RemoteEngineStart.h:323) nằm bên trong `#ifndef ENGINE_START_FEATURE_H`
+  - *Bằng chứng*: `src/features/RemoteEngineStart.cpp` (src/features/RemoteEngineStart.cpp:1); src/features/RemoteEngineStart.cpp —include→ src/features/RemoteEngineStart.h (src/features/RemoteEngineStart.cpp:14)
+  - *Corner case*: Build và chạy cả khi macro được định nghĩa và không được định nghĩa; Mọi nhánh #if/#else đều biên dịch được trên mọi cấu hình/nền tảng
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: cấu hình build: hành vi phụ thuộc vào các macro / option của bản build cho target (build_config/macro tại src/features/RemoteEngineStart.cpp:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Cảnh báo include guard (#ifndef *_H), không phải macro cấu hình; build sạch là đủ.
+- [ ] **TC-0163** P2 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `processReplyReq`, vì nó gọi `rca::Feature::getEthernetState` (gián tiếp, 2 hop) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `processReplyReq` (src/features/ShoulderTapFeature.cpp:69); processReplyReq —call→ rca::Feature::getEthernetState (src/features/ShoulderTapFeature.cpp:91)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/ShoulderTapFeature.cpp:69)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0164** P2 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `sendNotifyToICB`, vì nó gọi `rca::Feature::getEthernetState` (gián tiếp, 2 hop) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `sendNotifyToICB` (src/features/ShoulderTapFeature.cpp:287); sendNotifyToICB —call→ rca::Feature::getEthernetState (src/features/ShoulderTapFeature.cpp:293)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/ShoulderTapFeature.cpp:287)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0165** P3 [Logic] Kiểm tra lại hành vi chức năng của `processReplyReq`, vì nó gọi `rca::Feature::getEthernetState` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `processReplyReq` (src/features/ShoulderTapFeature.cpp:69); processReplyReq —call→ rca::Feature::getEthernetState (src/features/ShoulderTapFeature.cpp:91)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0166** P3 [Logic] Kiểm tra lại hành vi chức năng của `sendNotifyToICB`, vì nó gọi `rca::Feature::getEthernetState` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `sendNotifyToICB` (src/features/ShoulderTapFeature.cpp:287); sendNotifyToICB —call→ rca::Feature::getEthernetState (src/features/ShoulderTapFeature.cpp:293)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0167** P2 [ABI / layout] Biên dịch lại và test lại toàn bộ code include header `src/features/RemoteEngineStartCancel.h` (gián tiếp, 2 hop; nó include `src/features/Feature.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/features/RemoteEngineStartCancel.h` (src/features/RemoteEngineStartCancel.h:1); src/features/RemoteEngineStartCancel.h —include→ src/features/Feature.h (src/features/RemoteEngineStartCancel.h:20)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/RemoteEngineStartCancel.h:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0168** P2 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `processReplyReq`, vì nó gọi `rca::Feature::getEthernetState` (gián tiếp, 2 hop) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `processReplyReq` (src/features/ShoulderTapFeature.cpp:69); processReplyReq —call→ rca::Feature::getEthernetState (src/features/ShoulderTapFeature.cpp:91)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/ShoulderTapFeature.cpp:69)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0169** P2 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `sendNotifyToICB`, vì nó gọi `rca::Feature::getEthernetState` (gián tiếp, 2 hop) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `sendNotifyToICB` (src/features/ShoulderTapFeature.cpp:287); sendNotifyToICB —call→ rca::Feature::getEthernetState (src/features/ShoulderTapFeature.cpp:293)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/ShoulderTapFeature.cpp:287)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0170** P2 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `onFeatureStateChanged`, vì nó kế thừa từ / override `rca::Feature::onFeatureStateChanged` (gián tiếp, 2 hop) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `onFeatureStateChanged` (src/prioritymanager/FeaturePriorityManager.h:70); onFeatureStateChanged —inherit_override→ rca::Feature::onFeatureStateChanged (src/prioritymanager/FeaturePriorityManager.h:70)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/prioritymanager/FeaturePriorityManager.h:70)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0171** P2 [ABI / layout] Biên dịch lại và test lại toàn bộ code include header `src/features/FeatureFactory.h` (gián tiếp, 2 hop; nó include `src/features/Feature.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature`, `rca::RemoteEngineStart` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/features/FeatureFactory.h` (src/features/FeatureFactory.h:1); src/features/FeatureFactory.h —include→ src/features/Feature.h (src/features/FeatureFactory.h:3); src/features/FeatureFactory.h —include→ src/features/RemoteEngineStart.h (src/features/FeatureFactory.h:7)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/FeatureFactory.h:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0172** P3 [Logic] Kiểm tra lại hành vi chức năng của `onFeatureStateChanged`, vì nó kế thừa từ / override `rca::Feature::onFeatureStateChanged` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `onFeatureStateChanged` (src/prioritymanager/FeaturePriorityManager.h:70); onFeatureStateChanged —inherit_override→ rca::Feature::onFeatureStateChanged (src/prioritymanager/FeaturePriorityManager.h:70)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0173** P2 [ABI / layout] Biên dịch lại và test lại toàn bộ code include header `src/features/RemoteDoorLock.h` (gián tiếp, 2 hop; nó include `src/features/Feature.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/features/RemoteDoorLock.h` (src/features/RemoteDoorLock.h:1); src/features/RemoteDoorLock.h —include→ src/features/Feature.h (src/features/RemoteDoorLock.h:19)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/RemoteDoorLock.h:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0174** P2 [ABI / layout] Biên dịch lại và test lại toàn bộ code include header `src/features/RemoteDoorUnlock.h` (gián tiếp, 2 hop; nó include `src/features/Feature.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/features/RemoteDoorUnlock.h` (src/features/RemoteDoorUnlock.h:1); src/features/RemoteDoorUnlock.h —include→ src/features/Feature.h (src/features/RemoteDoorUnlock.h:19)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/RemoteDoorUnlock.h:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0175** P2 [ABI / layout] Biên dịch lại và test lại toàn bộ code include header `src/features/RemoteStartInhibition.h` (gián tiếp, 2 hop; nó include `src/features/Feature.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/features/RemoteStartInhibition.h` (src/features/RemoteStartInhibition.h:1); src/features/RemoteStartInhibition.h —include→ src/features/Feature.h (src/features/RemoteStartInhibition.h:20)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/RemoteStartInhibition.h:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0176** P2 [ABI / layout] Biên dịch lại và test lại toàn bộ code include header `src/features/ShoulderTapFeature.h` (gián tiếp, 2 hop; nó include `src/features/Feature.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/features/ShoulderTapFeature.h` (src/features/ShoulderTapFeature.h:1); src/features/ShoulderTapFeature.h —include→ src/features/Feature.h (src/features/ShoulderTapFeature.h:19)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/ShoulderTapFeature.h:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0177** P2 [ABI / layout] Biên dịch lại và test lại toàn bộ code include header `src/features/ShoulderTapForGW.h` (gián tiếp, 2 hop; nó include `src/features/Feature.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/features/ShoulderTapForGW.h` (src/features/ShoulderTapForGW.h:1); src/features/ShoulderTapForGW.h —include→ src/features/Feature.h (src/features/ShoulderTapForGW.h:20)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/ShoulderTapForGW.h:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0178** P2 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `onFeatureStateChanged`, vì nó kế thừa từ / override `rca::Feature::onFeatureStateChanged` (gián tiếp, 2 hop) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `onFeatureStateChanged` (src/prioritymanager/FeaturePriorityManager.h:70); onFeatureStateChanged —inherit_override→ rca::Feature::onFeatureStateChanged (src/prioritymanager/FeaturePriorityManager.h:70)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/prioritymanager/FeaturePriorityManager.h:70)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0179** P3 [Cấu hình build] Biên dịch lại và test lại toàn bộ code include header `src/features/FeatureFactory.h` (gián tiếp, 2 hop; nó include `src/features/RemoteEngineStart.h`) — macro
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart` đã thay đổi: thay đổi trong `rca::RemoteEngineStart` (src/features/RemoteEngineStart.h:323) nằm bên trong `#ifndef ENGINE_START_FEATURE_H`
+  - *Bằng chứng*: `src/features/FeatureFactory.h` (src/features/FeatureFactory.h:1); src/features/FeatureFactory.h —include→ src/features/RemoteEngineStart.h (src/features/FeatureFactory.h:7)
+  - *Corner case*: Build và chạy cả khi macro được định nghĩa và không được định nghĩa; Mọi nhánh #if/#else đều biên dịch được trên mọi cấu hình/nền tảng
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: cấu hình build: hành vi phụ thuộc vào các macro / option của bản build cho target (build_config/macro tại src/features/FeatureFactory.h:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Cảnh báo include guard (#ifndef *_H), không phải macro cấu hình; build sạch là đủ.
+- [ ] **TC-0180** P2 [ABI / layout] Biên dịch lại và test lại toàn bộ code include header `src/tidl-generated/remotecontrolexecutor.h` (gián tiếp, 2 hop; nó include `src/features/Feature.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/tidl-generated/remotecontrolexecutor.h` (src/tidl-generated/remotecontrolexecutor.h:1); src/tidl-generated/remotecontrolexecutor.h —include→ src/features/Feature.h (src/tidl-generated/remotecontrolexecutor.h:23)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/tidl-generated/remotecontrolexecutor.h:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0181** P3 [Logic] Kiểm tra lại hành vi chức năng của `processOrderData`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStartCancel::completeFeature`, `rca::RemoteEngineStartCancel::processOrderData` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStartCancel::completeFeature` (src/features/RemoteEngineStartCancel.cpp:183): `false`
+  - *Bằng chứng*: `processOrderData` (src/features/RemoteEngineStartCancel.cpp:213); processOrderData —call→ processReplyReq (src/features/RemoteEngineStartCancel.cpp:250); processOrderData —call→ processReplyReq (src/features/RemoteEngineStartCancel.cpp:250)
+  - *Corner case*: `isRecvStopCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStopCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ.
+- [ ] **TC-0182** P3 [Logic] Kiểm tra lại hành vi chức năng của `transfEngineStopCmd`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStartCancel::completeFeature`, `rca::RemoteEngineStartCancel::processOrderData` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStartCancel::completeFeature` (src/features/RemoteEngineStartCancel.cpp:183): `false`
+  - *Bằng chứng*: `transfEngineStopCmd` (src/features/RemoteEngineStartCancel.cpp:263); transfEngineStopCmd —call→ processReplyReq (src/features/RemoteEngineStartCancel.cpp:304); transfEngineStopCmd —call→ processReplyReq (src/features/RemoteEngineStartCancel.cpp:304)
+  - *Corner case*: `isRecvStopCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStopCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: I/O bus / mạng: `CAN_TYPE_GEN2P` tại src/features/RemoteEngineStartCancel.cpp:272
+  - *AI kiểm tra*: **không cần test thực tế**: RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ.
+- [ ] **TC-0183** P3 [Logic] Kiểm tra lại hành vi chức năng của `reportResult`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStartCancel::completeFeature`, `rca::RemoteEngineStartCancel::processOrderData` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStartCancel::completeFeature` (src/features/RemoteEngineStartCancel.cpp:183): `false`
+  - *Bằng chứng*: `reportResult` (src/features/RemoteEngineStartCancel.cpp:472); reportResult —call→ processReplyReq (src/features/RemoteEngineStartCancel.cpp:507); reportResult —call→ processReplyReq (src/features/RemoteEngineStartCancel.cpp:507)
+  - *Corner case*: `isRecvStopCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStopCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ.
+- [ ] **TC-0184** P3 [Logic] Kiểm tra lại hành vi chức năng của `activeFeature`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStartCancel::completeFeature`, `rca::RemoteEngineStartCancel::processOrderData` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStartCancel::completeFeature` (src/features/RemoteEngineStartCancel.cpp:183): `false`
+  - *Bằng chứng*: `activeFeature` (src/features/RemoteEngineStartCancel.cpp:619); activeFeature —call→ processReplyReq (src/features/RemoteEngineStartCancel.cpp:630); activeFeature —call→ processReplyReq (src/features/RemoteEngineStartCancel.cpp:630)
+  - *Corner case*: `isRecvStopCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStopCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ.
+- [ ] **TC-0185** P3 [Logic] Kiểm tra lại hành vi chức năng của `deactiveFeature`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStartCancel::completeFeature`, `rca::RemoteEngineStartCancel::processOrderData` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStartCancel::completeFeature` (src/features/RemoteEngineStartCancel.cpp:183): `false`
+  - *Bằng chứng*: `deactiveFeature` (src/features/RemoteEngineStartCancel.cpp:640); deactiveFeature —call→ processReplyReq (src/features/RemoteEngineStartCancel.cpp:656); deactiveFeature —call→ processReplyReq (src/features/RemoteEngineStartCancel.cpp:656)
+  - *Corner case*: `isRecvStopCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStopCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ.
+- [ ] **TC-0186** P3 [Logic] Kiểm tra lại hành vi chức năng của `handleTimerTimeout`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStartCancel::completeFeature`, `rca::RemoteEngineStartCancel::processOrderData` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStartCancel::completeFeature` (src/features/RemoteEngineStartCancel.cpp:183): `false`
+  - *Bằng chứng*: `handleTimerTimeout` (src/features/RemoteEngineStartCancel.cpp:784); handleTimerTimeout —call→ processReplyReq (src/features/RemoteEngineStartCancel.cpp:789); handleTimerTimeout —call→ processReplyReq (src/features/RemoteEngineStartCancel.cpp:789)
+  - *Corner case*: `isRecvStopCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStopCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: timing: `handleTimerTimeout` tại src/features/RemoteEngineStartCancel.cpp:784
+  - *AI kiểm tra*: **không cần test thực tế**: RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ.
+- [ ] **TC-0187** P3 [Logic] Kiểm tra lại hành vi chức năng của `processOrderResp`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `processOrderResp` (src/features/RemoteEngineStart.cpp:60); processOrderResp —call→ processReplyReq (src/features/RemoteEngineStart.cpp:88)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Trùng TC-0005 (processOrderResp RES đã có case riêng); không cần test thêm.
+- [ ] **TC-0188** P3 [Logic] Kiểm tra lại hành vi chức năng của `processOrderData`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `processOrderData` (src/features/RemoteEngineStart.cpp:330); processOrderData —call→ processReplyReq (src/features/RemoteEngineStart.cpp:339)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0189** P3 [Logic] Kiểm tra lại hành vi chức năng của `checkPriorityMatrix`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `checkPriorityMatrix` (src/features/RemoteEngineStart.cpp:343); checkPriorityMatrix —call→ processReplyReq (src/features/RemoteEngineStart.cpp:373)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0190** P3 [Logic] Kiểm tra lại hành vi chức năng của `processSettingCmd`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `processSettingCmd` (src/features/RemoteEngineStart.cpp:385); processSettingCmd —call→ processReplyReq (src/features/RemoteEngineStart.cpp:401)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0191** P3 [Logic] Kiểm tra lại hành vi chức năng của `transfDrLockCmd`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `transfDrLockCmd` (src/features/RemoteEngineStart.cpp:523); transfDrLockCmd —call→ processReplyReq (src/features/RemoteEngineStart.cpp:568)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: I/O bus / mạng: `CAN_TYPE_GEN2P` tại src/features/RemoteEngineStart.cpp:535
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0192** P3 [Logic] Kiểm tra lại hành vi chức năng của `checkResType`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `checkResType` (src/features/RemoteEngineStart.cpp:727); checkResType —call→ processReplyReq (src/features/RemoteEngineStart.cpp:755)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0193** P3 [Logic] Kiểm tra lại hành vi chức năng của `transfEngineStartCmd`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `transfEngineStartCmd` (src/features/RemoteEngineStart.cpp:759); transfEngineStartCmd —call→ processReplyReq (src/features/RemoteEngineStart.cpp:813)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: I/O bus / mạng: `CAN_TYPE_GEN2P` tại src/features/RemoteEngineStart.cpp:770
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0194** P3 [Logic] Kiểm tra lại hành vi chức năng của `transfFarCmd`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `transfFarCmd` (src/features/RemoteEngineStart.cpp:1052); transfFarCmd —call→ processReplyReq (src/features/RemoteEngineStart.cpp:1105)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: I/O bus / mạng: `CAN_TYPE_GEN2P` tại src/features/RemoteEngineStart.cpp:1064
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0195** P3 [Logic] Kiểm tra lại hành vi chức năng của `reportResult`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `reportResult` (src/features/RemoteEngineStart.cpp:1387); reportResult —call→ processReplyReq (src/features/RemoteEngineStart.cpp:1454)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0196** P3 [Logic] Kiểm tra lại hành vi chức năng của `transfEngineExtendCmd`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `transfEngineExtendCmd` (src/features/RemoteEngineStart.cpp:1631); transfEngineExtendCmd —call→ processReplyReq (src/features/RemoteEngineStart.cpp:1673)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: I/O bus / mạng: `CAN_TYPE_GEN2P` tại src/features/RemoteEngineStart.cpp:1641
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0197** P3 [Logic] Kiểm tra lại hành vi chức năng của `transfChangeTempCmd`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `transfChangeTempCmd` (src/features/RemoteEngineStart.cpp:1707); transfChangeTempCmd —call→ processReplyReq (src/features/RemoteEngineStart.cpp:1783)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0198** P3 [Logic] Kiểm tra lại hành vi chức năng của `checkHamming`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `checkHamming` (src/features/RemoteEngineStart.cpp:1922); checkHamming —call→ processReplyReq (src/features/RemoteEngineStart.cpp:1955)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0199** P3 [Logic] Kiểm tra lại hành vi chức năng của `deactiveFeature`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `deactiveFeature` (src/features/RemoteEngineStart.cpp:2646); deactiveFeature —call→ processReplyReq (src/features/RemoteEngineStart.cpp:2662)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0200** P3 [Logic] Kiểm tra lại hành vi chức năng của `handleTimerTimeout`, vì nó gọi `processReplyReq` (gián tiếp, 2 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `handleTimerTimeout` (src/features/RemoteEngineStart.cpp:2864); handleTimerTimeout —call→ processReplyReq (src/features/RemoteEngineStart.cpp:2869)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: timing: `handleTimerTimeout` tại src/features/RemoteEngineStart.cpp:2864
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0201** P2 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `init`, vì nó gọi `getMessageCommonList` (gián tiếp, 3 hop) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `init` (src/features/Feature.cpp:64); init —call→ getMessageCommonList (src/features/Feature.cpp:75)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/Feature.cpp:64)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0202** P3 [Logic] Kiểm tra lại hành vi chức năng của `init`, vì nó gọi `getMessageCommonList` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `init` (src/features/Feature.cpp:64); init —call→ getMessageCommonList (src/features/Feature.cpp:75)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0203** P2 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `init`, vì nó gọi `getMessageCommonList` (gián tiếp, 3 hop) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `init` (src/features/Feature.cpp:64); init —call→ getMessageCommonList (src/features/Feature.cpp:75)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/Feature.cpp:64)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0204** P2 [ABI / layout] Build lại và chạy thử nhanh file nguồn `src/features/RemoteDoorUnlock.cpp` (gián tiếp, 3 hop; nó include `src/features/RemoteDoorUnlock.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/features/RemoteDoorUnlock.cpp` (src/features/RemoteDoorUnlock.cpp:1); src/features/RemoteDoorUnlock.cpp —include→ src/features/RemoteDoorUnlock.h (src/features/RemoteDoorUnlock.cpp:14)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/RemoteDoorUnlock.cpp:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0205** P2 [ABI / layout] Build lại và chạy thử nhanh file nguồn `src/features/RemoteEngineStartCancel.cpp` (gián tiếp, 3 hop; nó include `src/features/RemoteEngineStartCancel.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/features/RemoteEngineStartCancel.cpp` (src/features/RemoteEngineStartCancel.cpp:1); src/features/RemoteEngineStartCancel.cpp —include→ src/features/RemoteEngineStartCancel.h (src/features/RemoteEngineStartCancel.cpp:14)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/RemoteEngineStartCancel.cpp:1)
+  - *AI kiểm tra*: **không cần test thực tế**: RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ.
+- [ ] **TC-0206** P2 [ABI / layout] Build lại và chạy thử nhanh file nguồn `src/features/RemoteStartInhibition.cpp` (gián tiếp, 3 hop; nó include `src/features/RemoteStartInhibition.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/features/RemoteStartInhibition.cpp` (src/features/RemoteStartInhibition.cpp:1); src/features/RemoteStartInhibition.cpp —include→ src/features/RemoteStartInhibition.h (src/features/RemoteStartInhibition.cpp:16)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/RemoteStartInhibition.cpp:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0207** P2 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `processOrderResp`, vì nó gọi `processReplyReq` (gián tiếp, 3 hop) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `processOrderResp` (src/features/ShoulderTapFeature.cpp:37); processOrderResp —call→ processReplyReq (src/features/ShoulderTapFeature.cpp:55)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/ShoulderTapFeature.cpp:37)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0208** P2 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `onCommReq`, vì nó gọi `processReplyReq` (gián tiếp, 3 hop) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `onCommReq` (src/features/ShoulderTapFeature.cpp:162); onCommReq —call→ processReplyReq (src/features/ShoulderTapFeature.cpp:207)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/ShoulderTapFeature.cpp:162)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0209** P2 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `onCommResp`, vì nó gọi `sendNotifyToICB` (gián tiếp, 3 hop) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `onCommResp` (src/features/ShoulderTapFeature.cpp:212); onCommResp —call→ sendNotifyToICB (src/features/ShoulderTapFeature.cpp:246)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/ShoulderTapFeature.cpp:212)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0210** P2 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `onFeatureStateChanged`, vì nó gọi `processReplyReq` (gián tiếp, 3 hop) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `onFeatureStateChanged` (src/features/ShoulderTapFeature.cpp:345); onFeatureStateChanged —call→ processReplyReq (src/features/ShoulderTapFeature.cpp:375)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/ShoulderTapFeature.cpp:345)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0211** P2 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `handleTimerTimeout`, vì nó gọi `processReplyReq` (gián tiếp, 3 hop) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `handleTimerTimeout` (src/features/ShoulderTapFeature.cpp:444); handleTimerTimeout —call→ processReplyReq (src/features/ShoulderTapFeature.cpp:450)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/features/ShoulderTapFeature.cpp:444); timing: `handleTimerTimeout` tại src/features/ShoulderTapFeature.cpp:444
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0212** P2 [Sở hữu / vòng đời] Kiểm tra lại quyền sở hữu và vòng đời đối tượng của `setFeatureState`, vì nó gọi `onFeatureStateChanged` (gián tiếp, 3 hop) — pointer thô
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: quyền sở hữu pointer bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`
+  - *Bằng chứng*: `setFeatureState` (src/prioritymanager/FeaturePriorityManager.cpp:48); setFeatureState —call→ onFeatureStateChanged (src/prioritymanager/FeaturePriorityManager.cpp:51)
+  - *Corner case*: Đầu vào là null pointer và cấp phát bộ nhớ thất bại; Không double delete / leak trên mọi đường thoát (kể cả return sớm và exception); Đối tượng vẫn còn sống khi được truy cập bất đồng bộ (callback, timer, thread khác)
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: vòng đời bộ nhớ: use-after-free / leak / reference treo chỉ xuất hiện khi chạy (ownership_lifetime/raw_pointer tại src/prioritymanager/FeaturePriorityManager.cpp:48)
+  - *AI kiểm tra*: **không cần test thực tế**: Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ.
+- [ ] **TC-0213** P3 [Logic] Kiểm tra lại hành vi chức năng của `processOrderResp`, vì nó gọi `processReplyReq` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `processOrderResp` (src/features/ShoulderTapFeature.cpp:37); processOrderResp —call→ processReplyReq (src/features/ShoulderTapFeature.cpp:55)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0214** P3 [Logic] Kiểm tra lại hành vi chức năng của `onCommReq`, vì nó gọi `processReplyReq` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `onCommReq` (src/features/ShoulderTapFeature.cpp:162); onCommReq —call→ processReplyReq (src/features/ShoulderTapFeature.cpp:207)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0215** P3 [Logic] Kiểm tra lại hành vi chức năng của `onCommResp`, vì nó gọi `sendNotifyToICB` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `onCommResp` (src/features/ShoulderTapFeature.cpp:212); onCommResp —call→ sendNotifyToICB (src/features/ShoulderTapFeature.cpp:246)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0216** P3 [Logic] Kiểm tra lại hành vi chức năng của `onFeatureStateChanged`, vì nó gọi `processReplyReq` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `onFeatureStateChanged` (src/features/ShoulderTapFeature.cpp:345); onFeatureStateChanged —call→ processReplyReq (src/features/ShoulderTapFeature.cpp:375)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0217** P3 [Logic] Kiểm tra lại hành vi chức năng của `handleTimerTimeout`, vì nó gọi `processReplyReq` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `handleTimerTimeout` (src/features/ShoulderTapFeature.cpp:444); handleTimerTimeout —call→ processReplyReq (src/features/ShoulderTapFeature.cpp:450)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: timing: `handleTimerTimeout` tại src/features/ShoulderTapFeature.cpp:444
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0218** P3 [Logic] Kiểm tra lại hành vi chức năng của `setFeatureState`, vì nó gọi `onFeatureStateChanged` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::Feature` (src/features/Feature.h:269): `false`
+  - *Bằng chứng*: `setFeatureState` (src/prioritymanager/FeaturePriorityManager.cpp:48); setFeatureState —call→ onFeatureStateChanged (src/prioritymanager/FeaturePriorityManager.cpp:51)
+  - *Corner case*: `getIsRecvStopCmd(…)` không còn được gọi ở đây (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; `setIsRecvStopCmd(…)` không còn được gọi ở đây (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): mọi thứ phụ thuộc vào tác dụng của nó (trạng thái, bộ đếm, thông báo, dọn dẹp) vẫn phải đúng; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ.
+- [ ] **TC-0219** P2 [ABI / layout] Build lại và chạy thử nhanh file nguồn `src/features/RemoteDoorLock.cpp` (gián tiếp, 3 hop; nó include `src/features/RemoteDoorLock.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/features/RemoteDoorLock.cpp` (src/features/RemoteDoorLock.cpp:1); src/features/RemoteDoorLock.cpp —include→ src/features/RemoteDoorLock.h (src/features/RemoteDoorLock.cpp:14)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/RemoteDoorLock.cpp:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0220** P2 [ABI / layout] Build lại và chạy thử nhanh file nguồn `src/features/ShoulderTapFeature.cpp` (gián tiếp, 3 hop; nó include `src/features/ShoulderTapFeature.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/features/ShoulderTapFeature.cpp` (src/features/ShoulderTapFeature.cpp:1); src/features/ShoulderTapFeature.cpp —include→ src/features/ShoulderTapFeature.h (src/features/ShoulderTapFeature.cpp:14)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/ShoulderTapFeature.cpp:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0221** P2 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `processOrderResp`, vì nó gọi `processReplyReq` (gián tiếp, 3 hop) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `processOrderResp` (src/features/ShoulderTapFeature.cpp:37); processOrderResp —call→ processReplyReq (src/features/ShoulderTapFeature.cpp:55)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/ShoulderTapFeature.cpp:37)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0222** P2 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `onCommReq`, vì nó gọi `processReplyReq` (gián tiếp, 3 hop) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `onCommReq` (src/features/ShoulderTapFeature.cpp:162); onCommReq —call→ processReplyReq (src/features/ShoulderTapFeature.cpp:207)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/ShoulderTapFeature.cpp:162)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0223** P2 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `onCommResp`, vì nó gọi `sendNotifyToICB` (gián tiếp, 3 hop) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `onCommResp` (src/features/ShoulderTapFeature.cpp:212); onCommResp —call→ sendNotifyToICB (src/features/ShoulderTapFeature.cpp:246)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/ShoulderTapFeature.cpp:212)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0224** P2 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `onFeatureStateChanged`, vì nó gọi `processReplyReq` (gián tiếp, 3 hop) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `onFeatureStateChanged` (src/features/ShoulderTapFeature.cpp:345); onFeatureStateChanged —call→ processReplyReq (src/features/ShoulderTapFeature.cpp:375)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/ShoulderTapFeature.cpp:345)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0225** P2 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `handleTimerTimeout`, vì nó gọi `processReplyReq` (gián tiếp, 3 hop) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `handleTimerTimeout` (src/features/ShoulderTapFeature.cpp:444); handleTimerTimeout —call→ processReplyReq (src/features/ShoulderTapFeature.cpp:450)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/ShoulderTapFeature.cpp:444); timing: `handleTimerTimeout` tại src/features/ShoulderTapFeature.cpp:444
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0226** P2 [ABI / layout] Build lại và chạy thử nhanh file nguồn `src/features/ShoulderTapForGW.cpp` (gián tiếp, 3 hop; nó include `src/features/ShoulderTapForGW.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/features/ShoulderTapForGW.cpp` (src/features/ShoulderTapForGW.cpp:1); src/features/ShoulderTapForGW.cpp —include→ src/features/ShoulderTapForGW.h (src/features/ShoulderTapForGW.cpp:14)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/ShoulderTapForGW.cpp:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0227** P2 [ABI / layout] Kiểm tra lại tương thích nhị phân / layout của `setFeatureState`, vì nó gọi `onFeatureStateChanged` (gián tiếp, 3 hop) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `setFeatureState` (src/prioritymanager/FeaturePriorityManager.cpp:48); setFeatureState —call→ onFeatureStateChanged (src/prioritymanager/FeaturePriorityManager.cpp:51)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/prioritymanager/FeaturePriorityManager.cpp:48)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0228** P2 [ABI / layout] Build lại và chạy thử nhanh file nguồn `src/features/FeatureFactory.cpp` (gián tiếp, 3 hop; nó include `src/features/FeatureFactory.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature`, `rca::RemoteEngineStart` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/features/FeatureFactory.cpp` (src/features/FeatureFactory.cpp:1); src/features/FeatureFactory.cpp —include→ src/features/FeatureFactory.h (src/features/FeatureFactory.cpp:14); src/features/FeatureFactory.cpp —include→ src/features/FeatureFactory.h (src/features/FeatureFactory.cpp:14)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/features/FeatureFactory.cpp:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0229** P2 [ABI / layout] Build lại và chạy thử nhanh file nguồn `src/tidl-generated/remotecontrolexecutor.cpp` (gián tiếp, 3 hop; nó include `src/features/FeatureFactory.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature`, `rca::RemoteEngineStart` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/tidl-generated/remotecontrolexecutor.cpp` (src/tidl-generated/remotecontrolexecutor.cpp:1); src/tidl-generated/remotecontrolexecutor.cpp —include→ src/features/FeatureFactory.h (src/tidl-generated/remotecontrolexecutor.cpp:19); src/tidl-generated/remotecontrolexecutor.cpp —include→ src/tidl-generated/remotecontrolexecutor.h (src/tidl-generated/remotecontrolexecutor.cpp:16); src/tidl-generated/remotecontrolexecutor.cpp —include→ src/features/FeatureFactory.h (src/tidl-generated/remotecontrolexecutor.cpp:19)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/tidl-generated/remotecontrolexecutor.cpp:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0230** P2 [ABI / layout] Biên dịch lại và test lại toàn bộ code include header `src/tidl-generated/remotecontrolapp.h` (gián tiếp, 3 hop; nó include `src/tidl-generated/remotecontrolexecutor.h`) — thành viên thay đổi
+  - *Khi nào*: Đi tới được từ `rca::Feature` đã thay đổi: layout dữ liệu của `rca::Feature` (src/features/Feature.h:269) bị thay đổi (xoá thành viên `isRecvStopCmd`)
+  - *Bằng chứng*: `src/tidl-generated/remotecontrolapp.h` (src/tidl-generated/remotecontrolapp.h:1); src/tidl-generated/remotecontrolapp.h —include→ src/tidl-generated/remotecontrolexecutor.h (src/tidl-generated/remotecontrolapp.h:31)
+  - *Corner case*: sizeof / alignment / offset của trường được dùng bởi serialization, IPC hoặc memcpy; Khởi tạo aggregate / designated và giá trị mặc định của thành viên; Các toán tử copy / move / so sánh vẫn bao phủ tất cả thành viên; Virtual dispatch qua pointer kiểu cơ sở (vtable thay đổi) trong mọi class dẫn xuất
+  - *Target*: (không có CMake target nào sở hữu file này)
+  - *Cần target vì*: layout dữ liệu: sizeof / alignment / padding phụ thuộc vào compiler và ABI của target (abi_layout/member_change tại src/tidl-generated/remotecontrolapp.h:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter.
+- [ ] **TC-0231** P3 [Cấu hình build] Build lại và chạy thử nhanh file nguồn `src/features/FeatureFactory.cpp` (gián tiếp, 3 hop; nó include `src/features/FeatureFactory.h`) — macro
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart` đã thay đổi: thay đổi trong `rca::RemoteEngineStart` (src/features/RemoteEngineStart.h:323) nằm bên trong `#ifndef ENGINE_START_FEATURE_H`
+  - *Bằng chứng*: `src/features/FeatureFactory.cpp` (src/features/FeatureFactory.cpp:1); src/features/FeatureFactory.cpp —include→ src/features/FeatureFactory.h (src/features/FeatureFactory.cpp:14)
+  - *Corner case*: Build và chạy cả khi macro được định nghĩa và không được định nghĩa; Mọi nhánh #if/#else đều biên dịch được trên mọi cấu hình/nền tảng
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: cấu hình build: hành vi phụ thuộc vào các macro / option của bản build cho target (build_config/macro tại src/features/FeatureFactory.cpp:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Cảnh báo include guard (#ifndef *_H), không phải macro cấu hình; build sạch là đủ.
+- [ ] **TC-0232** P3 [Cấu hình build] Build lại và chạy thử nhanh file nguồn `src/tidl-generated/remotecontrolexecutor.cpp` (gián tiếp, 3 hop; nó include `src/features/FeatureFactory.h`) — macro
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart` đã thay đổi: thay đổi trong `rca::RemoteEngineStart` (src/features/RemoteEngineStart.h:323) nằm bên trong `#ifndef ENGINE_START_FEATURE_H`
+  - *Bằng chứng*: `src/tidl-generated/remotecontrolexecutor.cpp` (src/tidl-generated/remotecontrolexecutor.cpp:1); src/tidl-generated/remotecontrolexecutor.cpp —include→ src/features/FeatureFactory.h (src/tidl-generated/remotecontrolexecutor.cpp:19)
+  - *Corner case*: Build và chạy cả khi macro được định nghĩa và không được định nghĩa; Mọi nhánh #if/#else đều biên dịch được trên mọi cấu hình/nền tảng
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: cấu hình build: hành vi phụ thuộc vào các macro / option của bản build cho target (build_config/macro tại src/tidl-generated/remotecontrolexecutor.cpp:1)
+  - *AI kiểm tra*: **không cần test thực tế**: Cảnh báo include guard (#ifndef *_H), không phải macro cấu hình; build sạch là đủ.
+- [ ] **TC-0233** P3 [Logic] Kiểm tra lại hành vi chức năng của `determineResStop`, vì nó gọi `reportResult` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStartCancel::completeFeature`, `rca::RemoteEngineStartCancel::processOrderData` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStartCancel::completeFeature` (src/features/RemoteEngineStartCancel.cpp:183): `false`
+  - *Bằng chứng*: `determineResStop` (src/features/RemoteEngineStartCancel.cpp:452); determineResStop —call→ reportResult (src/features/RemoteEngineStartCancel.cpp:465); determineResStop —call→ reportResult (src/features/RemoteEngineStartCancel.cpp:465)
+  - *Corner case*: `isRecvStopCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStopCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ.
+- [ ] **TC-0234** P3 [Logic] Kiểm tra lại hành vi chức năng của `recvDrLockStt`, vì nó gọi `transfEngineStartCmd` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `recvDrLockStt` (src/features/RemoteEngineStart.cpp:573); recvDrLockStt —call→ transfEngineStartCmd (src/features/RemoteEngineStart.cpp:664); recvDrLockStt —call→ transfEngineExtendCmd (src/features/RemoteEngineStart.cpp:660)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *Cần target vì*: I/O bus / mạng: `CAN_TYPE_GEN2P` tại src/features/RemoteEngineStart.cpp:579
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0235** P3 [Logic] Kiểm tra lại hành vi chức năng của `checkDrLockStt`, vì nó gọi `transfDrLockCmd` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `checkDrLockStt` (src/features/RemoteEngineStart.cpp:677); checkDrLockStt —call→ transfDrLockCmd (src/features/RemoteEngineStart.cpp:703); checkDrLockStt —call→ transfEngineStartCmd (src/features/RemoteEngineStart.cpp:697); checkDrLockStt —call→ transfEngineExtendCmd (src/features/RemoteEngineStart.cpp:687)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0236** P3 [Logic] Kiểm tra lại hành vi chức năng của `getRandomCode`, vì nó gọi `reportResult` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `getRandomCode` (src/features/RemoteEngineStart.cpp:1013); getRandomCode —call→ reportResult (src/features/RemoteEngineStart.cpp:1046)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0237** P3 [Logic] Kiểm tra lại hành vi chức năng của `getFarResp`, vì nó gọi `reportResult` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `getFarResp` (src/features/RemoteEngineStart.cpp:1341); getFarResp —call→ reportResult (src/features/RemoteEngineStart.cpp:1359)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0238** P3 [Logic] Kiểm tra lại hành vi chức năng của `determineResAuthen`, vì nó gọi `reportResult` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `determineResAuthen` (src/features/RemoteEngineStart.cpp:1364); determineResAuthen —call→ reportResult (src/features/RemoteEngineStart.cpp:1382)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0239** P3 [Logic] Kiểm tra lại hành vi chức năng của `determineResStart`, vì nó gọi `reportResult` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `determineResStart` (src/features/RemoteEngineStart.cpp:1463); determineResStart —call→ reportResult (src/features/RemoteEngineStart.cpp:1483)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0240** P3 [Logic] Kiểm tra lại hành vi chức năng của `determineResExten`, vì nó gọi `reportResult` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `determineResExten` (src/features/RemoteEngineStart.cpp:1677); determineResExten —call→ reportResult (src/features/RemoteEngineStart.cpp:1702)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0241** P3 [Logic] Kiểm tra lại hành vi chức năng của `checkAcSetting`, vì nó gọi `reportResult` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `checkAcSetting` (src/features/RemoteEngineStart.cpp:1869); checkAcSetting —call→ reportResult (src/features/RemoteEngineStart.cpp:1885)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0242** P3 [Logic] Kiểm tra lại hành vi chức năng của `getChangeTempResp`, vì nó gọi `reportResult` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `getChangeTempResp` (src/features/RemoteEngineStart.cpp:1893); getChangeTempResp —call→ reportResult (src/features/RemoteEngineStart.cpp:1913)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0243** P3 [Logic] Kiểm tra lại hành vi chức năng của `activeFeature`, vì nó gọi `processSettingCmd` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `activeFeature` (src/features/RemoteEngineStart.cpp:2622); activeFeature —call→ processSettingCmd (src/features/RemoteEngineStart.cpp:2634); activeFeature —call→ checkResType (src/features/RemoteEngineStart.cpp:2632)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+- [ ] **TC-0244** P3 [Logic] Kiểm tra lại hành vi chức năng của `onFeatureStateChanged`, vì nó gọi `deactiveFeature` (gián tiếp, 3 hop)
+  - *Khi nào*: Đi tới được từ `rca::RemoteEngineStart::completeFeature` đã thay đổi: luồng điều khiển / phép tính bị thay đổi trong `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`
+  - *Bằng chứng*: `onFeatureStateChanged` (src/features/RemoteEngineStart.cpp:2704); onFeatureStateChanged —call→ deactiveFeature (src/features/RemoteEngineStart.cpp:2711)
+  - *Corner case*: `isRecvStartCmd = false;` không còn được thực hiện ở đây: các nơi đọc `isRecvStartCmd` không được dựa vào việc nó được cập nhật trên đường đi này; Chạy qua mọi nhánh có điều kiện bị thay đổi (cả nhánh true và false); Giá trị biên quanh các phép so sánh và giới hạn vòng lặp đã thay đổi (min, max, lệch một); Các đường đi lỗi / return sớm và case default của switch
+  - *Target*: libremotecontrolapp
+  - *AI kiểm tra*: **không cần test thực tế**: Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ.
+
+## Kiểm tra bằng AI
+
+Cần test trên thiết bị: determineResSuspend (cờ isRecvStopCmd mới, bỏ guard isRecvStartCmd, bỏ check privacy khi gửi report auto-stop) cùng processOrderResp/completeFeature của RES. Phần còn lại là nhiễu do bỏ một bool khỏi Feature và dọn cờ chết ở RESC: build sạch là đủ.
+
+- số case đã kiểm tra: 244; model: claude-sonnet-5-5
+- [ ] **Kiểm tra thêm** (AI): Report auto-stop gửi GTC không còn kiểm tra privacy — Trước: chỉ gửi khi CommImpl::isPrivacyOn(PPP_SERID_RES); nay luôn gọi processSendReq. Cần xác nhận đây là chủ ý (spec/PPP). (src/features/RemoteEngineStart.cpp:1599)
+- [ ] **Kiểm tra thêm** (AI): Cờ bị xoá sớm khi RESC đang chờ kích hoạt — RESC==OFF trong lúc order stop đang đợi priority; điều kiện xoá cờ dùng đúng trạng thái này nên auto-stop có thể chạy song song với stop do RESC. (src/features/RemoteEngineStart.cpp:1573)
+- [ ] **Kiểm tra thêm** (AI): Cờ stop kẹt khi MEMORY_RES_DURING==0 — Guard xoá cờ yêu cầu MEMORY_RES_DURING!=0; chỉ completeFeature mới reset khi đã về 0. (src/features/RemoteEngineStart.cpp:84)
+- [ ] **Kiểm tra thêm** (AI): Unit test bị xoá/giảm — UT_GMOCK_Feature.cpp bỏ 143 dòng và UT RemoteEngineStart bỏ 7 dòng; chưa có UT mới cho nhánh xoá cờ trong determineResSuspend. (unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:4907)

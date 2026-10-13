@@ -203,4 +203,55 @@ ENTRIES: list[tuple[str, str]] = [
      "file(s)",
      "đã bỏ qua code unit test (include_tests đang tắt): {a} symbol thay đổi, {b} hàm / file test bị ảnh hưởng"),
     ("unit-test code: not analysed (include_tests is off)", "code unit test: không phân tích (include_tests đang tắt)"),
+    # -- spec 012: run folders, build profile ------------------------------------------------------------------
+    ("no confirmed build profile: nothing filtered; run 'tcadvisor profile' to confirm the build variants",
+     "chưa có build profile đã xác nhận: không lọc gì; chạy 'tcadvisor profile' để xác nhận các biến thể build"),
+    ("build profile ignored for this run (--no-variant-filter): nothing filtered",
+     "lần chạy này bỏ qua build profile (--no-variant-filter): không lọc gì"),
+    ("unknown variant(s) {names} ignored (profile: {known})",
+     "bỏ qua (các) biến thể không có trong profile: {names} (profile: {known})"),
+    ("test results carried over from the latest run {run} (by case key); pass --previous-report to choose another "
+     "filled report",
+     "kết quả test được chuyển từ lần chạy gần nhất {run} (theo key của case); dùng --previous-report để chọn report "
+     "đã điền khác"),
+    ("compile_commands.json not found in '{build_dir}'. Create it from the build log of this module: tcadvisor "
+     "compile-db --repo . --from-log <log.do_compile or make V=1 log> (docs/linux-yocto.md).",
+     "không tìm thấy compile_commands.json trong '{build_dir}'. Tạo nó từ log build của module này: tcadvisor "
+     "compile-db --repo . --from-log <log.do_compile hoặc log của make V=1> (docs/linux-yocto.md)."),
+    ("no compile database for this autotools module: compile flags, include paths and defines are unknown, so "
+     "preprocessor branches and header parsing use fallback flags",
+     "module autotools này chưa có compile database: không biết compile flag, include path và define, nên các nhánh "
+     "tiền xử lý và việc parse header dùng flag dự phòng"),
+    ("{where}: `{construct}` cannot be resolved without running automake / configure; products or sources it adds "
+     "are not mapped",
+     "{where}: không phân giải được `{construct}` nếu không chạy automake / configure; sản phẩm hoặc source mà nó thêm "
+     "vào không được ánh xạ"),
+    ("not built by any product: no Makefile.am lists this source",
+     "không được build bởi sản phẩm nào: không Makefile.am nào liệt kê source này"),
+    ("unknown build target(s): {names} (known: {known})", "target build không tồn tại: {names} (có: {known})"),
+    ("{n} case(s) moved to 'not built in the confirmed variants' (variants: {variants})",
+     "{n} case đã chuyển sang 'không được build trong các biến thể đã xác nhận' (biến thể: {variants})"),
+    ("the build description changed since the build profile was confirmed: filtering still uses the saved variants; "
+     "re-run 'tcadvisor profile' to update them",
+     "mô tả build đã thay đổi từ khi build profile được xác nhận: việc lọc vẫn dùng các biến thể đã lưu; chạy lại "
+     "'tcadvisor profile' để cập nhật"),
+    ("{where} is guarded by `{cond}`, which cannot be evaluated for variant(s) {names} (macro values unknown); the "
+     "case is kept",
+     "{where} nằm trong `{cond}`, điều kiện không đánh giá được cho (các) biến thể {names} (không biết giá trị "
+     "macro); case vẫn được giữ"),
+    ("{n} source(s) listed in Makefile.am are not in the compile database (the build that produced it may be another "
+     "revision); they are parsed with the flags of another source of the same product: {names}",
+     "{n} source có trong Makefile.am nhưng không có trong compile database (bản build tạo ra nó có thể là revision "
+     "khác); chúng được phân tích bằng flag của source khác cùng sản phẩm: {names}"),
+    ("build_log of variant {name} not found: {log}; set 'build_log' in .tcadvisor/config.json to the recipe's "
+     "log.do_compile (bitbake -e <recipe> | grep ^WORKDIR=, then <WORKDIR>/temp/log.do_compile)",
+     "không tìm thấy build_log của biến thể {name}: {log}; đặt 'build_log' trong .tcadvisor/config.json là file "
+     "log.do_compile của recipe (bitbake -e <recipe> | grep ^WORKDIR=, rồi <WORKDIR>/temp/log.do_compile)"),
+    ("build_log of variant {name}: {t_error}", "build_log của biến thể {name}: {t_error}"),
+    ("compile database of variant {name} generated from {log} ({n} compile command(s))",
+     "đã tạo compile database của biến thể {name} từ {log} ({n} lệnh compile)"),
+    ("compile database of variant {name} generated from {log} ({n} compile command(s)); {m} source(s) not found in "
+     "the workspace: set 'build_log_src' to the build's source dir",
+     "đã tạo compile database của biến thể {name} từ {log} ({n} lệnh compile); {m} source không tìm thấy trong "
+     "workspace: đặt 'build_log_src' là thư mục source mà bản build dùng"),
 ]

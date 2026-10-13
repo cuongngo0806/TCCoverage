@@ -1,0 +1,265 @@
+{
+ "batch": "batch-07",
+ "report_language": "vi",
+ "changed": [
+  "rca::Feature @src/features/Feature.h:269 [abi_layout,logic,ownership_lifetime]",
+  "rca::Feature::getIsRecvStopCmd @src/features/Feature.h:463 [abi_layout,logic]",
+  "rca::Feature::setIsRecvStopCmd @src/features/Feature.h:478 [abi_layout]",
+  "rca::RemoteEngineStart::processOrderResp @src/features/RemoteEngineStart.cpp:60 [logic]",
+  "rca::RemoteEngineStart::completeFeature @src/features/RemoteEngineStart.cpp:204 [logic]",
+  "rca::RemoteEngineStart::determineResSuspend @src/features/RemoteEngineStart.cpp:1569 [logic]",
+  "rca::RemoteEngineStart @src/features/RemoteEngineStart.h:323 [abi_layout,build_config,logic]",
+  "rca::RemoteEngineStartCancel::processOrderResp @src/features/RemoteEngineStartCancel.cpp:29 [logic]",
+  "rca::RemoteEngineStartCancel::completeFeature @src/features/RemoteEngineStartCancel.cpp:183 [logic]",
+  "rca::RemoteEngineStartCancel::processOrderData @src/features/RemoteEngineStartCancel.cpp:213 [logic]",
+  "rca::RemoteEngineStartCancel::deactiveFeature @src/features/RemoteEngineStartCancel.cpp:640 [logic]"
+ ],
+ "flags": [
+  "build_config_incomplete_macro: change in src/features/RemoteEngineStart.h:323 is guarded by `#ifndef ENGINE_START_FEATURE_H`; `ENGINE_START_FEATURE_H` is undefined in every compile command, so this branch was never parsed (configurations in compile_commands.json: Debug)",
+  "build_config_incomplete_macro: src/features/FeatureFactory.h:7 is guarded by `#ifndef EE_ARCH_GEN3`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorLock.h:19 is guarded by `#ifndef RDL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorLock.h:39 is guarded by `#ifndef RDL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorUnlock.h:19 is guarded by `#ifndef RDU_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorUnlock.h:39 is guarded by `#ifndef RDU_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:323 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:326 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:339 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStartCancel.h:20 is guarded by `#ifndef ENGINE_START_CANCEL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStartCancel.h:40 is guarded by `#ifndef ENGINE_START_CANCEL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteStartInhibition.h:20 is guarded by `#ifndef REMOTE_START_INHIBITION_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteStartInhibition.h:98 is guarded by `#ifndef REMOTE_START_INHIBITION_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapFeature.h:19 is guarded by `#ifndef SHOULDER_TAP_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapFeature.h:28 is guarded by `#ifndef SHOULDER_TAP_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapForGW.h:20 is guarded by `#ifndef SHOULDER_TAP_FOR_GW_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapForGW.h:50 is guarded by `#ifndef SHOULDER_TAP_FOR_GW_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/prioritymanager/FeaturePriorityManager.h:70 is guarded by `#ifndef FEATUREPRIORITYMANAGER_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/tidl-generated/remotecontrolapp.h:31 is guarded by `#ifndef _REMOTE_CONTROL_APPLICATION_H_`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/tidl-generated/remotecontrolexecutor.h:23 is guarded by `#ifndef _REMOTE_CONTROL_EXECUTOR_H_`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept"
+ ],
+ "existing_tests": [],
+ "packets": [
+  {
+   "packet": "K049",
+   "symbol": "processReplyReq",
+   "at": "src/features/RemoteEngineStart.cpp:124",
+   "links": [
+    "call -> rca::RemoteEngineStart::completeFeature at src/features/RemoteEngineStart.cpp:169: completeFeature();"
+   ],
+   "code": "  121|     }\n  122| }\n  123| \n  124| void RemoteEngineStart::processReplyReq(const EResultStatusType &mresultStatus,\n  125|                                         const EResultReasonType mresultReason,\n  126|                                         const uint32_t resultCode,\n  127|                                         const std::string recvCmdReq,\n  128|                                         const android::sp<OrderData> &data)\n  129| {\n  130|     // Encode body data for v2s_reply\n  131|     RemoEngDa_t remoEngDa;\n  132|     setBodyData(remoEngDa, rxSigAC, mresultStatus, mresultReason, resultCode, recvCmdReq, rxSigRES[RX_C_RESCNT]);\n  133|     if(mresultStatus ==  EResultStatusType::SUCCESS && mremotecontrolifmgr != nullptr) {\n  134|         android::sp<VehicleData> cabinTempPtr = mremotecontrolifmgr->getVehicleMgrService()\n  135|                                                     ->getVehicleValue(SigInd_CanRxC_INLETTMP_12F85851, GET_CAN_OPTION::CHANGED);\n  136|         if(cabinTempPtr != nullptr\n  137|         && vehicle_data_type::TYPE_UINT32 == cabinTempPtr->valType) {\n  138|             int32_t tempVal = static_cast<int32_t>(cabinTempPtr->valUint32) - 30L;\n  139|             if ((tempVal >= -30 && tempVal <= 85) || tempVal == 224 || tempVal == 225) {\n  140|                 remoEngDa.setCabinTempValue(tempVal);\n  141|             }\n  142|         }\n  143|     }\n  144|     const std::string replyBody = enRepRes(remoEngDa);\n  145| \n  146|     const std::string endTime = CommImpl::getUtcTime().data();\n  147|     CommImpl::reqNum += 1U;\n  148|     replyReqNumber = CommImpl::reqNum;\n  149|     if (data != nullptr) {\n  150|         std::string startTime = CommImpl::bufferToString(data->getStartTime());\n  151|         mOrderId = data->getOrderId();\n  152|         replyToGtc(data->getOrderType(), data->getOrderId(),\n  153|                    mresultStatus, mresultReason,\n  154|                    static_cast<size_t>(data->getStartTime().size()), std::move(startTime),\n  155|                    endTime.length(), endTime,\n  156|                    EContentType::APPLICATION_JSON,\n  157|                    replyBody.length(), replyBody,\n  158|                    replyReqNumber);\n  159|     } else if(orderData != nullptr) {\n  160|         std::string startTime = CommImpl::bufferToString(orderData->getStartTime());",
+   "cases": [
+    {
+     "id": "TC-0149",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `processReplyReq`, which calls `rca::RemoteEngineStart::completeFeature` (direct)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::completeFeature`: control flow / computation changed in `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`",
+     "corner_cases": [
+      "`isRecvStartCmd = false;` is no longer done here: readers of `isRecvStartCmd` must not rely on it being updated on this path",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K050",
+   "symbol": "rca::RemoteEngineStart::RemoteEngineStart",
+   "at": "src/features/RemoteEngineStart.h:326",
+   "links": [
+    "contains -> rca::RemoteEngineStart at src/features/RemoteEngineStart.h:326: RemoteEngineStart();"
+   ],
+   "code": "  323| class RemoteEngineStart : public Feature\n  324| {\n  325| public:\n  326|     RemoteEngineStart();\n  327| \n  328| private:\n  329|     uint8_t cntExsSig = 0U;\n  330|     uint8_t cntAcSig = 0U;\n  331|     bool isValX = false;\n  332|     bool isWaitDr = false;\n  333|     bool isResExtend = false;\n  334|     bool isSentExtendCmd = false;\n  335|     bool isSentExtresFr = false;\n  336|     bool isGetTxCnfRan = false;\n  337|     bool isResum2nd = false;\n  338|     bool isAcBulkSettingManual = false;\n  339|     bool isRecvStopCmd =  false;\n  340|     std::string recvCmd = CMD_INVALID;\n  341|     std::string recvCmdTemp = CMD_INVALID;\n  342|     uint32_t valX = 0U;\n  343|     uint32_t internalState;\n  344|     uint64_t replyReqNumber = 0UL;\n  345|     uint64_t sendReqNumber = 0UL;\n  346|     uint64_t mOrderId = 0UL;\n  347|     OrderRemoteEngine orderRES;\n  348|     android::sp<OrderData> orderData = nullptr;\n  349|     android::sp<OrderData> orderDataTemp = nullptr;\n  350|     android::sp<ReplyRespData> replyRespData = nullptr;\n  351|     android::sp<SendRespData> sendRespData = nullptr;\n  352|     uint32_t rxSigRDL[RECV_C_MAX_SIZE];\n  353|     uint32_t rxSigRES[RX_C_RES_MAX_SIZE];\n  354|     uint32_t rxSigAC[RX_C_AC_MAX_SIZE];\n  355|     /**\n  356|     * @brief Addition this array variable as request in VGTSU-138. When occur condition success\n  357|     * for AC setting, the frame of AC setting will be stored to this variable and these data will\n  358|     * be included in report to GTC instead of rxSigAC in SUCESS case of AC setting.\n  359|     * Except signal rxSigSuccessAC[RX_C_INLETTMP] because data of RX_C_INLETTMP need to be value\n  360|     * of newest frame.\n  361|     */\n  362|     uint32_t rxSigSuccessAC[RX_C_AC_MAX_SIZE];",
+   "cases": [
+    {
+     "id": "TC-0150",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::RemoteEngineStart::RemoteEngineStart`, which is a member of `rca::RemoteEngineStart` (direct)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart`: control flow / computation changed in `rca::RemoteEngineStart` (src/features/RemoteEngineStart.h:323): `false`",
+     "corner_cases": [
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K051",
+   "symbol": "getMessageCommonList",
+   "at": "src/features/Feature.cpp:127",
+   "links": [
+    "call -> rca::Feature::getMessageList at src/features/Feature.cpp:130: std::list<int32_t> msgListFeature = getMessageList();"
+   ],
+   "code": "  124|     }\n  125| }\n  126| \n  127| std::list<int32_t> Feature::getMessageCommonList() const\n  128| {\n  129|     std::list<int32_t> msgList = {MSG_IG_CHANGED, MSG_ACC_CHANGED, MSG_POWER_MODE_CHANGED, SOMEIP_CONSUMER_ETH_STATUS, MSG_ECALL_OPERATION_MODE_CHANGED};\n  130|     std::list<int32_t> msgListFeature = getMessageList();\n  131|     msgList.splice(msgList.end(), msgListFeature);\n  132|     return msgList;\n  133| } ",
+   "cases": [
+    {
+     "id": "TC-0157",
+     "priority": "P3",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `getMessageCommonList`, which calls `rca::Feature::getMessageList` (indirect, 2 hops)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 2,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K052",
+   "symbol": "onHandleMessage",
+   "at": "src/features/Feature.cpp:168",
+   "links": [
+    "call -> rca::Feature::handlePowerStateChanged at src/features/Feature.cpp:182: handlePowerStateChanged();",
+    "call -> rca::Feature::completeFeature at src/features/Feature.cpp:202: completeFeature();",
+    "call -> rca::Feature::handleFeatureStatusChanged at src/features/Feature.cpp:191: handleFeatureStatusChanged();"
+   ],
+   "code": "  165|     return ignition;\n  166| }\n  167| \n  168| void Feature::onHandleMessage(const android::sp<sl::Message> &msg)\n  169| {\n  170|     if (msg != nullptr) {\n  171|         switch(msg->what) {\n  172|         case MSG_IG_CHANGED:\n  173|             mIGState = msg->arg1;\n  174|             handleIgStateChanged(msg);\n  175|             break;\n  176|         case MSG_ACC_CHANGED:\n  177|             mACCState = msg->arg1;\n  178|             handleAccStateChanged(msg);\n  179|             break;\n  180|         case MSG_POWER_STATE_CHANGED:\n  181|             mPowerState = msg->arg1;\n  182|             handlePowerStateChanged();\n  183|             break;\n  184|         case MSG_POWER_MODE_CHANGED:\n  185|             mPowerMode = msg->arg1;\n  186|             if (!CommImpl::isEcallOnlyMode()) {\n  187|                 handlePowerModeChanged(msg);\n  188|             }\n  189|             break;\n  190|         case MSG_FEATURE_CHANGED:\n  191|             handleFeatureStatusChanged();\n  192|             break;\n  193| \n  194|         case SOMEIP_CONSUMER_ETH_STATUS:\n  195|             mEthernetStt = static_cast<uint8_t>(msg->arg1);\n  196|             break;\n  197| \n  198|         case MSG_ECALL_OPERATION_MODE_CHANGED:\n  199|             CommImpl::setEcallMode(msg->arg1);\n  200|             LOG_I(DLT_STRING(\"EcallOperationMode=\"), DLT_INT(msg->arg1));\n  201|             if (CommImpl::isEcallOnlyMode()) {\n  202|                 completeFeature();\n  203|             }\n  204|             break;",
+   "cases": [
+    {
+     "id": "TC-0158",
+     "priority": "P3",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `onHandleMessage`, which calls `rca::Feature::handlePowerStateChanged` (indirect, 2 hops)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 2,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K053",
+   "symbol": "processReplyReq",
+   "at": "src/features/ShoulderTapFeature.cpp:69",
+   "links": [
+    "call -> rca::Feature::getEthernetState at src/features/ShoulderTapFeature.cpp:91: root[\"connectionStatus\"] = (ETHERNET_CONNECTED == getEthernetState())"
+   ],
+   "code": "   66|     }\n   67| }\n   68| \n   69| void ShoulderTapFeature::processReplyReq(const EResultStatusType &mresultStatus,\n   70|                                          const EResultReasonType mresultReason,\n   71|                                          const android::sp<OrderData> &data)\n   72| {\n   73|     try {\n   74|         // Encode body data\n   75|         Json::Value root;\n   76| \n   77|         if (mresultStatus == EResultStatusType::SUCCESS\n   78|                 || (mresultStatus == EResultStatusType::FAILURE\n   79|                     && (mresultReason == RESULT_REASON_W001\n   80|                         || mresultReason == RESULT_REASON_W003\n   81|                         || mresultReason == RESULT_REASON_W004)))\n   82|         {\n   83|             root[\"ignition\"] = determineIgnition();\n   84|         } else {\n   85|             root[\"ignition\"] = IGNITION_UNKNOWN;\n   86|         }\n   87| \n   88|         if (mresultStatus == EResultStatusType::FAILURE) {\n   89|             root[\"connectionStatus\"] = CONNECTION_STATUS_DISCONNECTED;\n   90|         } else {\n   91|             root[\"connectionStatus\"] = (ETHERNET_CONNECTED == getEthernetState())\n   92|                     ? CONNECTION_STATUS_CONNECTED : CONNECTION_STATUS_DISCONNECTED;\n   93|         }\n   94| \n   95|         Json::StreamWriterBuilder builder;\n   96|         builder[\"indentation\"] = \"\";\n   97|         const std::string replyBody = Json::writeString(builder, root);\n   98| \n   99|         // Get eventEndTime\n  100|         const std::string endTime = CommImpl::getUtcTime();\n  101| \n  102|         // Send report to GTC\n  103|         CommImpl::reqNum += 1U; // Increment request number\n  104|         reqNumber = CommImpl::reqNum;\n  105|         if (data != nullptr) {",
+   "cases": [
+    {
+     "id": "TC-0165",
+     "priority": "P3",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `processReplyReq`, which calls `rca::Feature::getEthernetState` (indirect, 2 hops)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 2,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K054",
+   "symbol": "sendNotifyToICB",
+   "at": "src/features/ShoulderTapFeature.cpp:287",
+   "links": [
+    "call -> rca::Feature::getEthernetState at src/features/ShoulderTapFeature.cpp:293: if (getEthernetState() == ETHERNET_CONNECTED) {"
+   ],
+   "code": "  284|     }\n  285| }\n  286| \n  287| void ShoulderTapFeature::sendNotifyToICB()\n  288| {\n  289|     EnumSomeipConTxMsgID msgId = EnumSomeipConTxMsgID::Enum::kTxShoulerTapNotification;\n  290|     size_t dataLen = 1U;\n  291|     uint8_t data[BUFSIZ] = {0x00U};\n  292| \n  293|     if (getEthernetState() == ETHERNET_CONNECTED) {\n  294|         // LCOV_EXCL_START\n  295|         if (SomeipConsumerManager::instance() != nullptr) {\n  296|             if (E_OK == SomeipConsumerManager::instance()\n  297|                     ->TidlSomeipConSendToICB(msgId, dataLen, data))\n  298|             {\n  299|                 LOG_I(DLT_STRING(\"Transmit notification to SomeIPConsumer successfully\"));\n  300|                 processReplyReq(RESULT_STATUS_SUCCESS);\n  301|             } else {\n  302|                 LOG_E(DLT_STRING(\"Fail to transmit notification to SomeIPConsumer\"));\n  303|                 processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W003);\n  304|             }\n  305|         } else {\n  306|             LOG_E(DLT_STRING(\"SomeipConsumerManager instance is null\"));\n  307|             processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W003);\n  308|         }\n  309|         // LCOV_EXCL_STOP\n  310|     } else {\n  311|         LOG_E(DLT_STRING(\"Ethenet status is not available or cannot be determined\"));\n  312|         processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W001);\n  313|     }\n  314| }",
+   "cases": [
+    {
+     "id": "TC-0166",
+     "priority": "P3",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `sendNotifyToICB`, which calls `rca::Feature::getEthernetState` (indirect, 2 hops)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 2,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K055",
+   "symbol": "onFeatureStateChanged",
+   "at": "src/prioritymanager/FeaturePriorityManager.h:70",
+   "links": [
+    "inherit_override -> rca::Feature::onFeatureStateChanged at src/prioritymanager/FeaturePriorityManager.h:70: virtual void onFeatureStateChanged(const FeatureState& newState) = 0;"
+   ],
+   "code": "   67|      * @param name\n   68|      * @param state\n   69|      */\n   70|     virtual void onFeatureStateChanged(const FeatureState& newState) = 0;\n   71| \n   72| private:\n   73|     //FeatureState mState;\n   74|     FeatureState mState;\n   75| };\n   76| \n   77| class FeaturePriorityManager : public RefBase\n   78| {",
+   "cases": [
+    {
+     "id": "TC-0172",
+     "priority": "P3",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `onFeatureStateChanged`, which inherits from / overrides `rca::Feature::onFeatureStateChanged` (indirect, 2 hops)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 2,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K056",
+   "symbol": "processOrderData",
+   "at": "src/features/RemoteEngineStartCancel.cpp:213",
+   "links": [
+    "call -> processReplyReq at src/features/RemoteEngineStartCancel.cpp:250: processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W002, rxSigRES[RX_C_RESCAUSE], data);",
+    "call -> processReplyReq at src/features/RemoteEngineStartCancel.cpp:250: processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W002, rxSigRES[RX_C_RESCAUSE], data);"
+   ],
+   "code": "  210|     }\n  211| }\n  212| \n  213| void RemoteEngineStartCancel::processOrderData(const android::sp<OrderData> &data)\n  214| {\n  215|     // Note: Using this function pass data as reference then using processOrderData(orderDataTemp)\n  216|     // shal make crash sig 11 since in last if statement of this function orderDataTemp set to null.\n  217| \n  218|     // Check PPP\n  219|     bool privacy = CommImpl::isPrivacyOn(PPP_SERID_RESC);\n  220|     if (privacy) {\n  221|         if (mremotecontrolifmgr != nullptr) {\n  222|             if (mremotecontrolifmgr->getPowerLock() != nullptr) {\n  223|                 // Power Lock request\n  224|                 int32_t rr = mremotecontrolifmgr->getPowerLock()->acquire();\n  225|                 mremotecontrolifmgr->setPLockCnt(mremotecontrolifmgr->getPLockCnt() + 1U);\n  226|                 LOG_I(DLT_STRING(\"Request Power Lock, result=\"), DLT_INT(rr),\n  227|                       DLT_STRING(\"PLockCnt=\"), DLT_UINT32(mremotecontrolifmgr->getPLockCnt()));\n  228| \n  229|                 // Check service priority matrix\n  230|                 if (mPriorityMgr != nullptr) {\n  231|                     isReqAct = true;\n  232|                     orderDataTemp = data;\n  233|                     bool result = mPriorityMgr->requestActiveFeature(RESC_FEATURE_NAME, true);\n  234|                     if (!result) {\n  235|                         isReqAct = false;\n  236|                         orderDataTemp = nullptr;\n  237|                         processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W001, rxSigRES[RX_C_RESCAUSE], data);\n  238|                     }\n  239|                 } else {\n  240|                     LOG_E(DLT_STRING(\"Priority manager is null\"));\n  241|                 }\n  242|             } else {\n  243|                 LOG_E(DLT_STRING(\"Power lock is null\"));\n  244|             }\n  245|         } else {\n  246|             LOG_E(DLT_STRING(\"Remote control interface manager is null\"));\n  247|         }\n  248|     } else {\n  249|         LOG_I(DLT_STRING(\"Privacy Setting is OFF\"));",
+   "cases": [
+    {
+     "id": "TC-0181",
+     "priority": "P3",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `processOrderData`, which calls `processReplyReq` (indirect, 2 hops)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStartCancel::completeFeature`, `rca::RemoteEngineStartCancel::processOrderData`: control flow / computation changed in `rca::RemoteEngineStartCancel::completeFeature` (src/features/RemoteEngineStartCancel.cpp:183): `false`",
+     "corner_cases": [
+      "`isRecvStopCmd = false;` is no longer done here: readers of `isRecvStopCmd` must not rely on it being updated on this path",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 2,
+     "verify_by": "review"
+    }
+   ]
+  }
+ ]
+}

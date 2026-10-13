@@ -1,0 +1,1040 @@
+{
+ "cases": {
+  "TC-0001": {
+   "verdict": "confirmed",
+   "note": "Bỏ guard isRecvStartCmd và check privacy PPP_SERID_RES: auto-stop giờ chạy khi chưa có lệnh start và luôn gửi report GTC dù privacy OFF.",
+   "extra_corner_cases": [
+    "Privacy RES = OFF, động cơ tự dừng (isDuring!=0 && isResSuspenNoDa): xác nhận có/không gửi report GTC (trước đây không gửi)",
+    "Khởi động lại RCA khi MEMORY_RES_DURING còn khác 0 (chưa nhận lệnh start trong phiên này): auto-stop có được phát hiện đúng 1 lần, MEMORY_RES_DURING về 0",
+    "isRecvStopCmd=true + RESC==OFF + MEMORY_RES_DURING!=0: cờ được xoá, log 'clear stop cmd flag', auto-stop chạy cùng chu kỳ",
+    "isRecvStopCmd=true + RESC==ON: cờ giữ nguyên, không phát hiện auto-stop trong lúc RESC đang chạy",
+    "isRecvStopCmd=true + RESC==OFF + MEMORY_RES_DURING==0: cờ không bị xoá, không gửi report; lệnh start sau đó vẫn chạy bình thường",
+    "getFeatureStatus(RESC)==OFF nhưng RESC đang chờ kích hoạt (isReqAct, priority pending): cờ bị xoá sớm, kiểm tra không gửi trùng report auto-stop và reply RESC"
+   ]
+  },
+  "TC-0002": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0003": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0004": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0005": {
+   "verdict": "confirmed",
+   "note": "RES processOrderResp giờ đặt isRecvStopCmd=true khi nhận CMD_RES_STOP và không còn đặt isRecvStartCmd; cần test trên thiết bị.",
+   "extra_corner_cases": [
+    "Gửi lệnh RES stop khi RES đang chạy rồi RESC thực hiện dừng thành công: cờ được reset ở completeFeature",
+    "Gửi lệnh RES stop khi RESC thất bại (W001/W003): cờ không kẹt, auto-stop phát hiện lại được",
+    "Gửi lệnh RES stop khi MEMORY_RES_DURING==0 rồi gửi RES start: cờ không chặn auto-stop của phiên mới",
+    "Lệnh RES setting/start sau stop: không còn dấu hiệu isRecvStartCmd, kiểm tra luồng start vẫn đủ"
+   ]
+  },
+  "TC-0006": {
+   "verdict": "confirmed",
+   "note": "RES completeFeature không còn reset isRecvStartCmd (biến đã bỏ) và vẫn reset isRecvStopCmd; ảnh hưởng nhánh RES_DURING/IDLE cần test.",
+   "extra_corner_cases": [
+    "completeFeature khi MEMORY_RES_DURING!=0: state RES_DURING, isRecvStopCmd=false",
+    "completeFeature khi MEMORY_RES_DURING==0: isSentExtendCmd=false, state RES_IDLE",
+    "completeFeature giữa lúc RESC đang xử lý lệnh stop: cờ bị reset sớm có làm auto-stop báo trùng không"
+   ]
+  },
+  "TC-0007": {
+   "verdict": "not_needed",
+   "note": "RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ."
+  },
+  "TC-0008": {
+   "verdict": "not_needed",
+   "note": "RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ."
+  },
+  "TC-0009": {
+   "verdict": "not_needed",
+   "note": "RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ."
+  },
+  "TC-0010": {
+   "verdict": "not_needed",
+   "note": "RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ."
+  },
+  "TC-0011": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0012": {
+   "verdict": "confirmed",
+   "note": "Lớp RemoteEngineStart: thêm isRecvStopCmd, bỏ isRecvStartCmd; hành vi runtime đổi ở determineResSuspend/processOrderResp.",
+   "extra_corner_cases": [
+    "Khởi tạo RES mới: isRecvStopCmd=false mặc định",
+    "Chuỗi start -> stop -> start liên tiếp: cờ không rò sang phiên sau"
+   ]
+  },
+  "TC-0013": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0014": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0015": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0016": {
+   "verdict": "not_needed",
+   "note": "Cảnh báo include guard (#ifndef *_H), không phải macro cấu hình; build sạch là đủ."
+  },
+  "TC-0017": {
+   "verdict": "confirmed",
+   "note": "handleMessage RES chuyển MSG_ORDER_REMOTE_ENGINE vào processOrderResp (nay đặt isRecvStopCmd); cả RES và RESC cùng nhận lệnh stop.",
+   "extra_corner_cases": [
+    "Lệnh stop đến RES và RESC cùng lúc: thứ tự xử lý RES (đặt cờ) trước/sau RESC (kích hoạt) không làm mất/kẹt cờ",
+    "Lệnh stop khi RES không hoạt động: cờ đặt nhưng được dọn ở lần sau"
+   ]
+  },
+  "TC-0018": {
+   "verdict": "confirmed",
+   "note": "checkEndF gọi determineResSuspend mỗi chu kỳ cntExsSig; thứ tự checkResResult/checkExtresFrCon trước đó với logic mới cần test.",
+   "extra_corner_cases": [
+    "Chu kỳ checkEndF liên tiếp khi cờ đã bị xoá: auto-stop chỉ phát hiện một lần",
+    "ResExtTimer còn thời gian (>0): không phát hiện auto-stop dù cờ đã xoá"
+   ]
+  },
+  "TC-0019": {
+   "verdict": "not_needed",
+   "note": "RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ."
+  },
+  "TC-0020": {
+   "verdict": "not_needed",
+   "note": "RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ."
+  },
+  "TC-0021": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0022": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0023": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0024": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0025": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0026": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0027": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0028": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0029": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0030": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0031": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0032": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0033": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0034": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0035": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0036": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0037": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0038": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0039": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0040": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0041": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0042": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0043": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0044": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0045": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0046": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0047": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0048": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0049": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0050": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0051": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0052": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0053": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0054": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0055": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0056": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0057": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0058": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0059": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0060": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0061": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0062": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0063": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0064": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0065": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0066": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0067": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0068": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0069": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0070": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0071": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0072": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0073": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0074": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0075": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0076": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0077": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0078": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0079": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0080": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0081": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0082": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0083": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0084": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0085": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0086": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0087": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0088": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0089": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0090": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0091": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0092": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0093": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0094": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0095": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0096": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0097": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0098": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0099": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0100": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0101": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0102": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0103": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0104": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0105": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0106": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0107": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0108": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0109": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0110": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0111": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0112": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0113": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0114": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0115": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0116": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0117": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0118": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0119": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0120": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0121": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0122": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0123": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0124": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0125": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0126": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0127": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0128": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0129": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0130": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0131": {
+   "verdict": "not_needed",
+   "note": "Cảnh báo include guard (#ifndef *_H), không phải macro cấu hình; build sạch là đủ."
+  },
+  "TC-0132": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0133": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0134": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0135": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0136": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0137": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0138": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0139": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0140": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0141": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0142": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0143": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0144": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0145": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0146": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0147": {
+   "verdict": "not_needed",
+   "note": "RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ."
+  },
+  "TC-0148": {
+   "verdict": "not_needed",
+   "note": "RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ."
+  },
+  "TC-0149": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0150": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0151": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0152": {
+   "verdict": "not_needed",
+   "note": "Cảnh báo include guard (#ifndef *_H), không phải macro cấu hình; build sạch là đủ."
+  },
+  "TC-0153": {
+   "verdict": "confirmed",
+   "note": "processRxResSig (nơi gọi chuỗi tới determineResSuspend) bị ảnh hưởng bởi guard mới; test cùng kịch bản TC-0001/0018.",
+   "extra_corner_cases": [
+    "Tín hiệu RES rx liên tục trong lúc cờ isRecvStopCmd chuyển true->false: không phát hiện auto-stop hai lần"
+   ]
+  },
+  "TC-0154": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0155": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0156": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0157": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0158": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0159": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0160": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0161": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0162": {
+   "verdict": "not_needed",
+   "note": "Cảnh báo include guard (#ifndef *_H), không phải macro cấu hình; build sạch là đủ."
+  },
+  "TC-0163": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0164": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0165": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0166": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0167": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0168": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0169": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0170": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0171": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0172": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0173": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0174": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0175": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0176": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0177": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0178": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0179": {
+   "verdict": "not_needed",
+   "note": "Cảnh báo include guard (#ifndef *_H), không phải macro cấu hình; build sạch là đủ."
+  },
+  "TC-0180": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0181": {
+   "verdict": "not_needed",
+   "note": "RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ."
+  },
+  "TC-0182": {
+   "verdict": "not_needed",
+   "note": "RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ."
+  },
+  "TC-0183": {
+   "verdict": "not_needed",
+   "note": "RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ."
+  },
+  "TC-0184": {
+   "verdict": "not_needed",
+   "note": "RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ."
+  },
+  "TC-0185": {
+   "verdict": "not_needed",
+   "note": "RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ."
+  },
+  "TC-0186": {
+   "verdict": "not_needed",
+   "note": "RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ."
+  },
+  "TC-0187": {
+   "verdict": "not_needed",
+   "note": "Trùng TC-0005 (processOrderResp RES đã có case riêng); không cần test thêm."
+  },
+  "TC-0188": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0189": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0190": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0191": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0192": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0193": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0194": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0195": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0196": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0197": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0198": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0199": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0200": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0201": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0202": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0203": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0204": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0205": {
+   "verdict": "not_needed",
+   "note": "RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ."
+  },
+  "TC-0206": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0207": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0208": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0209": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0210": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0211": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0212": {
+   "verdict": "not_needed",
+   "note": "Diff chỉ bỏ một bool và getter/setter, không đổi con trỏ/sở hữu; build sạch là đủ."
+  },
+  "TC-0213": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0214": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0215": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0216": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0217": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0218": {
+   "verdict": "not_needed",
+   "note": "Chỉ là member/dependent của Feature bị bỏ một bool; logic không đổi; build sạch là đủ."
+  },
+  "TC-0219": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0220": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0221": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0222": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0223": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0224": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0225": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0226": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0227": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0228": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0229": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0230": {
+   "verdict": "not_needed",
+   "note": "Kích thước lớp Feature đổi do bỏ 1 bool; cùng module, biên dịch lại toàn bộ khi build sạch là đủ; không còn user của getter/setter."
+  },
+  "TC-0231": {
+   "verdict": "not_needed",
+   "note": "Cảnh báo include guard (#ifndef *_H), không phải macro cấu hình; build sạch là đủ."
+  },
+  "TC-0232": {
+   "verdict": "not_needed",
+   "note": "Cảnh báo include guard (#ifndef *_H), không phải macro cấu hình; build sạch là đủ."
+  },
+  "TC-0233": {
+   "verdict": "not_needed",
+   "note": "RESC chỉ bỏ ghi/reset isRecvStopCmd (cờ không còn ai đọc, đã grep); hành vi RESC không đổi, build sạch là đủ."
+  },
+  "TC-0234": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0235": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0236": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0237": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0238": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0239": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0240": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0241": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0242": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0243": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  },
+  "TC-0244": {
+   "verdict": "not_needed",
+   "note": "Chỉ liên quan completeFeature bỏ reset biến isRecvStartCmd đã xoá; hàm này không đọc biến đó; build sạch là đủ."
+  }
+ },
+ "summary": "Cần test trên thiết bị: determineResSuspend (cờ isRecvStopCmd mới, bỏ guard isRecvStartCmd, bỏ check privacy khi gửi report auto-stop) cùng processOrderResp/completeFeature của RES. Phần còn lại là nhiễu do bỏ một bool khỏi Feature và dọn cờ chết ở RESC: build sạch là đủ.",
+ "additional_checks": [
+  {
+   "title": "Report auto-stop gửi GTC không còn kiểm tra privacy",
+   "why": "Trước: chỉ gửi khi CommImpl::isPrivacyOn(PPP_SERID_RES); nay luôn gọi processSendReq. Cần xác nhận đây là chủ ý (spec/PPP).",
+   "evidence": "src/features/RemoteEngineStart.cpp:1599"
+  },
+  {
+   "title": "Cờ bị xoá sớm khi RESC đang chờ kích hoạt",
+   "why": "RESC==OFF trong lúc order stop đang đợi priority; điều kiện xoá cờ dùng đúng trạng thái này nên auto-stop có thể chạy song song với stop do RESC.",
+   "evidence": "src/features/RemoteEngineStart.cpp:1573"
+  },
+  {
+   "title": "Cờ stop kẹt khi MEMORY_RES_DURING==0",
+   "why": "Guard xoá cờ yêu cầu MEMORY_RES_DURING!=0; chỉ completeFeature mới reset khi đã về 0.",
+   "evidence": "src/features/RemoteEngineStart.cpp:84"
+  },
+  {
+   "title": "Unit test bị xoá/giảm",
+   "why": "UT_GMOCK_Feature.cpp bỏ 143 dòng và UT RemoteEngineStart bỏ 7 dòng; chưa có UT mới cho nhánh xoá cờ trong determineResSuspend.",
+   "evidence": "unittests/testscripts/UT_GMOCK_RemoteEngineStart.cpp:4907"
+  }
+ ],
+ "models": [
+  "claude-sonnet-5-5"
+ ]
+}

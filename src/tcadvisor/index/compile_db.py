@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -20,8 +21,12 @@ CPP_EXT = CPP_SOURCE_EXT | CPP_HEADER_EXT
 # Flags that only make sense to the real (often cross-) compiler and confuse libclang.
 _DROP_WITH_VALUE = {"-o", "-MF", "-MT", "-MQ", "--serialize-diagnostics"}
 _DROP_EXACT = {"-c", "-MD", "-MMD", "-MP", "-pipe", "-fpch-preprocess"}
-_DROP_PREFIX = ("-mfpu", "-mfloat-abi", "-mcpu", "-march", "-mtune", "-mthumb", "-mabi", "-fstack-usage",
-                "-Werror", "-fdiagnostics-color", "-fno-tree-", "-fcallgraph-info")
+_ARCH_PREFIX = ("-mfpu", "-mfloat-abi", "-mcpu", "-march", "-mtune", "-mthumb", "-mabi")
+_DROP_PREFIX = _ARCH_PREFIX + ("-fstack-usage", "-Werror", "-fdiagnostics-color", "-fno-tree-", "-fcallgraph-info")
+# a GNU cross compiler named after its target triple: arm-oe-linux-gnueabi-g++, aarch64-poky-linux-gcc, ...
+_CROSS = re.compile(r"^(?P<triple>[A-Za-z0-9_.]+(?:-[A-Za-z0-9_.]+){1,3})-(?:gcc|g\+\+|cc|c\+\+|clang|clang\+\+)"
+                    r"(?:-[\d.]+)?$")
+_HOST_ARCH = {"x86_64", "amd64", "i386", "i486", "i586", "i686"}
 
 
 @dataclass(frozen=True)
@@ -46,9 +51,24 @@ def _split(command: str) -> list[str]:
     return shlex.split(command, posix=os.name != "nt")
 
 
+def cross_target(compiler: str) -> str | None:
+    """Target triple of a cross compiler (`arm-oe-linux-gnueabi-g++` → `arm-oe-linux-gnueabi`), None for the host
+    compiler. libclang then parses for that target: the sysroot's headers (glibc `gnu/stubs.h`, `bits/`) pick
+    the same variant as the real build, and the ARM flags (-march, -mfpu, -mfloat-abi) stay meaningful."""
+    m = _CROSS.match(os.path.basename(compiler))
+    if not m:
+        return None
+    triple = m.group("triple")
+    if triple.split("-")[0] in _HOST_ARCH or not any(k in triple for k in ("linux", "eabi", "elf", "none")):
+        return None
+    return triple
+
+
 def _clean_args(raw: list[str], file: str, directory: Path) -> tuple[str, ...]:
     args = raw[1:]  # drop compiler executable
-    out: list[str] = []
+    target = None if any(a.startswith(("-target", "--target")) for a in args) else cross_target(raw[0])
+    drop_prefix = tuple(p for p in _DROP_PREFIX if p not in _ARCH_PREFIX) if target else _DROP_PREFIX
+    out: list[str] = [f"--target={target}"] if target else []
     skip = False
     file_abs = os.path.normcase(os.path.abspath(os.path.join(directory, file)))
     path_flags = ("-I", "-isystem", "-iquote", "-include", "-idirafter", "--sysroot")
@@ -62,7 +82,7 @@ def _clean_args(raw: list[str], file: str, directory: Path) -> tuple[str, ...]:
         if a in _DROP_WITH_VALUE:
             skip = True
             continue
-        if a in _DROP_EXACT or a.startswith(_DROP_PREFIX):
+        if a in _DROP_EXACT or a.startswith(drop_prefix):
             continue
         if not a.startswith("-") and os.path.normcase(os.path.abspath(os.path.join(directory, a))) == file_abs:
             continue
@@ -83,6 +103,24 @@ def _clean_args(raw: list[str], file: str, directory: Path) -> tuple[str, ...]:
         else:
             out.append(a)
     return tuple(out)
+
+
+def is_c_command(file: Path, args: tuple[str, ...]) -> bool:
+    """A C (not C++) translation unit: `.c` source or `-x c` / `-std=c*|gnu*` without `++` (spec 012, research R8)."""
+    if "-x" in args:
+        i = args.index("-x")
+        return i + 1 < len(args) and args[i + 1] in ("c", "c-header")
+    std = [a for a in args if a.startswith("-std=")]
+    if std:
+        return "++" not in std[-1]
+    return file.suffix == ".c"
+
+
+def header_args(tu_file: Path, args: tuple[str, ...]) -> tuple[str, ...]:
+    """Flags of the TU `tu_file` reused to parse one of its headers: a header of a C TU is parsed as C."""
+    if "-x" not in args and is_c_command(tu_file, args):
+        return ("-x", "c-header") + tuple(args)
+    return args
 
 
 @lru_cache(maxsize=1)
@@ -109,6 +147,18 @@ class CompileDatabase:
         self.by_file: dict[Path, CompileCommand] = {}
         for e in entries:
             self.by_file.setdefault(e.file, e)
+
+    def merged(self, others: list["CompileDatabase"]) -> "CompileDatabase":
+        """Union by file (this database wins): a source built only in another build variant is still indexed."""
+        entries = list(self.entries)
+        seen = set(self.by_file)
+        for o in others:
+            for e in o.entries:
+                if e.file not in seen:
+                    seen.add(e.file)
+                    entries.append(e)
+        digest = hashlib.sha256((self.digest + "".join(o.digest for o in others)).encode()).hexdigest()
+        return CompileDatabase(self.build_dir, entries, digest if others else self.digest)
 
     @classmethod
     def load(cls, build_dir: Path, repo: Path, allow_stale: bool = False) -> "CompileDatabase":

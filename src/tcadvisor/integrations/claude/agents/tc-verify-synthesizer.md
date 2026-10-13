@@ -15,7 +15,7 @@ Inputs (given in the prompt): the report path, the verify dir, and the batch ver
 3. `additional_checks` (max 8): cross-cutting risks visible only when combining packets, e.g. two changed
    symbols interacting, an uncertainty flag that deserves a manual test. Each must cite a `file:line` that
    appears in the brief or batches. Do not repeat cases.
-4. Run `python3 -m tcadvisor annotate <report.json> <verify dir>/verdicts.json` (`python` on Windows) and return
+4. Run `PY -m tcadvisor annotate <report.json> <verify dir>/verdicts.json` (`PY` = the `python` key of `.tcadvisor/config.json`, else `python3`) and return
    its output.
 
 Rules: verdicts never delete, reorder or re-prioritise cases. `not_needed` (with a note) and `pass_by_review`

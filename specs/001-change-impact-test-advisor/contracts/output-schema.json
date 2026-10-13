@@ -335,6 +335,369 @@
           }
         }
       }
+    },
+    "run": {
+      "type": "object",
+      "required": [
+        "name",
+        "path"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "change": {
+          "type": "string"
+        }
+      }
+    },
+    "build_model": {
+      "type": "object",
+      "required": [
+        "system"
+      ],
+      "properties": {
+        "system": {
+          "enum": [
+            "cmake",
+            "autotools"
+          ]
+        },
+        "products": {
+          "type": "integer"
+        },
+        "fingerprint": {
+          "type": "string"
+        }
+      }
+    },
+    "build_profile": {
+      "type": "object",
+      "required": [
+        "state"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "confirmed",
+            "stale",
+            "absent",
+            "overridden",
+            "ignored"
+          ]
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "filtering": {
+          "type": "boolean"
+        }
+      }
+    },
+    "not_built": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "case",
+          "excluded_by"
+        ],
+        "properties": {
+          "case": {
+            "$ref": "#/definitions/testCaseCandidate"
+          },
+          "excluded_by": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "variant",
+                "reason"
+              ],
+              "properties": {
+                "variant": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "source_not_in_product",
+                    "conditional_dir",
+                    "preprocessor",
+                    "source_not_in_compile_db"
+                  ]
+                },
+                "condition": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "where": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "not_built_changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "excluded_by"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "line": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "excluded_by": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "variant",
+                "reason"
+              ],
+              "properties": {
+                "variant": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "source_not_in_product",
+                    "conditional_dir",
+                    "preprocessor",
+                    "source_not_in_compile_db"
+                  ]
+                },
+                "condition": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "where": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "test_scenarios": {
+      "description": "Spec 013: the cases still to test grouped into runnable tests (flow = one call path entry -> changed symbol; group = cases sharing one non-call relation to a changed dependency). Every listed case id is in exactly one scenario.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "priority",
+          "action",
+          "entry",
+          "steps",
+          "relation",
+          "cases",
+          "keys",
+          "checks"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^S[0-9]+$"
+          },
+          "kind": {
+            "enum": [
+              "flow",
+              "group"
+            ]
+          },
+          "priority": {
+            "enum": [
+              "P1",
+              "P2",
+              "P3"
+            ]
+          },
+          "action": {
+            "enum": [
+              "test_on_target",
+              "review",
+              "closed_by_review",
+              "not_needed"
+            ]
+          },
+          "entry": {
+            "type": "object",
+            "required": [
+              "qualified_name"
+            ],
+            "properties": {
+              "qualified_name": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "file_path": {
+                "type": "string"
+              },
+              "line": {
+                "type": "integer"
+              }
+            }
+          },
+          "steps": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "symbol",
+                "cases",
+                "changed"
+              ],
+              "properties": {
+                "symbol": {
+                  "type": "object",
+                  "required": [
+                    "qualified_name"
+                  ],
+                  "properties": {
+                    "qualified_name": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "file_path": {
+                      "type": "string"
+                    },
+                    "line": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "call_line": {
+                  "type": "integer"
+                },
+                "cases": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "changed": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "relation": {
+            "type": "string"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "qualified_name"
+              ],
+              "properties": {
+                "qualified_name": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "file_path": {
+                  "type": "string"
+                },
+                "line": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "cases": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sub_reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "risk_groups": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "text",
+                "source"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string"
+                },
+                "source": {
+                  "enum": [
+                    "ai",
+                    "rule"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -579,7 +942,8 @@
             "uninstantiated_template",
             "dynamic_runtime_dependency",
             "di_config_routing",
-            "build_config_incomplete_macro"
+            "build_config_incomplete_macro",
+            "build_description_unresolved"
           ]
         },
         "reason": {

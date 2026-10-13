@@ -123,7 +123,7 @@ def test_default_graph_requires_codegraph(project, monkeypatch, capsys):
     project.edit("src/util.cpp", "if (n > 3) return 3;", "if (n > 4) return 4;")
     project.commit()
     rc = main(["analyze", "--repo", str(project.repo), "--build-dir", str(project.build), "--output-dir",
-               str(project.out), "--commit-range", "HEAD~1..HEAD", "-q"])  # no --graph: the default
+               str(project.out), "--exact-output-dir", "--commit-range", "HEAD~1..HEAD", "-q"])  # no --graph: the default
     assert rc == 1
     assert "codegraph not installed" in capsys.readouterr().err
 
@@ -137,7 +137,8 @@ def test_config_file_selects_the_source_and_flag_overrides_it(project, monkeypat
     project.edit("src/util.cpp", "if (n > 3) return 3;", "if (n > 4) return 4;")
     project.commit()
     base_args = ["analyze", "--repo", str(project.repo), "--build-dir", str(project.build), "--output-dir",
-                 str(project.out), "--cache-dir", str(project.cache), "--commit-range", "HEAD~1..HEAD", "-q"]
+                 str(project.out), "--exact-output-dir", "--cache-dir", str(project.cache), "--commit-range",
+                 "HEAD~1..HEAD", "-q"]
     assert main(base_args) == 0
     r = json.loads((project.out / "report.json").read_text())
     assert (r["graph_provider"], r["report_language"]) == ("clang", "en")

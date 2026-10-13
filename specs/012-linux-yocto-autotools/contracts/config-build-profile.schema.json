@@ -1,0 +1,242 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tcadvisor .tcadvisor/config.json \u2014 keys added by spec 012 (build profile, restored settings)",
+  "type": "object",
+  "properties": {
+    "output_dir": {
+      "type": "string",
+      "description": "report root; default .tcadvisor/reports; one run folder per analysis"
+    },
+    "build": {
+      "type": "object",
+      "required": [
+        "system",
+        "confirmed",
+        "variants"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "system": {
+          "enum": [
+            "auto",
+            "cmake",
+            "autotools"
+          ]
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "confirmed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "variants": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9._-]+$"
+              },
+              "compile_db": {
+                "type": "string"
+              },
+              "build_log": {
+                "type": "string"
+              },
+              "log_sha256": {
+                "type": "string"
+              },
+              "build_dir": {
+                "type": "string"
+              },
+              "values": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": [
+                    "string",
+                    "boolean",
+                    "null"
+                  ]
+                }
+              },
+              "value_source": {
+                "type": "object",
+                "additionalProperties": {
+                  "enum": [
+                    "build",
+                    "user"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "graph": {
+      "enum": [
+        "codegraph",
+        "gitnexus",
+        "clang"
+      ]
+    },
+    "language": {
+      "enum": [
+        "vi",
+        "en"
+      ]
+    },
+    "build_dir": {
+      "type": "string"
+    },
+    "targets": {
+      "type": [
+        "array",
+        "string",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "test_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "max_hop_depth": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "include_tests": {
+      "type": "boolean"
+    },
+    "ai_verify": {
+      "enum": [
+        "off",
+        "chat",
+        "claude"
+      ]
+    },
+    "python": {
+      "type": "string"
+    },
+    "claude_bin": {
+      "type": "string"
+    },
+    "verify_model": {
+      "type": "string"
+    },
+    "synth_model": {
+      "type": "string"
+    },
+    "budget_usd": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "exclusiveMinimum": 0
+    },
+    "verify_priorities": {
+      "type": "string",
+      "pattern": "^P[123](,P[123])*$"
+    },
+    "verify_max_cases": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "verify_parallel": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16
+    },
+    "graph_bin": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "contracts": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "lessons": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "target_patterns": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "index": {
+      "enum": [
+        "auto",
+        "full",
+        "lite"
+      ]
+    },
+    "jobs": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "patterns": {
+      "type": "boolean"
+    },
+    "history": {
+      "type": "boolean"
+    },
+    "flow_max_tus": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "split_threshold": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "attachment_warn_mb": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "cache_dir": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "allow_stale_compile_db": {
+      "type": "boolean"
+    },
+    "format": {
+      "enum": [
+        "md",
+        "json",
+        "html",
+        "both",
+        "all"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

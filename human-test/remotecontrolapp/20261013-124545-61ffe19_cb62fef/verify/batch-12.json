@@ -1,0 +1,162 @@
+{
+ "batch": "batch-12",
+ "report_language": "vi",
+ "changed": [
+  "rca::Feature @src/features/Feature.h:269 [abi_layout,logic,ownership_lifetime]",
+  "rca::Feature::getIsRecvStopCmd @src/features/Feature.h:463 [abi_layout,logic]",
+  "rca::Feature::setIsRecvStopCmd @src/features/Feature.h:478 [abi_layout]",
+  "rca::RemoteEngineStart::processOrderResp @src/features/RemoteEngineStart.cpp:60 [logic]",
+  "rca::RemoteEngineStart::completeFeature @src/features/RemoteEngineStart.cpp:204 [logic]",
+  "rca::RemoteEngineStart::determineResSuspend @src/features/RemoteEngineStart.cpp:1569 [logic]",
+  "rca::RemoteEngineStart @src/features/RemoteEngineStart.h:323 [abi_layout,build_config,logic]",
+  "rca::RemoteEngineStartCancel::processOrderResp @src/features/RemoteEngineStartCancel.cpp:29 [logic]",
+  "rca::RemoteEngineStartCancel::completeFeature @src/features/RemoteEngineStartCancel.cpp:183 [logic]",
+  "rca::RemoteEngineStartCancel::processOrderData @src/features/RemoteEngineStartCancel.cpp:213 [logic]",
+  "rca::RemoteEngineStartCancel::deactiveFeature @src/features/RemoteEngineStartCancel.cpp:640 [logic]"
+ ],
+ "flags": [
+  "build_config_incomplete_macro: change in src/features/RemoteEngineStart.h:323 is guarded by `#ifndef ENGINE_START_FEATURE_H`; `ENGINE_START_FEATURE_H` is undefined in every compile command, so this branch was never parsed (configurations in compile_commands.json: Debug)",
+  "build_config_incomplete_macro: src/features/FeatureFactory.h:7 is guarded by `#ifndef EE_ARCH_GEN3`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorLock.h:19 is guarded by `#ifndef RDL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorLock.h:39 is guarded by `#ifndef RDL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorUnlock.h:19 is guarded by `#ifndef RDU_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorUnlock.h:39 is guarded by `#ifndef RDU_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:323 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:326 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:339 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStartCancel.h:20 is guarded by `#ifndef ENGINE_START_CANCEL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStartCancel.h:40 is guarded by `#ifndef ENGINE_START_CANCEL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteStartInhibition.h:20 is guarded by `#ifndef REMOTE_START_INHIBITION_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteStartInhibition.h:98 is guarded by `#ifndef REMOTE_START_INHIBITION_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapFeature.h:19 is guarded by `#ifndef SHOULDER_TAP_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapFeature.h:28 is guarded by `#ifndef SHOULDER_TAP_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapForGW.h:20 is guarded by `#ifndef SHOULDER_TAP_FOR_GW_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapForGW.h:50 is guarded by `#ifndef SHOULDER_TAP_FOR_GW_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/prioritymanager/FeaturePriorityManager.h:70 is guarded by `#ifndef FEATUREPRIORITYMANAGER_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/tidl-generated/remotecontrolapp.h:31 is guarded by `#ifndef _REMOTE_CONTROL_APPLICATION_H_`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/tidl-generated/remotecontrolexecutor.h:23 is guarded by `#ifndef _REMOTE_CONTROL_EXECUTOR_H_`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept"
+ ],
+ "existing_tests": [],
+ "packets": [
+  {
+   "packet": "K089",
+   "symbol": "rca::Feature::getMessageList",
+   "at": "src/features/Feature.h:403",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:403: virtual std::list<int32_t> getMessageList() const = 0;"
+   ],
+   "code": "  400|      * handle. Sub-classes need to implement this function\n  401|      * @return\n  402|      */\n  403|     virtual std::list<int32_t> getMessageList() const = 0;\n  404| \n  405|     /**\n  406|      * @brief completeFeature\n  407|      */\n  408|     virtual void completeFeature() = 0;\n  409| \n  410|     void replyToGtc(const EOrderType &orderType,\n  411|                        const uint64_t &morderId,\n  412|                        const EResultStatusType &mresultStatus,\n  413|                        const EResultReasonType &mresultReason,\n  414|                        const size_t &meventStartTimeLen,const std::string meventStartTime,\n  415|                        const size_t &meventEndTimeLen,const std::string meventEndTime,\n  416|                        const EContentType &mcontentType,\n  417|                        const size_t &mreqReplyBodyLen,const std::string mreqReplyBody,\n  418|                        const uint64_t &mreqNum);\n  419|     static void sendToGtc(const ESendType &sendType,\n  420|                       const uint64_t &morderId,\n  421|                       const EResultStatusType &mresultStatus,\n  422|                       const EResultReasonType &mresultReason,\n  423|                       const size_t &meventTimeLen,const std::string meventTime,\n  424|                       const EContentType &mcontentType,\n  425|                       const size_t &mreqSendBodyLen,const std::string mreqSendBody,\n  426|                       const uint64_t &mreqNum);\n  427|     /**\n  428|      * @brief sendToIcb This function send message to SOME/IP Mgr\n  429|      * @param kTx Provider enum\n  430|      * @param payload The payload of SOME/IP message\n  431|      * @return\n  432|      */\n  433|     static error_t sendToIcb(const EnumSomeipTxMsgID kTx, const sp<Buffer>& payload);\n  434| private:\n  435|     android::sp<sl::Handler> mHandler;\n  436|     android::sp<Application> mApplication;\n  437|     android::sp<remotecontrolifmgr> mremotecontrolifmgr;\n  438|     android::sp<FeaturePriorityManager> mPriorityMgr;\n  439|     android::sp<IApplicationManagerService> mAppManager;",
+   "cases": [
+    {
+     "id": "TC-0030",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::getMessageList`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:403)",
+      "timing: `TimerTimeoutHandler` at src/features/Feature.h:441"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K090",
+   "symbol": "rca::Feature::completeFeature",
+   "at": "src/features/Feature.h:408",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:408: virtual void completeFeature() = 0;"
+   ],
+   "code": "  405|     /**\n  406|      * @brief completeFeature\n  407|      */\n  408|     virtual void completeFeature() = 0;\n  409| \n  410|     void replyToGtc(const EOrderType &orderType,\n  411|                        const uint64_t &morderId,\n  412|                        const EResultStatusType &mresultStatus,\n  413|                        const EResultReasonType &mresultReason,\n  414|                        const size_t &meventStartTimeLen,const std::string meventStartTime,\n  415|                        const size_t &meventEndTimeLen,const std::string meventEndTime,\n  416|                        const EContentType &mcontentType,\n  417|                        const size_t &mreqReplyBodyLen,const std::string mreqReplyBody,\n  418|                        const uint64_t &mreqNum);\n  419|     static void sendToGtc(const ESendType &sendType,\n  420|                       const uint64_t &morderId,\n  421|                       const EResultStatusType &mresultStatus,\n  422|                       const EResultReasonType &mresultReason,\n  423|                       const size_t &meventTimeLen,const std::string meventTime,\n  424|                       const EContentType &mcontentType,\n  425|                       const size_t &mreqSendBodyLen,const std::string mreqSendBody,\n  426|                       const uint64_t &mreqNum);\n  427|     /**\n  428|      * @brief sendToIcb This function send message to SOME/IP Mgr\n  429|      * @param kTx Provider enum\n  430|      * @param payload The payload of SOME/IP message\n  431|      * @return\n  432|      */\n  433|     static error_t sendToIcb(const EnumSomeipTxMsgID kTx, const sp<Buffer>& payload);\n  434| private:\n  435|     android::sp<sl::Handler> mHandler;\n  436|     android::sp<Application> mApplication;\n  437|     android::sp<remotecontrolifmgr> mremotecontrolifmgr;\n  438|     android::sp<FeaturePriorityManager> mPriorityMgr;\n  439|     android::sp<IApplicationManagerService> mAppManager;\n  440|     android::sp<IVehicleManagerService> mVehicleService;\n  441|     TimerTimeoutHandler* mTimerHandler;\n  442|     int32_t mACCState;\n  443|     int32_t mIGState;\n  444|     int32_t mPowerState;",
+   "cases": [
+    {
+     "id": "TC-0031",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::completeFeature`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:408)",
+      "timing: `TimerTimeoutHandler` at src/features/Feature.h:441"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K091",
+   "symbol": "rca::Feature::getTimerHandler",
+   "at": "src/features/Feature.h:454",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:454: TimerTimeoutHandler* getTimerHandler() const { return mTimerHandler; }"
+   ],
+   "code": "  451|     sp<remotecontrolifmgr> getRemoteControlIfMgr() const { return mremotecontrolifmgr; }\n  452|     sp<IApplicationManagerService> getAppManager() const { return mAppManager; }\n  453|     sp<IVehicleManagerService> getVehicleService() const { return mVehicleService; }\n  454|     TimerTimeoutHandler* getTimerHandler() const { return mTimerHandler; }",
+   "cases": [
+    {
+     "id": "TC-0035",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::getTimerHandler`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:454)",
+      "timing: `TimerTimeoutHandler` at src/features/Feature.h:454"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K092",
+   "symbol": "rca::Feature::setTimerHandler",
+   "at": "src/features/Feature.h:468",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:468: void setTimerHandler(TimerTimeoutHandler* value) { mTimerHandler = value; }"
+   ],
+   "code": "  465|     void setRemoteControlIfMgr(const sp<remotecontrolifmgr>& value) { mremotecontrolifmgr = value; }\n  466|     void setAppManager(const sp<IApplicationManagerService>& value) { mAppManager = value; }\n  467|     void setVehicleService(const sp<IVehicleManagerService>& value) { mVehicleService = value; }\n  468|     void setTimerHandler(TimerTimeoutHandler* value) { mTimerHandler = value; }",
+   "cases": [
+    {
+     "id": "TC-0047",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::setTimerHandler`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:468)",
+      "timing: `TimerTimeoutHandler` at src/features/Feature.h:468"
+     ]
+    }
+   ]
+  }
+ ]
+}

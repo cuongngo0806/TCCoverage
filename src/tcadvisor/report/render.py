@@ -8,6 +8,7 @@ from typing import Any
 
 from tcadvisor.classify.environment import AI_CLOSED, action
 from tcadvisor.report.l10n import Translator, localize
+from tcadvisor.report.scenarios import build as build_scenarios, case_scenario, localize_scenarios, top_checks
 
 PRIO_ORDER = ("P1", "P2", "P3")
 GROUP_LABEL = {
@@ -162,17 +163,118 @@ def _verdict_tag(c: dict[str, Any], T: Translator) -> str:
     return f" [{T.ui(VERDICT_LABEL.get(tr.get('verdict'), '—'))}]" + (T.ui(" (re-check)") if tr.get("needs_recheck") else "")
 
 
+REL_LABEL = {"call": "calls", "contains": "member of", "include": "includes", "inherit_override": "derives / overrides",
+             "uses_type": "uses the type", "instantiate": "instantiates", "macro_expand": "expands the macro"}
+SCENARIO_CHECKS = 6
+MERMAID_MAX_SCENARIOS = 12
+
+
+def scenarios_of(r: dict[str, Any]) -> list[dict[str, Any]]:
+    """Test scenarios (spec 013) of the cases of report part ``r`` (English text)."""
+    return build_scenarios(r["test_case_candidates"], r.get("impact_nodes"))
+
+
+def _short(name: str, n: int = 48) -> str:
+    """Drop leading namespaces / classes until ``name`` fits (``rca::A::f`` -> ``A::f``)."""
+    parts = name.split("::")
+    while len("::".join(parts)) > n and len(parts) > 1:
+        parts = parts[1:]
+    out = "::".join(parts)
+    return out if len(out) <= n else "…" + out[-(n - 1):]
+
+
+def scenario_flow(s: dict[str, Any], T: Translator, md: bool = True) -> str:
+    """``a`` (file:line) → ``b`` → ``c`` *(changed)* — the steps of a flow, or representative ⇢ dependency."""
+    q = (lambda x: f"`{x}`") if md else (lambda x: x)
+    st = s["steps"]
+    first = st[0]["symbol"]
+    where = f" ({first['file_path']}:{first['line']})" if md and first.get("file_path") else ""
+    changed = T.ui(" *(changed)*") if md else "*"
+    if s["kind"] == "group":
+        dep = st[-1]["symbol"]["qualified_name"]
+        return (q(first["qualified_name"]) + where + f" ⇢ {T.ui(REL_LABEL.get(s['relation'], s['relation']))} ⇢ "
+                + q(dep) + (changed if st[-1]["changed"] else ""))
+    parts = [q(x["symbol"]["qualified_name"]) + (where if i == 0 else "") + (changed if x["changed"] else "")
+             for i, x in enumerate(st)]
+    return " → ".join(parts)
+
+
+def scenario_labels(sc: list[dict[str, Any]], T: Translator) -> list[dict[str, Any]]:
+    """Scenarios for the HTML page: checks in the report language plus display labels (reason, relation)."""
+    return [{**s, "why": _scenario_why(s, T), "relation_label": T.ui(REL_LABEL.get(s["relation"], s["relation"]))}
+            for s in localize_scenarios(sc, T)]
+
+
+def _scenario_why(s: dict[str, Any], T: Translator) -> str:
+    groups = ", ".join(T.ui(GROUP_LABEL[g]) for g in s["risk_groups"] if g in GROUP_LABEL)
+    subs = ", ".join(sub_label(x, T) for x in s["sub_reasons"])
+    return groups + (f" ({subs})" if subs else "")
+
+
+def scenarios_mermaid(sc: list[dict[str, Any]], T: Translator) -> str:
+    out = ["flowchart LR"]
+    for s in sc[:MERMAID_MAX_SCENARIOS]:
+        sid = s["id"].lower()
+        out.append(f'  subgraph {sid}["{s["id"]} · {s["priority"]} · {T.ui(ACTION_LABEL[s["action"]])}"]')
+        out.append("    direction LR")
+        ids = []
+        for i, x in enumerate(s["steps"]):
+            label = re.sub(r'["<>\[\]{}|]', "", _short(x["symbol"]["qualified_name"], 40))
+            if s["kind"] == "group" and i == 0 and len(s["members"]) > 1:
+                label += f" +{len(s['members']) - 1}"
+            out.append(f'    {sid}_{i}["{label}"]' + (":::chg" if x["changed"] else ""))
+            ids.append(f"{sid}_{i}")
+        if len(ids) > 1:
+            arrow = f" -. {T.ui(REL_LABEL.get(s['relation'], s['relation']))} .-> " if s["kind"] == "group" else " --> "
+            out.append("    " + arrow.join(ids))
+        out.append("  end")
+    out.append("  classDef chg fill:#fde2e1,stroke:#c0392b,color:#000")
+    return "\n".join(out)
+
+
+def scenarios_markdown(sc: list[dict[str, Any]], r: dict[str, Any], T: Translator) -> list[str]:
+    """The test plan: one runnable test per scenario, with the cases it covers and what to check."""
+    n_cases = sum(len(s["cases"]) for s in sc)
+    L = [T.ui("{n} scenario(s) cover {m} case(s): run one test per scenario, entering at the first function of its "
+              "flow; the changed code is marked *(changed)*.", n=len(sc), m=n_cases), "",
+         "```mermaid", scenarios_mermaid(sc, T), "```", ""]
+    if len(sc) > MERMAID_MAX_SCENARIOS:
+        L += [T.ui("(diagram: first {n} scenarios)", n=MERMAID_MAX_SCENARIOS), ""]
+    for s in sc:
+        L += [T.ui("### {id} · {prio} · {action} · {n} case(s)", id=s["id"], prio=s["priority"],
+                   action=T.ui(ACTION_LABEL[s["action"]]), n=len(s["cases"])), "",
+              T.ui("- [ ] **Run**: {flow}", flow=_md_cell(scenario_flow(s, T)))]
+        if s["kind"] == "group" and len(s["members"]) > 1:
+            names = [f"`{m['qualified_name']}`" for m in s["members"][:6]]
+            more = T.ui(" (+{n} more)", n=len(s["members"]) - 6) if len(s["members"]) > 6 else ""
+            L.append(T.ui("- **Stands for**: {n} symbol(s) with the same link to the change: {names}",
+                          n=len(s["members"]), names=", ".join(names) + more))
+        L.append(T.ui("- **Covers**: {cases} — {why}", cases=", ".join(s["cases"]), why=_scenario_why(s, T)))
+        shown = top_checks(s, SCENARIO_CHECKS)
+        if shown:
+            L.append(T.ui("- **Check**:"))
+            L += [f"  - [ ] {_md_cell(k['text'])}" + (" *(AI)*" if k["source"] == "ai" else "") for k in shown]
+            if len(s["checks"]) > len(shown):
+                L.append(T.ui("  - … {n} more check(s) under the covered cases", n=len(s["checks"]) - len(shown)))
+        L.append("")
+    return L
+
+
 def to_markdown(r: dict[str, Any]) -> str:
     """The main report: the cases that still need a real test (AI-closed ones: :func:`to_ai_markdown`)."""
     T = translator(r)
     summary, plan = summary_line(r), plan_line(r)
-    r = localize(split(r)[0], T)
+    main = split(r)[0]
+    sc = localize_scenarios(scenarios_of(main), T)
+    r = localize(main, T)
     L: list[str] = [T.ui("# Change Impact & Test Case Report"), ""]
     ci = r["change_input"]
     src = ci.get("commit_range") or (T.ui("working tree") if ci.get("working_tree") else
                                      ", ".join(ci.get("symbols_requested") or []))
     L += [T.ui("- **Change**: {mode} — {src}", mode=ci["mode"], src=src),
           T.ui("- **Repository**: `{repo}`", repo=ci["target_repo_path"]), T.ui("- **Summary**: {s}", s=summary), ""]
+    if sc:
+        L += [T.ui("## Test scenarios — what to test now"), "", plan + ".", ""] + scenarios_markdown(sc, r, T)
     if r.get("no_detected_impact"):
         L += [T.ui("> **No detected impact.** The change touches no indexed symbol semantically (e.g. comments, "
                    "whitespace or non-C++ files only). This is a positive result, not a tool failure."), ""]
@@ -190,7 +292,9 @@ def to_markdown(r: dict[str, Any]) -> str:
               "", "```mermaid", mermaid(r, T), "```", ""]
     cases = r["test_case_candidates"]
     if cases:
-        L += [T.ui("## Test cases to check"), "", plan + ".", "",
+        L += [T.ui("## Test case details"), "",
+              T.ui("The evidence behind each scenario, one entry per case (`[S<n>]` = the scenario that covers it)."),
+              "",
               T.ui("- **Test on target**: the risk only shows up when running on the device (concurrency, lifetime, "
                    "data layout, build configuration, hardware / interrupt / timing / RTOS / bus code), or an AI "
                    "reviewer read the code and could not close it."),
@@ -201,7 +305,7 @@ def to_markdown(r: dict[str, Any]) -> str:
                    "with the AI's reason, so the decision stays auditable.", ai_report=AI_REPORT), "",
               T.ui("Inside each group: relevance order (closest to the change, substantive before recompile-only, "
                    "larger changes first); the P1/P2/P3 label is the deterministic priority."), ""]
-        L += _md_groups(cases, T)
+        L += _md_groups(cases, T, case_scenario(sc))
     elif r.get("ai_closed"):
         L += [T.ui("## Test cases to check"), "", plan + ".", ""]
     L += _md_ai_section(r, T)
@@ -264,6 +368,8 @@ def to_markdown(r: dict[str, Any]) -> str:
         for o in r["out_of_scope"]:
             L.append(f"- `{o['path']}`{' `' + o['symbol'] + '`' if o.get('symbol') else ''}: {o['reason']}")
         L.append("")
+    if r.get("not_built") or r.get("not_built_changes"):
+        L += not_built_markdown(r, T)
     if r.get("run_notes"):
         L += [T.ui("## Run notes"), ""] + [f"- {n}" for n in r["run_notes"]] + [""]
     m = r.get("metrics", {})
@@ -273,7 +379,7 @@ def to_markdown(r: dict[str, Any]) -> str:
     return "\n".join(L)
 
 
-def _md_groups(cases: list[dict[str, Any]], T: Translator) -> list[str]:
+def _md_groups(cases: list[dict[str, Any]], T: Translator, owner: dict[str, str] | None = None) -> list[str]:
     L: list[str] = []
     hops = (("changed code", lambda c: c["hop_distance"] == 0), ("direct impact", lambda c: c["hop_distance"] == 1),
             ("indirect impact", lambda c: c["hop_distance"] > 1))
@@ -287,7 +393,7 @@ def _md_groups(cases: list[dict[str, Any]], T: Translator) -> list[str]:
                 continue
             L += [f"#### {T.ui(label)} — {T.ui(title)} ({len(group)})", ""]
             for c in group:
-                L += _md_case(c, T)
+                L += _md_case(c, T, (owner or {}).get(c["id"]))
             L.append("")
     return L
 
@@ -311,7 +417,9 @@ def to_ai_markdown(r: dict[str, Any]) -> str:
     report so that one lists only what needs a real test."""
     T = translator(r)
     summary = summary_line(r)
-    closed = localize(split(r)[1], T)
+    closed_en = split(r)[1]
+    sc = localize_scenarios(scenarios_of(closed_en), T)
+    closed = localize(closed_en, T)
     ci = closed["change_input"]
     src = ci.get("commit_range") or (T.ui("working tree") if ci.get("working_tree") else
                                      ", ".join(ci.get("symbols_requested") or []))
@@ -321,14 +429,17 @@ def to_ai_markdown(r: dict[str, Any]) -> str:
          T.ui("An AI reviewer closed these {n} case(s): it proved from the code that they cannot fail, or judged that "
               "no real test is needed (its reason is under each case). They are not in report.md / report.html; "
               "re-open one by testing it if you disagree.", n=len(closed["test_case_candidates"])), ""]
-    L += _md_groups(closed["test_case_candidates"], T)
+    if sc:
+        L += [T.ui("## Test scenarios of these cases"), ""] + scenarios_markdown(sc, closed, T)
+        L += [T.ui("## Test case details"), ""]
+    L += _md_groups(closed["test_case_candidates"], T, case_scenario(sc))
     return "\n".join(L + _md_ai_section(closed, T))
 
 
-def _md_case(c: dict[str, Any], T: Translator) -> list[str]:
+def _md_case(c: dict[str, Any], T: Translator, scenario: str | None = None) -> list[str]:
     tr = c.get("test_result") or {}
     box = "x" if tr.get("verdict") and not tr.get("needs_recheck") else " "
-    L = [f"- [{box}] **{c['id']}** {c['priority']} [{T.ui(GROUP_LABEL[c['risk_group']])}] "
+    L = [f"- [{box}] **{c['id']}**{f' [{scenario}]' if scenario else ''} {c['priority']} [{T.ui(GROUP_LABEL[c['risk_group']])}] "
          f"{_md_cell(c['description'])}{_verdict_tag(c, T)}",
          T.ui("  - *When*: {text}", text=_md_cell(c["activation_condition"])),
          T.ui("  - *Evidence*: {text}", text="; ".join(_ev_label(e) for e in c["evidence"]))]
@@ -359,12 +470,55 @@ def _md_case(c: dict[str, Any], T: Translator) -> list[str]:
     return L
 
 
+EXCLUSION_LABEL = {"source_not_in_product": "source of no product built in this variant",
+                   "source_not_in_compile_db": "not compiled in this variant's build",
+                   "conditional_dir": "directory not built in this variant", "preprocessor": "inactive branch"}
+
+
+def _ev_loc(c: dict[str, Any]) -> str:
+    ev = c["evidence"][0]
+    loc = ev.get("source_location") or ev
+    return f"{loc.get('file_path')}:{loc.get('line')}"
+
+
+def exclusion_text(xs: list[dict[str, Any]], T: Translator) -> str:
+    return "; ".join(f"{x['variant']}: {x.get('condition') or T.ui(EXCLUSION_LABEL.get(x['reason'], x['reason']))}"
+                     + (f" ({x['where']})" if x.get("where") else "") for x in xs)
+
+
+def not_built_markdown(r: dict[str, Any], T: Translator) -> list[str]:
+    bp = r.get("build_profile") or {}
+    L = [T.ui("## Not built in the confirmed variants"), "",
+         T.ui("Build profile: {state}; variants: {variants}. These cases concern code that no selected variant "
+              "compiles; they are listed here, not deleted (`--no-variant-filter` shows them in the main list).",
+              state=T.ui(bp.get("state", "confirmed")), variants=", ".join(bp.get("variants") or []) or "-"), ""]
+    for n in r.get("not_built") or []:
+        c = n["case"]
+        L.append(f"- {c['id']} {c['priority']} `{_ev_loc(c)}` {c['description']} — {exclusion_text(n['excluded_by'], T)}")
+    for n in r.get("not_built_changes") or []:
+        sym = f" `{n['symbol']}`" if n.get("symbol") else ""
+        L.append(T.ui("- changed `{path}`{sym}: {why}", path=n["path"], sym=sym,
+                      why=exclusion_text(n["excluded_by"], T)))
+    return L + [""]
+
+
 def to_brief(r: dict[str, Any], limit: int = 80) -> str:
     """Token-lean summary meant for an AI assistant (Claude) or a PR comment. Line tags (CHANGED, UNCERTAIN, ...)
     stay English in every language: they are markers for tools and AI readers."""
     T = translator(r)
     L = [summary_line(r), plan_line(r)]
-    r = localize(split(r)[0], T)
+    main = split(r)[0]
+    sc = localize_scenarios(scenarios_of(main), T)
+    owner = case_scenario(sc)
+    r = localize(main, T)
+    for s in sc[:limit]:
+        more = f" (+{len(s['members']) - 1})" if s["kind"] == "group" and len(s["members"]) > 1 else ""
+        L.append(f"SCENARIO {s['id']} {s['priority']} {ACTION_TAG[s['action']]} {scenario_flow(s, T, md=False)}{more} :: "
+                 + ",".join(s["cases"]))
+        shown = top_checks(s, 4)
+        if shown:
+            L.append("   check: " + " | ".join(k["text"] for k in shown)
+                     + (f" | +{len(s['checks']) - len(shown)}" if len(s["checks"]) > len(shown) else ""))
     for s in r.get("changed_symbols", []):
         L.append(f"CHANGED {s['symbol']['qualified_name']} @{s['symbol']['file_path']}:{s['symbol']['line']} "
                  f"[{','.join(sorted({x['risk_group'] for x in s['risks']}))}]")
@@ -372,11 +526,12 @@ def to_brief(r: dict[str, Any], limit: int = 80) -> str:
         ev = c["evidence"][0]
         v = c.get("verification")
         tag = f" [AI:{v['verdict']}]" if v else ""
-        L.append(f"{c['id']} {c['priority']} {ACTION_TAG[action(c)]} {c['risk_group']} {ev['file_path']}:{ev['line']}{tag} :: {c['description']}"
-                 f"{_verdict_tag(c, T)}")
+        sid = f" [{owner[c['id']]}]" if c["id"] in owner else ""
+        L.append(f"{c['id']}{sid} {c['priority']} {ACTION_TAG[action(c)]} {c['risk_group']} {ev['file_path']}:{ev['line']}{tag} :: "
+                 f"{c['description']}{_verdict_tag(c, T)}")
         if c.get("target_reasons"):
             L.append("   target: " + " | ".join(c["target_reasons"][:2]))
-        if c.get("corner_cases"):
+        if c.get("corner_cases") and not sid:  # a scenario's check line already carries them
             L.append("   corner: " + " | ".join(c["corner_cases"][:3]))
     if len(r["test_case_candidates"]) > limit:
         L.append(T.ui("... {n} more in report.json", n=len(r["test_case_candidates"]) - limit))
@@ -389,6 +544,13 @@ def to_brief(r: dict[str, Any], limit: int = 80) -> str:
             f"{x['symbol']['qualified_name']} ({T.ui('covered') if x['covered_by_change'] else T.ui('guard') + ' ' + x['guard']})"
             if t.get("reason", "guarded") == "guarded" else x["symbol"]["qualified_name"]
             for x in t["sources"]))
+    bp = r.get("build_profile") or {}
+    if bp.get("filtering"):
+        L.append(f"PROFILE {bp.get('state')} {','.join(bp.get('variants') or [])} :: "
+                 + T.ui("not built (profile): {n}", n=len(r.get("not_built") or [])))
+    for n in (r.get("not_built") or [])[:20]:
+        c = n["case"]
+        L.append(f"NOT-BUILT {c['id']} {_ev_loc(c)} :: {exclusion_text(n['excluded_by'], T)}")
     for f in r["uncertainty_flags"]:
         sym = f["related_symbol"]
         L.append(f"UNCERTAIN {f['category']} {sym['qualified_name'] if sym else '-'} :: {f['reason']}")
@@ -444,6 +606,7 @@ def write_outputs(r: dict[str, Any], out_dir: Path, fmt: str = "both", same_anal
     if fmt in ("json", "both", "all"):
         p = out_dir / "report.json"
         data = {k: v for k, v in _without_attachment_data(r).items() if k != "l10n"}
+        data["test_scenarios"] = scenarios_of(split(r)[0])  # spec 013: the cases still to test, as runnable tests
         p.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
         written.append(p)
     if fmt in ("md", "both", "all"):

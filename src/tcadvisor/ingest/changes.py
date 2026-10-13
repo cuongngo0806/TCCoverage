@@ -18,7 +18,7 @@ import clang.cindex as ci
 
 from tcadvisor.index.clang_index import (CLASS_KINDS, FUNC_KINDS, K, SYMBOL_KINDS, TRANSPARENT_EXPR, TUExtractor,
                                          is_global_var, qualified_name, symbol_kind)
-from tcadvisor.index.compile_db import CPP_EXT, CPP_HEADER_EXT, CompileDatabase
+from tcadvisor.index.compile_db import CPP_EXT, CPP_HEADER_EXT, CompileDatabase, header_args
 from tcadvisor.ingest.git import FileDiff
 
 # Logging statements (override with TCADVISOR_LOG_PATTERN). A change made only of such lines cannot alter
@@ -231,11 +231,12 @@ def conditional_stack(lines: list[str]) -> dict[int, list[str]]:
 
 def _include_guard(lines: list[str]) -> int | None:
     """Line number of a classic ``#ifndef X / #define X`` include guard, if the file starts with one."""
-    code = [(i, strip_comments(ln).strip()) for i, ln in enumerate(lines, 1)]
-    code = [(i, ln) for i, ln in code if ln]
+    # whole-text comment strip (newlines kept): the inner lines of a multi-line /* license */ block are not code
+    text = _COMMENT_RE.sub(lambda m: "\n" * m.group(0).count("\n"), "\n".join(lines))
+    code = [(i, ln.strip()) for i, ln in enumerate(text.split("\n"), 1) if ln.strip()]
     if len(code) >= 2:
         m1 = re.match(r"#\s*(?:ifndef\s+(\w+)|if\s+!\s*defined\s*\(?\s*(\w+))", code[0][1])
-        m2 = re.match(r"#\s*define\s+(\w+)\s*$", code[1][1])
+        m2 = re.match(r"#\s*define\s+(\w+)(?:\s+1)?\s*$", code[1][1])
         if m1 and m2 and (m1.group(1) or m1.group(2)) == m2.group(1):
             return code[0][0]
     return None
@@ -469,13 +470,13 @@ def _args_for_file(abs_path: Path, rel: str, cdb: CompileDatabase, tu_files: dic
         if rel in deps:
             a = cdb.args_for((repo / tu_rel).resolve())
             if a is not None:
-                return a
+                return header_args((repo / tu_rel).resolve(), a)
     # a header that is new in this change is not yet included anywhere: borrow flags from a TU in
     # the same directory so it can still be parsed for its symbols
     if abs_path.suffix.lower() in CPP_HEADER_EXT:
         for e in cdb.entries:
             if e.file.parent == abs_path.parent:
-                return e.args
+                return header_args(e.file, e.args)
     return None
 
 
@@ -497,7 +498,8 @@ def detect_changes(repo: Path, diffs: list[FileDiff], old_text: Any, new_text: A
         suffix = Path(rel).suffix.lower()
         name = Path(rel).name
         if suffix not in CPP_EXT:
-            if name == "CMakeLists.txt" or suffix == ".cmake":
+            from tcadvisor.index.automake import is_build_file
+            if is_build_file(rel):
                 cs.changes.append(SymbolChange(
                     node_id=f"file:{rel}", rel_path=rel, change_kind="file", name=rel, kind="file", line=1,
                     added_lines=[ln for ln in fd.added_text if strip_comments(ln).strip()],

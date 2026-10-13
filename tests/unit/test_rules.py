@@ -70,6 +70,14 @@ def test_include_guard_is_not_a_condition():
     assert 4 not in cs and cs[6] == ["#ifdef X"]
 
 
+def test_include_guard_after_multiline_license_comment():
+    lines = ["/*", " * Copyright LG", " * all rights reserved", " */", "", "#ifndef RDL_FEATURE_H", "#define RDL_FEATURE_H",
+             "int f();", "#endif  /* RDL_FEATURE_H */"]
+    assert 8 not in conditional_stack(lines)
+    real = ["/* c */", "#ifndef FEATURE_X", "int f();", "#endif"]  # no matching #define: a build condition
+    assert conditional_stack(real)[3] == ["#ifndef FEATURE_X"]
+
+
 def test_logical_and_is_not_move_semantics():
     rs = classify(_change(_fn(["if", "(", "a", ")"]), _fn(["if", "(", "a", "&&", "b", ")"])), [])
     assert not any(r.risk_group == "ownership_lifetime" for r in rs)

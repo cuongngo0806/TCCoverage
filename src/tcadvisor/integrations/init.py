@@ -8,17 +8,20 @@ front-ends themselves, so one command makes `/tc-coverage` work in the repositor
   `/tc-verify` prompt files in `.github/prompts/`.
 
 The skill is one file for every assistant (`integrations/skills/tc-coverage/SKILL.md`). Existing files are kept
-unless `--force`.
+unless `--force`; an existing config keeps its values and only gains the keys it lacks (spec 012: the config lists
+every supported key with its default, and `python` = the interpreter that ran `init`). The report root
+`.tcadvisor/reports/` and generated compile databases `.tcadvisor/build/` go to `.git/info/exclude`.
 """
 from __future__ import annotations
 
 import json
 import shutil
+import sys
 from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from tcadvisor.config import config_path, load_config
+from tcadvisor.config import DEFAULTS, config_path, load_config, read_file
 
 AIS = ("claude", "copilot")
 COPILOT_PROMPTS = ("tc-coverage.prompt.md", "tc-verify.prompt.md")
@@ -47,20 +50,43 @@ def files_for(ai: str) -> list[tuple[str, str]]:
         (f".github/prompts/{n}", pkg.joinpath(f"copilot/{n}").read_text(encoding="utf-8")) for n in COPILOT_PROMPTS]
 
 
-def init(repo: Path, settings: dict[str, Any], ais: tuple[str, ...] = AIS, force: bool = False
-         ) -> list[tuple[Path, str]]:
+def init(repo: Path, settings: dict[str, Any], ais: tuple[str, ...] = AIS, force: bool = False,
+         upgrade: bool = False) -> list[tuple[Path, str]]:
+    """`upgrade`: overwrite the AI front-end files with this version's copies, keep the config values (only missing
+    keys are added, `python` is refreshed to the interpreter running this command)."""
     repo = repo.resolve()
     if not (repo / ".git").exists():
         from tcadvisor.models import UsageError
         raise UsageError(f"--repo '{repo}' is not a git repository root")
-    cfg = {"graph": "codegraph", "language": "vi", "build_dir": "build", "include_tests": False,
-           "ai_verify": "chat" if ais else "off", **{k: v for k, v in settings.items() if v is not None}}
+    given = {k: v for k, v in settings.items() if v is not None}
+    explicit_log = "build_log" in given
+    if not explicit_log:  # spec 012: the Yocto log the compile flags come from, when $BUILDDIR shows it
+        from tcadvisor.index.build_log import find_build_logs
+        found = find_build_logs(repo)
+        if found:
+            given["build_log"] = found
+    cfg = {**DEFAULTS, "ai_verify": "chat" if ais else "off", "python": sys.executable, **given}
     path = config_path(repo)
-    out = [(path, _write(path, json.dumps(cfg, indent=2, ensure_ascii=False) + "\n", force))]
+    if path.is_file() and not force:
+        existing = read_file(repo)  # validates; its values win, missing keys are added
+        merged = {**cfg, **existing}
+        if upgrade:
+            merged["python"] = sys.executable  # the interpreter that has this (new) version installed
+        if explicit_log or (given.get("build_log") and not existing.get("build_log")):
+            merged["build_log"] = given["build_log"]  # --build-log always wins; a found log fills an empty key
+        status = "kept (exists; --force to overwrite)" if merged == existing else "updated (missing keys added)"
+        if merged != existing:
+            path.write_text(json.dumps(merged, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        out = [(path, status)]
+    else:
+        out = [(path, _write(path, json.dumps(cfg, indent=2, ensure_ascii=False) + "\n", True))]
     load_config(repo)  # validate what is on disk now
+    from tcadvisor.ingest.git import git_exclude
+    for entry in (".tcadvisor/reports/", ".tcadvisor/build/"):
+        git_exclude(repo, entry)
     for ai in ais:
         for rel, text in files_for(ai):
-            out.append((repo / rel, _write(repo / rel, text, force)))
+            out.append((repo / rel, _write(repo / rel, text, force or upgrade)))
     return out
 
 
@@ -69,8 +95,17 @@ def next_steps(cfg: dict[str, Any]) -> list[str]:
     steps = []
     if cfg.get("graph", "codegraph") == "codegraph" and not shutil.which("codegraph"):
         steps.append("install the impact source: npm i -g @colbymchenry/codegraph")
-    steps.append("optional, better accuracy: configure the build with -DCMAKE_EXPORT_COMPILE_COMMANDS=ON and an empty "
-                 "<build>/.cmake/api/v1/query/codemodel-v2 file")
+    if cfg.get("_system") == "autotools":
+        if cfg.get("build_log"):
+            steps.append(f"compile flags come from build_log {cfg['build_log']} (refreshed on every analysis)")
+        else:
+            steps.append("compile flags of this autotools module: fill in \"build_log\" in .tcadvisor/config.json "
+                         "with the recipe's log.do_compile (bitbake -e <recipe> | grep ^WORKDIR= → "
+                         "<WORKDIR>/temp/log.do_compile), or run tcadvisor init --build-log <path>")
+        steps.append("confirm the build variants once: tcadvisor profile (or let the AI assistant ask you)")
+    else:
+        steps.append("optional, better accuracy: configure the build with -DCMAKE_EXPORT_COMPILE_COMMANDS=ON and an "
+                     "empty <build>/.cmake/api/v1/query/codemodel-v2 file")
     steps.append("then ask your assistant: /tc-coverage working-tree (Claude Code or Copilot agent mode), or run "
                  "tcadvisor analyze --working-tree")
     return steps

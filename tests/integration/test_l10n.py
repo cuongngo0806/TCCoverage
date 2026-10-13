@@ -24,7 +24,8 @@ def test_default_report_is_vietnamese_and_json_stays_english(project):
     assert r["report_language"] == "vi"
     assert r["test_case_candidates"][0]["description"].startswith("Verify")  # the contract stays English
     md = (project.out / "report.md").read_text(encoding="utf-8")
-    assert "## Test case cần kiểm tra" in md and "## Test cases to check" not in md
+    assert "## Chi tiết từng test case" in md and "## Test case details" not in md
+    assert "## Kịch bản test — cần test ngay" in md and "**Chạy**" in md
     assert Translator("vi")(r["test_case_candidates"][0]["description"]) in md
     assert "l10n" not in r  # no translation map in report.json (renderers translate)
     brief = (project.out / "report.brief.txt").read_text(encoding="utf-8")
@@ -32,7 +33,7 @@ def test_default_report_is_vietnamese_and_json_stays_english(project):
     html = (project.out / "report.html").read_text(encoding="utf-8")
     assert 'lang="vi"' in html
     assert main(["render", str(project.out / "report.json"), "--language", "en"]) == 0
-    assert "## Test cases to check" in (project.out / "report.md").read_text(encoding="utf-8")
+    assert "## Test case details" in (project.out / "report.md").read_text(encoding="utf-8")
     assert "l10n" not in json.loads((project.out / "report.json").read_text())
 
 
@@ -40,8 +41,8 @@ def test_cli_default_language_is_vi(project):
     project.edit("src/util.cpp", "if (n > 3) return 3;", "if (n > 4) return 4;")
     project.commit()
     args = ["analyze", "--repo", str(project.repo), "--build-dir", str(project.build), "--output-dir",
-            str(project.out), "--cache-dir", str(project.cache), "--commit-range", "HEAD~1..HEAD", "--graph", "clang",
-            "-q"]
+            str(project.out), "--exact-output-dir", "--cache-dir", str(project.cache), "--commit-range", "HEAD~1..HEAD",
+            "--graph", "clang", "-q"]
     assert main(args) == 0
     assert json.loads((project.out / "report.json").read_text())["report_language"] == "vi"
 

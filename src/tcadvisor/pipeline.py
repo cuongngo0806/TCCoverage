@@ -25,7 +25,7 @@ from tcadvisor.evidence.gate import gate
 from tcadvisor.graph.impact import Graph, build_graph, traverse
 from tcadvisor.index.clang_index import build_index
 from tcadvisor.index.cmake_targets import load_target_model
-from tcadvisor.index.compile_db import CompileDatabase
+from tcadvisor.index.compile_db import CPP_SOURCE_EXT, CompileDatabase
 from tcadvisor.ingest import git as G
 from tcadvisor.ingest.changes import ChangeSet, explicit_changes, detect_changes, is_test_path
 from tcadvisor.ingest.symbols import resolve_symbols
@@ -46,7 +46,7 @@ class Options:
     max_hop_depth: int = 2
     split_threshold: int = 50
     cache_dir: Path | None = None
-    output_dir: Path = Path("tcadvisor-report")
+    output_dir: Path = Path(".tcadvisor/reports")  # report root (run folders are created by the CLI)
     targets: list[str] | None = None
     llm: bool = False
     llm_endpoint: str = "http://localhost:11434"
@@ -68,6 +68,8 @@ class Options:
     language: str = "vi"  # report language (vi|en); report.json text stays English, renderers translate
     include_tests: bool = False  # unit-test code (changed tests, test callers, test includers, re-run lists)
     test_paths: list[str] = field(default_factory=list)  # extra globs of test / mock files (config `test_paths`)
+    build_system: str = "auto"  # spec 012: auto|cmake|autotools
+    profile: Any = None  # spec 012: classify.variants.RunProfile (confirmed build variants) or None
     progress: Callable[[str], None] | None = None
 
 
@@ -108,10 +110,9 @@ def run(opts: Options) -> dict[str, Any]:
     repo = opts.repo.resolve()
     if not (repo / ".git").exists():
         raise UsageError(f"--repo '{repo}' is not a git repository root")
-    for label, p in (("--output-dir", opts.output_dir), ("--cache-dir", opts.cache_dir)):
-        if p is not None and _is_within(p, repo):
-            raise UsageError(f"{label} '{p}' resolves inside the analysed repository; the advisor never writes "
-                             "into the analysed repo (Principle VIII)")
+    if opts.cache_dir is not None and _is_within(opts.cache_dir, repo):  # reports may live in <repo>/.tcadvisor
+        raise UsageError(f"--cache-dir '{opts.cache_dir}' resolves inside the analysed repository; the index cache "
+                         "is kept outside it")
     previous = read_results(opts.previous_report) if opts.previous_report else None
     cache = CacheStore(opts.cache_dir or default_cache_dir(repo))
     try:
@@ -126,26 +127,82 @@ def run(opts: Options) -> dict[str, Any]:
     return report
 
 
+def _borrow_product_flags(cdb: CompileDatabase, bmodel: Any) -> tuple[CompileDatabase, list[str]]:
+    """Spec 012: a C/C++ source a Makefile.am product lists but the compile database lacks (a Yocto build of an older
+    or newer revision, a file added since) gets the flags of a compiled source of the same product, else of the
+    same directory, so its changes are analysed instead of skipped."""
+    from tcadvisor.index.compile_db import CompileCommand
+    if not cdb.entries:
+        return cdb, []
+    extra, names = [], []
+    for t in bmodel.targets.targets.values():
+        donors = [cdb.by_file[s] for s in sorted(t.sources) if s in cdb.by_file]
+        for src in sorted(t.sources):
+            if src in cdb.by_file or src.suffix.lower() not in CPP_SOURCE_EXT or not src.is_file():
+                continue
+            donor = next((d for d in donors if d.file.suffix == src.suffix), None) or (donors[0] if donors else None) \
+                or next((e for e in cdb.entries if e.file.parent == src.parent), None)
+            if donor is not None:
+                extra.append(CompileCommand(src, donor.directory, donor.args))
+                names.append(src.name)
+    if not extra:
+        return cdb, []
+    return CompileDatabase(cdb.build_dir, cdb.entries + extra, cdb.digest + ":borrowed"), names
+
+
 def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: float) -> dict[str, Any]:
     say = opts.progress or (lambda _m: None)
     from tcadvisor.graph.providers.base import get_provider
     provider = get_provider(opts.graph, repo, opts.max_hop_depth, opts.graph_bin)
     early_notes: list[str] = []
+    from tcadvisor.index.automake import detect_build_system, load_automake_model
+    system = opts.build_system if opts.build_system != "auto" else (detect_build_system(repo) or "cmake")
+    build_flags: list[UncertaintyFlag] = []
+    bmodel = load_automake_model(repo) if system == "autotools" else None
     try:
-        cdb = CompileDatabase.load(opts.build_dir.resolve(), repo, allow_stale=opts.allow_stale)
+        cdb = CompileDatabase.load(opts.build_dir.resolve(), repo, allow_stale=opts.allow_stale or bmodel is not None)
     except PrerequisiteError as exc:
+        if bmodel is not None:
+            exc = PrerequisiteError(f"compile_commands.json not found in '{opts.build_dir}'. Create it from the build "
+                                    "log of this module: tcadvisor compile-db --repo . --from-log <log.do_compile or "
+                                    "make V=1 log> (docs/linux-yocto.md).")
         if provider is None:
-            raise
+            raise exc
         cdb = CompileDatabase(opts.build_dir, [], "none")
         early_notes.append(f"reduced accuracy: {exc} Change classification uses fallback compiler flags; "
                            f"impact comes from {provider.name}")
-    try:
-        tmodel = load_target_model(opts.build_dir.resolve())
-    except PrerequisiteError as exc:
-        if provider is None:
-            raise
-        tmodel = None
-        early_notes.append(f"no CMake target mapping: {exc}")
+        if bmodel is not None:
+            build_flags.append(UncertaintyFlag(
+                "build_description_unresolved",
+                "no compile database for this autotools module: compile flags, include paths and defines are "
+                "unknown, so preprocessor branches and header parsing use fallback flags"))
+    variant_views: list = []
+    if opts.profile is not None:  # spec 012: every selected variant's sources are indexed, not only the first's
+        from tcadvisor.classify.variants import load_views
+        variant_views = load_views(repo, opts.profile)
+        extra = [v.cdb for v in variant_views if v.cdb is not None and v.cdb.digest != cdb.digest]
+        if extra:
+            cdb = cdb.merged(extra) if cdb.entries else extra[0].merged(extra[1:])
+    if bmodel is not None:
+        tmodel = bmodel.targets
+        cdb, borrowed = _borrow_product_flags(cdb, bmodel)
+        if borrowed:
+            early_notes.append(f"{len(borrowed)} source(s) listed in Makefile.am are not in the compile database (the "
+                               "build that produced it may be another revision); they are parsed with the flags of "
+                               f"another source of the same product: {', '.join(sorted(borrowed)[:5])}")
+        for u in bmodel.unresolved:
+            build_flags.append(UncertaintyFlag(
+                "build_description_unresolved",
+                f"{u.file}:{u.line}: `{u.construct}` cannot be resolved without running automake / configure; "
+                "products or sources it adds are not mapped"))
+    else:
+        try:
+            tmodel = load_target_model(opts.build_dir.resolve())
+        except PrerequisiteError as exc:
+            if provider is None:
+                raise
+            tmodel = None
+            early_notes.append(f"no CMake target mapping: {exc}")
 
     ci_ = ChangeInput(mode="explicit_symbols" if opts.symbols else "git_diff", target_repo_path=str(repo),
                       commit_range=opts.commit_range, working_tree=opts.working_tree, symbols=opts.symbols)
@@ -195,6 +252,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         "graph": provider.name if provider else "clang", "contracts": contracts,
         "lessons": lessons.to_key(), "patterns": opts.patterns, "flow_tus": opts.flow_max_tus,
         "tests": [opts.include_tests, sorted(opts.test_paths)],
+        "profile": [opts.profile.state, opts.profile.variants] if opts.profile else None,
         "target_patterns": opts.target_patterns.read_text(encoding="utf-8", errors="replace")
         if opts.target_patterns and opts.target_patterns.is_file() else None}).encode()).hexdigest()
     if opts.use_run_cache:
@@ -237,13 +295,25 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     changes = []
     skipped_tests: list[dict[str, Any]] = []
 
+    test_rels = {p.relative_to(repo).as_posix() for p in bmodel.test_sources if p.is_relative_to(repo)} \
+        if bmodel else set()
+    built_rels = {p.relative_to(repo).as_posix() for p in tmodel.file_to_targets if p.is_relative_to(repo)} \
+        if bmodel and tmodel and tmodel.targets else None
+
     def test_code(rel: str) -> bool:
-        return not opts.include_tests and is_test_file(rel, opts.test_paths)
+        return not opts.include_tests and (is_test_file(rel, opts.test_paths) or rel in test_rels)
+
+    not_built_by_product: list[dict[str, Any]] = []
 
     for ch in cs.changes:
         if test_code(ch.rel_path) or (not opts.include_tests and ch.is_test_code):
             skipped_tests.append({"path": ch.rel_path, "symbol": ch.name,
                                   "reason": "unit-test code: not analysed (include_tests is off)"})
+            continue
+        if built_rels is not None and ch.rel_path not in built_rels and Path(ch.rel_path).suffix.lower() in \
+                CPP_SOURCE_EXT and (repo / ch.rel_path).is_file():
+            not_built_by_product.append({"path": ch.rel_path, "symbol": ch.name,
+                                         "reason": "not built by any product: no Makefile.am lists this source"})
             continue
         ref = graph.symbol_ref(ch.node_id) if not ch.node_id.startswith("file:") else None
         if ref is None or ch.change_kind == "removed":
@@ -292,6 +362,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     external_flags, root_external = _add_changed_calls(repo, changes, roots, graph, ctx.notes, contracts)
     flags, flag_only = uncertainty.detect(changes, roots, graph, cdb)
     flags.extend(provider_flags)
+    flags.extend(build_flags)
     flags.extend(external_flags)
 
     # -- traversal (split per CMake target above the threshold, FR-010a) ---------------------------
@@ -337,12 +408,16 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
                          f"{len(dropped)} impacted test function(s) / file(s)")
 
     # -- scope (--targets) ------------------------------------------------------------------------
-    out_of_scope = list(cs.out_of_scope) + skipped_tests
+    out_of_scope = [({**o, "reason": "not built by any product: no Makefile.am lists this source"}
+                     if built_rels is not None and o.get("path") not in built_rels
+                     and str(o.get("reason", "")).startswith("file is not compiled by any target") else o)
+                    for o in cs.out_of_scope] + skipped_tests + not_built_by_product
     if opts.targets:
         scope = set(opts.targets)
         unknown = scope - set(tmodel.targets if tmodel else ())
         if unknown:
-            raise UsageError(f"unknown CMake target(s): {', '.join(sorted(unknown))}")
+            raise UsageError(f"unknown build target(s): {', '.join(sorted(unknown))} (known: "
+                             f"{', '.join(sorted(tmodel.targets)) if tmodel else 'none'})")
         for nid in list(nodes):
             n = nodes[nid]
             if n.targets and not (set(n.targets) & scope):
@@ -418,6 +493,41 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
     environment.assign(cases, repo, root_lines, {nid: n.root_ids for nid, n in nodes.items()}, flags,
                        environment.load_patterns(opts.target_patterns))
 
+    # -- build-variant profile (spec 012 US3): move cases on code not built in any confirmed variant -----------
+    not_built: list[dict[str, Any]] = []
+    not_built_changes: list[dict[str, Any]] = []
+    profile_info: dict[str, Any] = {"state": "absent", "variants": [], "filtering": False}
+    if opts.profile is not None:
+        from tcadvisor.classify import variants as V
+        from tcadvisor.index.automake import is_build_file
+        from tcadvisor.index.compile_db import CPP_HEADER_EXT
+        state = opts.profile.state
+        if (bmodel is not None and opts.profile.fingerprint and bmodel.fingerprint != opts.profile.fingerprint) \
+                or any(ch.kind == "file" and is_build_file(ch.rel_path) for ch in changes):
+            state = "stale"
+            ctx.notes.append("the build description changed since the build profile was confirmed: filtering still "
+                             "uses the saved variants; re-run 'tcadvisor profile' to update them")
+        views = variant_views
+        judge = V.LocationJudge(repo, bmodel, set(CPP_HEADER_EXT))
+        loc_lines = {ch.node_id: ([(ch.rel_path, n) for n in ch.added_line_numbers] or [(ch.rel_path, ch.line)])
+                     for ch in changes}
+        cases, not_built, not_built_changes, vflags = V.apply_profile(
+            cases, opts.profile, views, judge, loc_lines, graph, changes,
+            {nid: set(n.root_ids) for nid, n in nodes.items()})
+        flags.extend(vflags)
+        for o in list(out_of_scope):  # a changed source no selected variant compiles: not built, with the reason
+            path = o.get("path", "")
+            if o.get("symbol") is None and Path(path).suffix.lower() in CPP_SOURCE_EXT and (repo / path).is_file():
+                verdicts = [judge.file_built(path, v) for v in views]
+                if verdicts and all(b is False for b, _ in verdicts):
+                    out_of_scope.remove(o)
+                    not_built_changes.append({"path": path, "symbol": None, "line": None,
+                                              "excluded_by": [w.to_dict() for _, w in verdicts if w]})
+        profile_info = {"state": state, "variants": [v["name"] for v in opts.profile.variants], "filtering": True}
+        if not_built:
+            ctx.notes.append(f"{len(not_built)} case(s) moved to 'not built in the confirmed variants' (variants: "
+                             f"{', '.join(profile_info['variants'])})")
+
     # -- affected targets (FR-005) ---------------------------------------------------------------
     direct_targets = sorted({t for n in nodes.values() for t in n.targets})
     affected = [{"name": t, "relation": "compiles_affected_file"} for t in direct_targets]
@@ -438,6 +548,8 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
 
     ci_dict = ci_.to_dict()
     ci_dict["symbols"] = ci_dict_symbols
+    if ctx.old_rev or ctx.new_rev:
+        ci_dict["old_rev"], ci_dict["new_rev"] = ctx.old_rev, ctx.new_rev
     report = {
         "tool": {"name": "tcadvisor", "version": __version__},
         "run_id": str(uuid.uuid4()),
@@ -451,7 +563,7 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
         "llm_degraded": llm_degraded,
         "llm_token_usage": llm_usage,
         "target_scope": target_scope,
-        "no_detected_impact": not cases and not flags,
+        "no_detected_impact": not cases and not flags and not not_built,
         "changed_files": sorted(set(cs.changed_files)),
         "changed_symbols": [{**ch_dict(ch, roots[ch.node_id]), "risks": [r.to_dict() for r in root_risks[ch.node_id] + root_external.get(ch.node_id, [])]}
                             for ch in changes if ch.node_id in roots],
@@ -473,6 +585,11 @@ def _run(opts: Options, repo: Path, cache: CacheStore, started: datetime, t0: fl
                                           "covered_by_change": x.covered_by_change, "guard": x.guard}
                                          for x in t.sources]} for t in guarded] + changed_sources,
         "uncertainty_flags": [f.to_dict() for f in flags],
+        "build_profile": profile_info,
+        "not_built": not_built,
+        "not_built_changes": not_built_changes,
+        "build_model": {"system": system, "products": len(tmodel.targets) if tmodel else 0,
+                        **({"fingerprint": bmodel.fingerprint} if bmodel else {})},
         "out_of_scope": out_of_scope,
         "run_notes": ctx.notes,
         "metrics": {"duration_seconds": round(time.monotonic() - t0, 3), "index": index_stats,
