@@ -25,7 +25,7 @@ HTML: list[tuple[str, str]] = [
     ('<span>click a node to filter the cases · hover to trace the path</span>',
      '<span>bấm vào một node để lọc test case · rê chuột để xem đường đi</span>'),
     ('aria-label="impact graph"', 'aria-label="graph ảnh hưởng"'),
-    ('<h2 id="casesTitle">Test cases to check</h2>', '<h2 id="casesTitle">Test case cần kiểm tra</h2>'),
+    ('<h2 id="casesTitle">Test case details</h2>', '<h2 id="casesTitle">Chi tiết từng test case</h2>'),
     ('placeholder="Filter by symbol, file, text…"', 'placeholder="Lọc theo symbol, file, nội dung…"'),
     ('title="List order"', 'title="Thứ tự danh sách"'),
     ('>Order: relevance</option>', '>Thứ tự: mức liên quan</option>'),
@@ -45,12 +45,12 @@ HTML: list[tuple[str, str]] = [
     ("const llm=R.llm_degraded?'degraded':R.llm_enabled?'on':'off';",
      "const llm=R.llm_degraded?'suy giảm':R.llm_enabled?'bật':'tắt';"),
     ("(ci.working_tree?'working tree':", "(ci.working_tree?'working tree (chưa commit)':"),
-    ("const tiles=[[C.length,'test cases'],[nA('test_on_target'),'test on target'],[nA('review'),'review code'],"
+    ("const tiles=[[SC.length,'test scenarios'],[C.length,'test cases'],[nA('test_on_target'),'test on target'],[nA('review'),'review code'],"
      "[nA('closed_by_review')+nA('not_needed')+(R.ai_closed||0),'closed by AI'],[by('P1'),'P1'],[by('P2'),'P2'],[by('P3'),'P3'],"
      "[R.uncertainty_flags.length,'uncertain'],\n"
      "[(R.changed_symbols||[]).length,'changed symbols'],[(R.affected_targets||[]).length,'targets'],"
      "[R.cache_hit?'hit':'miss','cache'],[llm,'LLM']];",
-     "const tiles=[[C.length,'test case'],[nA('test_on_target'),'test trên target'],[nA('review'),'review code'],"
+     "const tiles=[[SC.length,'kịch bản test'],[C.length,'test case'],[nA('test_on_target'),'test trên target'],[nA('review'),'review code'],"
      "[nA('closed_by_review')+nA('not_needed')+(R.ai_closed||0),'AI đã đóng'],[by('P1'),'P1'],[by('P2'),'P2'],[by('P3'),'P3'],"
      "[R.uncertainty_flags.length,'chưa chắc chắn'],\n"
      "[(R.changed_symbols||[]).length,'symbol đã thay đổi'],[(R.affected_targets||[]).length,'target'],"
@@ -137,6 +137,26 @@ HTML: list[tuple[str, str]] = [
     ('<div class="muted">Proof: ', '<div class="muted">Bằng chứng (proof): '),
     ("${c.verification.recheck?' · re-check':''}", "${c.verification.recheck?' · cần kiểm tra lại':''}"),
     ("'<div class=\"empty\">No cases match.</div>'", "'<div class=\"empty\">Không có case nào khớp.</div>'"),
+    ('title="the scenario that covers this case"', 'title="kịch bản test bao phủ case này"'),
+    ('<summary>Details: when, evidence, corner cases, targets</summary>',
+     '<summary>Chi tiết: khi nào, bằng chứng, corner case, target</summary>'),
+    # ---------- test scenarios (spec 013) ----------
+    ("'\\nchanged':''", "'\\nđã thay đổi':''"),
+    ("'<span class=\"vb fail\">Fail</span>'", "'<span class=\"vb fail\">Không đạt</span>'"),
+    ("'<span class=\"vb pass\">Pass</span>'", "'<span class=\"vb pass\">Đạt</span>'"),
+    ("/${s.keys.length} recorded</span>", "/${s.keys.length} đã ghi kết quả</span>"),
+    ('<h2>Test scenarios — what to test now <span class="muted" style="font-size:13px;font-weight:400">${SC.length} '
+     'scenario(s) cover ${n} case(s): one test per card, entering at the first box; red = changed code</span></h2>',
+     '<h2>Kịch bản test — cần test ngay <span class="muted" style="font-size:13px;font-weight:400">${SC.length} '
+     'kịch bản bao phủ ${n} case: mỗi thẻ là một test, bắt đầu từ ô đầu tiên; ô đỏ = code đã thay đổi</span></h2>'),
+    ('<span class="muted">${s.cases.length} case(s)</span>', '<span class="muted">${s.cases.length} case</span>'),
+    ('<div class="muted">Stands for ${s.members.length} symbol(s) with the same link to the change: ',
+     '<div class="muted">Đại diện cho ${s.members.length} symbol có cùng liên kết tới thay đổi: '),
+    ('<span class="muted">Covers:</span>', '<span class="muted">Bao phủ:</span>'),
+    ('title="show this case below"', 'title="xem case này ở bên dưới"'),
+    ('<summary>+${rest.length} more check(s)</summary>', '<summary>+${rest.length} điểm kiểm tra nữa</summary>'),
+    ('<span class="muted">Record for the whole scenario:</span>',
+     '<span class="muted">Ghi kết quả cho cả kịch bản:</span>'),
     # ---------- sections ----------
     ('<h2>AI verification <span class="muted" style="font-size:13px;font-weight:400">cases closed by AI are in '
      'report.ai-verified.html, never deleted</span></h2>',

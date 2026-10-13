@@ -134,7 +134,7 @@ Only packed code windows are read — never explore the repository.
 - Details of one case: `python -c "import json;r=json.load(open('<dir>/report.json'));print([c for c in
   r['test_case_candidates'] if c['id']=='TC-0003'])"`. Code: at most ~30 lines around an evidence `file:line`,
   only for P1 cases.
-- Line tags (`CHANGED`, `UNCERTAIN`, `SOURCES`, `AI-ALSO`, `AI-CLOSED`, `NOTE`, `REPORT`, `PROFILE`, `NOT-BUILT`)
+- Line tags (`SCENARIO`, `CHANGED`, `UNCERTAIN`, `SOURCES`, `AI-ALSO`, `AI-CLOSED`, `NOTE`, `REPORT`, `PROFILE`, `NOT-BUILT`)
   are markers; the text
   after them is in the report language. In Claude Code, a brief with > 40 cases can be summarised by the
   `tc-coverage-analyst` subagent.
@@ -143,14 +143,17 @@ Only packed code windows are read — never explore the repository.
 
 1. One-line summary and the brief's test-plan line (TARGET = test on the device, REVIEW = reading code may close
    it; cases closed by AI are counted, listed in `report.ai-verified.md`).
-2. **P1 checklist**: id, symbol `file:line`, concrete test scenarios (inputs / states, expected result) from the
-   corner cases (also the AI ones) and the evidence code.
-3. P2/P3: one line each (or "N more" with the report path).
+2. **Test scenarios first** (`SCENARIO` lines, spec 013): one runnable test each — `S<n> P<x>`, the flow
+   `entry → … → changed*` (start the test at the entry), the TC ids it covers, and its `check:` items as concrete
+   test steps (inputs / states, expected result). Never list the covered TCs again as separate tests; a `[S<n>]` on
+   a TC line means "covered by that scenario".
+3. TC lines without `[S<n>]` (if any): one line each (or "N more" with the report path).
 4. Every `UNCERTAIN` line: category and reason as given. Never drop one.
 5. `AI-ALSO` checks, then the targets to rebuild / retest (CMake targets or autotools programs / libraries).
    With a build profile: "N cases on code not built in <variants>" (one line; they need no test for these
    variants).
-6. `report.html` in the `REPORT` dir: visual impact flow and a form to record each case's result (verdict +
+6. `report.html` in the `REPORT` dir: scenario cards (flow boxes, covered TCs, "record for the whole scenario"),
+   visual impact flow and a form to record each case's result (verdict +
    evidence: paste a screenshot with Ctrl+V, it shows inline; Save report writes one self-contained file). The
    next analysis carries the results of the latest run over by case key; `tcadvisor results <filled.html>` checks
    completeness. `report.ai-verified.html`: the cases the AI closed, with its reasons.

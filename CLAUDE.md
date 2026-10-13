@@ -41,6 +41,8 @@ analysed repo.
   `<repo>/.tcadvisor/reports`, `latest`), `index/automake.py` (configure.ac + Makefile.am → TargetModel),
   `index/build_log.py` (`tcadvisor compile-db --from-log`, Yocto `log.do_compile`), `index/variants.py` +
   `classify/variants.py` (`tcadvisor profile`, `not_built`), restored VS Code settings as config keys; guide `docs/linux-yocto.md`.
+- Spec 013 (`specs/013-test-scenarios`): `report/scenarios.py` groups the cases of a report part into runnable test scenarios
+  (call path entry → changed, or one non-call relation family), rendered first in md / html / brief, `test_scenarios` in report.json.
 - `specs/001-change-impact-test-advisor/` — speckit spec/plan/tasks; `.specify/memory/constitution.md` — rules.
 
 ## Commands

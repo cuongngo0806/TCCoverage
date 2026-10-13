@@ -84,10 +84,24 @@ table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid var(--li
  body{background:#fff;color:#000}.panel,.tr{border-color:#999;background:#fff}.case{break-inside:avoid}.rp{display:block}
  .thumb,.evimg{max-width:100%;max-height:none;break-inside:avoid}#lightbox{display:none!important}}
 .aipart .tr,.aipart #trSec{display:none}
+/* test scenarios (spec 013) */
+.scns{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:10px}
+.scn{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--p3);border-radius:8px;padding:10px 12px;break-inside:avoid}
+.scn.P1{border-left-color:var(--p1);background:var(--panel)}.scn.P2{border-left-color:var(--p2);background:var(--panel)}.scn.P3{background:var(--panel)}
+.scn .sh{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.scn .sh b{font-size:15px}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:8px 0}
+.step{border:1.5px solid var(--h1);background:var(--h1bg);border-radius:6px;padding:2px 8px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;max-width:100%;overflow-wrap:anywhere}
+.step.chg{border-color:var(--h0);background:var(--h0bg);font-weight:700}.step.entry{border-color:var(--accent)}
+.arr{color:var(--muted);font-size:12px}.tcs{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.tcc{border:1px solid var(--line);background:var(--bg);color:var(--accent);border-radius:4px;padding:0 6px;font:inherit;font-size:12px;cursor:pointer}
+.chk{margin:6px 0 0 18px;padding:0}.chk li{margin:2px 0}.aitag{font-size:10.5px;color:var(--accent);border:1px solid var(--accent);border-radius:3px;padding:0 3px;margin-left:4px}
+.screc{margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12.5px}
+details.more summary{cursor:pointer;color:var(--muted);font-size:12.5px;margin-top:4px}
 </style></head><body><div id="lightbox" role="dialog" aria-label="evidence image"><img alt=""><div></div></div>
 <header><h1>TC Coverage — change impact &amp; test cases</h1><div class="muted" id="sub"></div>
 <div class="tiles" id="tiles"></div><section id="trSec"></section></header>
 <main>
+<section id="planSec"></section>
 <section id="noimpact"></section>
 <h2 class="noprint">Impact flow</h2>
 <div class="panel noprint"><div class="legend"><span><i class="sw" style="background:var(--h0bg);border-color:var(--h0)"></i>changed</span>
@@ -97,7 +111,7 @@ table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid var(--li
 <span><i class="sw" style="border-color:var(--warn);border-style:dashed"></i>uncertain</span>
 <span>click a node to filter the cases · hover to trace the path</span></div>
 <div id="graphWrap"><svg id="graph" role="img" aria-label="impact graph"></svg></div><div id="detail" class="muted"></div></div>
-<h2 id="casesTitle">Test cases to check</h2>
+<h2 id="casesTitle">Test case details</h2>
 <div class="panel"><div id="aiNote" class="muted"></div><div class="chips" id="actChips"></div><div class="chips" id="prioChips"></div><div class="chips" id="grpChips"></div>
 <input type="search" id="q" placeholder="Filter by symbol, file, text…">
 <select id="ord" title="List order" style="margin-left:8px;padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg)"><option value="rel">Order: relevance</option><option value="ai">Order: AI-triaged</option></select><span class="muted" id="count" style="margin-left:8px"></span>
@@ -129,7 +143,8 @@ else if(R.ai_closed)document.getElementById('aiNote').textContent=`${R.ai_closed
 const llm=R.llm_degraded?'degraded':R.llm_enabled?'on':'off';
 const ci=R.change_input;
 document.getElementById('sub').textContent=`${ci.mode} · ${ci.commit_range||(ci.working_tree?'working tree':(ci.symbols_requested||[]).join(', '))} · ${repo}`;
-const tiles=[[C.length,'test cases'],[nA('test_on_target'),'test on target'],[nA('review'),'review code'],[nA('closed_by_review')+nA('not_needed')+(R.ai_closed||0),'closed by AI'],[by('P1'),'P1'],[by('P2'),'P2'],[by('P3'),'P3'],[R.uncertainty_flags.length,'uncertain'],
+const SC=R.test_scenarios||[];const scOf={};SC.forEach(s=>s.cases.forEach(i=>scOf[i]=s.id));
+const tiles=[[SC.length,'test scenarios'],[C.length,'test cases'],[nA('test_on_target'),'test on target'],[nA('review'),'review code'],[nA('closed_by_review')+nA('not_needed')+(R.ai_closed||0),'closed by AI'],[by('P1'),'P1'],[by('P2'),'P2'],[by('P3'),'P3'],[R.uncertainty_flags.length,'uncertain'],
 [(R.changed_symbols||[]).length,'changed symbols'],[(R.affected_targets||[]).length,'targets'],[R.cache_hit?'hit':'miss','cache'],[llm,'LLM']];
 document.getElementById('tiles').innerHTML=tiles.map(t=>`<div class="tile"><b>${esc(t[0])}</b><span>${t[1]}</span></div>`).join('');
 if(R.no_detected_impact)document.getElementById('noimpact').innerHTML='<div class="panel empty"><b>No detected impact.</b><br>The change touches no indexed symbol semantically (comments, whitespace, non-C++ files). This is a result, not a failure.</div>';
@@ -177,7 +192,7 @@ function trHtml(c){const r=RS.results[c.key];const pr=problems(r);
  `<label>Defect ref.</label><input type="text" data-f="defect_ref" value="${esc(R_.defect_ref)}" placeholder="e.g. JIRA-1234">`+
  `<label>Evidence</label><div><div class="drop" data-act="drop" tabindex="0" title="Click here, then paste (Ctrl+V)">Paste (Ctrl+V) or drop screenshots / logs here, or <input type="file" multiple data-act="file"></div>${(R_.attachments||[]).map(id=>attHtml(c.key,id,false)).join('')}</div></div>`+
  `<div class="err" data-err>${pr.map(esc).join(' ')}</div>`}
-function touch(k){const r=rec(k),c=byKeyCase[k];r.updated_at=new Date().toISOString();if(c){r.fingerprint=c.code_fingerprint;r.description=c.description}dirty=true;summaryBar()}
+function touch(k){const r=rec(k),c=byKeyCase[k];r.updated_at=new Date().toISOString();if(c){r.fingerprint=c.code_fingerprint;r.description=c.description}dirty=true;summaryBar();if(typeof renderPlan==='function'&&SC.length)renderPlan()}
 function refreshTr(k){const el=document.querySelector(`.tr[data-k="${CSS.escape(k)}"]`);if(el)el.innerHTML=trHtml(byKeyCase[k])}
 async function sha256hex(buf){if(window.crypto&&crypto.subtle){const h=await crypto.subtle.digest('SHA-256',buf);return[...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('')}return sha256js(new Uint8Array(buf))}
 function sha256js(m){const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
@@ -309,13 +324,40 @@ function render(){const list=printing?C.slice():C.filter(c=>st.a.has(act(c))&&st
  (!st.q||JSON.stringify(c).toLowerCase().includes(st.q))&&inFilter(c.key));
  if(ordEl.value==='ai')list.sort((x,y)=>aiKey(x)-aiKey(y)); // stable: relevance order inside each verdict
  document.getElementById('count').textContent=`${list.length} / ${C.length}`;
- document.getElementById('cases').innerHTML=list.length?list.map(c=>`<div class="case"><span class="prio ${c.priority}">${c.priority}</span> <b class="mono">${c.id}</b><span class="act ${act(c)}">${AL[act(c)]}</span><span class="grp">${GL[c.risk_group]}${c.sub_reason?' · '+esc(c.sub_label||c.sub_reason):''}</span><span class="grp">hop ${c.hop_distance}</span>${c.bug_history?`<span class="grp" title="bug-fix commits touching this file in the last 12 months">${c.bug_history} recent fixes</span>`:''}
- <div>${esc(c.description)}</div><div class="muted">When: ${esc(c.activation_condition)}</div>
+ document.getElementById('cases').innerHTML=list.length?list.map(c=>`<div class="case"><span class="prio ${c.priority}">${c.priority}</span> <b class="mono">${c.id}</b>${scOf[c.id]?`<a class="grp loc" href="#scn-${scOf[c.id]}" title="the scenario that covers this case">${scOf[c.id]}</a>`:''}<span class="act ${act(c)}">${AL[act(c)]}</span><span class="grp">${GL[c.risk_group]}${c.sub_reason?' · '+esc(c.sub_label||c.sub_reason):''}</span><span class="grp">hop ${c.hop_distance}</span>${c.bug_history?`<span class="grp" title="bug-fix commits touching this file in the last 12 months">${c.bug_history} recent fixes</span>`:''}
+ <div>${esc(c.description)}</div><details class="more"${printing?' open':''}><summary>Details: when, evidence, corner cases, targets</summary><div class="muted">When: ${esc(c.activation_condition)}</div>
  <ul>${c.evidence.map(e=>`<li>${evHtml(e)}</li>`).join('')}</ul>
  ${c.path?`<div class="muted">Path: ${c.path.map(x=>`<code>${esc(x.symbol.qualified_name)}</code> <span class="grp">${esc(x.role)}${x.checked?' · checked':''}</span> ${loc(x.symbol.file_path,x.line)}`).join(' → ')}</div>`:''}
  ${(c.corner_cases||[]).length?`<div class="muted" style="margin-top:4px">Corner cases:</div><ul>${c.corner_cases.map(h=>`<li>${esc(h)}</li>`).join('')}</ul>`:''}
- <div class="muted">Targets: ${esc(c.related_cmake_targets.join(', '))}</div>${(c.target_reasons||[]).length?`<div class="muted">Needs the target: ${c.target_reasons.map(esc).join(' · ')}</div>`:''}${c.verification&&c.verification.proof?`<div class="muted">Proof: ${c.verification.proof.map(esc).join(', ')}</div>`:''}${c.verification?`<div class="ai"><span class="aib ${c.verification.verdict}">AI · ${esc(c.verification.label||c.verification.verdict)}${c.verification.recheck?' · re-check':''}</span> ${esc(c.verification.note)}${c.verification.extra_corner_cases.length?'<ul>'+c.verification.extra_corner_cases.map(h=>`<li>${esc(h)}</li>`).join('')+'</ul>':''}</div>`:''}<div class="tr" data-k="${esc(c.key)}">${trHtml(c)}</div></div>`).join(''):'<div class="empty">No cases match.</div>'}
+ <div class="muted">Targets: ${esc(c.related_cmake_targets.join(', '))}</div>${(c.target_reasons||[]).length?`<div class="muted">Needs the target: ${c.target_reasons.map(esc).join(' · ')}</div>`:''}${c.verification&&c.verification.proof?`<div class="muted">Proof: ${c.verification.proof.map(esc).join(', ')}</div>`:''}</details>${c.verification?`<div class="ai"><span class="aib ${c.verification.verdict}">AI · ${esc(c.verification.label||c.verification.verdict)}${c.verification.recheck?' · re-check':''}</span> ${esc(c.verification.note)}${c.verification.extra_corner_cases.length?'<ul>'+c.verification.extra_corner_cases.map(h=>`<li>${esc(h)}</li>`).join('')+'</ul>':''}</div>`:''}<div class="tr" data-k="${esc(c.key)}">${trHtml(c)}</div></div>`).join(''):'<div class="empty">No cases match.</div>'}
 render();
+// ---------- test scenarios (spec 013): one runnable test per card ----------
+const SCN_CHECKS=6;
+function shortName(n){let p=n.split('::');while(p.join('::').length>48&&p.length>1)p=p.slice(1);return p.join('::')}
+function topChecks(s,n){const ai=s.checks.filter(k=>k.source==='ai'),ru=s.checks.filter(k=>k.source!=='ai');const kr=Math.min(ru.length,2,n);
+ const out=ai.slice(0,n-kr).concat(ru.slice(0,kr));return out.concat(ru.slice(kr,kr+n-out.length))}
+function stepHtml(x,i,s){const n=x.symbol;const more=s.kind==='group'&&i===0&&s.members.length>1?` +${s.members.length-1}`:'';
+ return `<span class="step${x.changed?' chg':''}${i===0?' entry':''}" title="${esc(n.qualified_name)}${n.file_path?'\n'+esc(n.file_path)+':'+n.line:''}${x.changed?'\nchanged':''}">${esc(shortName(n.qualified_name))}${more}</span>`}
+function scState(s){const v=s.keys.map(k=>(RS.results[k]||{}).verdict).filter(Boolean);
+ if(v.includes('fail'))return'<span class="vb fail">Fail</span>';if(v.length===s.keys.length&&v.every(x=>x==='pass'))return'<span class="vb pass">Pass</span>';
+ return `<span class="vb">${v.length}/${s.keys.length} recorded</span>`}
+function renderPlan(){if(!SC.length){document.getElementById('planSec').innerHTML='';return}
+ const n=SC.reduce((a,s)=>a+s.cases.length,0);
+ document.getElementById('planSec').innerHTML=`<h2>Test scenarios — what to test now <span class="muted" style="font-size:13px;font-weight:400">${SC.length} scenario(s) cover ${n} case(s): one test per card, entering at the first box; red = changed code</span></h2><div class="scns">`+
+ SC.map(s=>{const sh=topChecks(s,SCN_CHECKS),rest=s.checks.filter(k=>!sh.includes(k));const li=k=>`<li>${esc(k.text)}${k.source==='ai'?'<span class="aitag">AI</span>':''}</li>`;
+  const arrow=s.kind==='group'?`<span class="arr">⇢ ${esc(s.relation_label||s.relation)} ⇢</span>`:'<span class="arr">→</span>';
+  return `<div class="scn ${s.priority}" id="scn-${s.id}"><div class="sh"><span class="prio ${s.priority}">${s.priority}</span><b>${s.id}</b><span class="act ${s.action}">${AL[s.action]}</span><span class="muted">${s.cases.length} case(s)</span>${R.report_part==='ai_closed'?'':scState(s)}</div>`+
+  `<div class="flow">${s.steps.map((x,i)=>stepHtml(x,i,s)).join(arrow)}</div>`+
+  (s.kind==='group'&&s.members.length>1?`<div class="muted">Stands for ${s.members.length} symbol(s) with the same link to the change: ${s.members.slice(0,6).map(m=>'<code>'+esc(m.qualified_name)+'</code>').join(', ')}${s.members.length>6?' …':''}</div>`:'')+
+  `<div class="tcs"><span class="muted">Covers:</span>${s.cases.map(i=>`<button class="tcc" data-tc="${esc(i)}" title="show this case below">${esc(i)}</button>`).join('')}${s.why?`<span class="muted">· ${esc(s.why)}</span>`:''}</div>`+
+  (sh.length?`<ul class="chk">${sh.map(li).join('')}</ul>`:'')+(rest.length?`<details class="more"><summary>+${rest.length} more check(s)</summary><ul class="chk">${rest.map(li).join('')}</ul></details>`:'')+
+  (R.report_part==='ai_closed'?'':`<div class="screc noprint"><span class="muted">Record for the whole scenario:</span>${VS_ORDER.map(v=>`<button class="btn" data-sid="${s.id}" data-sv="${v}">${VL[v]}</button>`).join('')}</div>`)+'</div>'}).join('')+'</div>'}
+document.getElementById('planSec').addEventListener('click',e=>{const t=e.target.closest('[data-tc],[data-sv]');if(!t)return;
+ if(t.dataset.tc){const q=document.getElementById('q');q.value=t.dataset.tc;st.q=t.dataset.tc.toLowerCase();render();document.getElementById('casesTitle').scrollIntoView({behavior:'smooth'});return}
+ const s=SC.find(x=>x.id===t.dataset.sid);if(!s)return;
+ s.keys.forEach(k=>{const r=rec(k);r.verdict=t.dataset.sv;r.needs_recheck=false;if(!r.date)r.date=today();if(!r.tester)r.tester=store.get('tcadvisor.tester')||'';touch(k)});
+ render();renderPlan()});
+renderPlan();
 const AV=R.ai_verification;
 if(AV)document.getElementById('aiSec').innerHTML=`<h2>AI verification <span class="muted" style="font-size:13px;font-weight:400">cases closed by AI are in report.ai-verified.html, never deleted</span></h2><div class="panel"><div>${esc(AV.summary)}</div><div class="muted">verified cases: ${AV.verified_cases} · models: ${esc((AV.models||[]).join(', ')||'-')}</div>`+
  (AV.additional_checks.length?'<ul>'+AV.additional_checks.map(a=>`<li><b>${esc(a.title)}</b> — ${esc(a.why)} <span class="mono muted">${esc(a.evidence)}</span></li>`).join('')+'</ul>':'')+'</div>';
@@ -372,9 +414,11 @@ def to_html(report: dict[str, Any], part: str = "main") -> str:
     T = Translator(report.get("report_language", "en"))
     block = report.get("test_results") or empty_block(report, report.get("metrics", {}).get("attachment_warn_mb", 50))
     # the page shows the report in its language; case ids / keys (read back by results.py) are never translated
-    from tcadvisor.report.render import case_labels, split
-    shown = localize(split(report)[0 if part == "main" else 1], T)
+    from tcadvisor.report.render import case_labels, scenario_labels, scenarios_of, split
+    part_en = split(report)[0 if part == "main" else 1]
+    shown = localize(part_en, T)
     case_labels(shown, T)
+    shown["test_scenarios"] = scenario_labels(scenarios_of(part_en), T)
     data = {k: v for k, v in shown.items() if k != "test_results"}  # attachments live once, in the results block
     pre, rest = localized_template(T.lang).split("__DATA__")
     mid, post = rest.split("__RESULTS__")

@@ -13,9 +13,10 @@ You run the deterministic `tcadvisor` tool and summarise its output. You never t
 2. From the brief output only, produce:
    - summary line (counts by priority, uncertain flags, targets) and the test-plan line (cases closed by AI are
      in `report.ai-verified.md`);
-   - every P1 case: `TC-id | risk | symbol file:line | 1–3 concrete test scenarios` (read at most 30 lines
-     of code around the evidence line with `sed -n` if needed);
-   - P2/P3: one line each, max 30 lines, then "N more in <out>/report.md";
+   - every `SCENARIO` line (one runnable test covering several TCs): `S<n> P<x> | entry → … → changed |
+     covered TC ids | 1–4 concrete checks` from its `check:` line (read at most 30 lines of code around the entry
+     or changed line with `sed -n` if needed); do not repeat its covered TCs as separate tests;
+   - TC lines without a `[S<n>]` tag: one line each, max 30 lines, then "N more in <out>/report.md";
    - every uncertainty flag verbatim (never omit one);
    - `NOT-BUILT` count (code no confirmed build variant compiles), never as cases to test;
    - targets to rebuild/retest; path to report.html.

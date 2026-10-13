@@ -231,11 +231,12 @@ def conditional_stack(lines: list[str]) -> dict[int, list[str]]:
 
 def _include_guard(lines: list[str]) -> int | None:
     """Line number of a classic ``#ifndef X / #define X`` include guard, if the file starts with one."""
-    code = [(i, strip_comments(ln).strip()) for i, ln in enumerate(lines, 1)]
-    code = [(i, ln) for i, ln in code if ln]
+    # whole-text comment strip (newlines kept): the inner lines of a multi-line /* license */ block are not code
+    text = _COMMENT_RE.sub(lambda m: "\n" * m.group(0).count("\n"), "\n".join(lines))
+    code = [(i, ln.strip()) for i, ln in enumerate(text.split("\n"), 1) if ln.strip()]
     if len(code) >= 2:
         m1 = re.match(r"#\s*(?:ifndef\s+(\w+)|if\s+!\s*defined\s*\(?\s*(\w+))", code[0][1])
-        m2 = re.match(r"#\s*define\s+(\w+)\s*$", code[1][1])
+        m2 = re.match(r"#\s*define\s+(\w+)(?:\s+1)?\s*$", code[1][1])
         if m1 and m2 and (m1.group(1) or m1.group(2)) == m2.group(1):
             return code[0][0]
     return None

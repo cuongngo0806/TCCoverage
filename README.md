@@ -147,6 +147,17 @@ a statement using `e`: use after free; a call / assignment / term / lock no long
 parameters used on changed lines (null, empty, 0 / max, NaN, ...). Changed symbols that no existing test reaches are
 listed as **test gaps** (report, brief `TEST-GAP`, HTML) when `include_tests` is on.
 
+### Test scenarios: one test per flow (spec 013)
+
+Every report starts with **test scenarios**: the cases grouped into runnable tests. Cases on one call path
+(`processRxResSig → checkEndF → determineResSuspend`) are one test entered at the outermost caller; cases reached
+through the same non-call link of a changed symbol (class members, includers, subclasses) are one representative test.
+Each scenario lists the TC ids it covers and its checks once (AI corner cases first, generic hints only when nothing
+concrete is left). Markdown shows a Mermaid flow per scenario, the HTML shows cards (flow boxes, covered TCs,
+"record for the whole scenario"), the brief starts with `SCENARIO` lines; report.json carries `test_scenarios`. The
+per-case list (evidence) follows as "Test case details". On the first field run the 7 cases left to test became 4
+scenarios, all 244 cases 59 (`specs/013-test-scenarios/results.md`).
+
 Measured with `scripts/seeded_regressions.py` (31 seeded "fixed here, broke there" edits on leveldb and yaml-cpp; see
 `specs/009-side-effect-corner-cases/results.md`, `specs/010-accessor-readers-ci/results.md`). Readers hidden behind
 a trivial accessor (`bool Ready() const { return ready_; }`) are reported as the accessor's callers. CI
@@ -306,7 +317,7 @@ tcadvisor cache clear --repo /path/repo
 
 Exit codes: 0 ok · 1 prerequisite (compile db / File API missing or stale) · 2 usage · 3 internal.
 `--exact-output-dir` writes straight into `--output-dir` without a run folder (scripts, benchmarks).
-Outputs: `report.md` (with Mermaid flow), `report.json` (schema: `specs/001-change-impact-test-advisor/contracts/output-schema.json`),
+Outputs: `report.md` (test scenarios + Mermaid flows), `report.json` (schema: `specs/001-change-impact-test-advisor/contracts/output-schema.json`),
 `report.html`, `report.brief.txt`; after an AI filter also `report.ai-verified.md` / `.html` (the closed cases).
 
 ## Claude Code and GitHub Copilot
