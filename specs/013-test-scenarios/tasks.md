@@ -19,4 +19,4 @@
 ## Phase 3: Validation
 
 - [x] T009 Re-render the pilot (`human-test/remotecontrolapp/…/report.json`) → results.md with SC-001/SC-002 numbers; all-cases scenario ratio
-- [ ] T010 Full pytest; case keys identical before/after on the synthetic project (SC-004); CLAUDE.md layout line
+- [x] T010 Full pytest; case keys identical before/after on the synthetic project (SC-004); CLAUDE.md layout line

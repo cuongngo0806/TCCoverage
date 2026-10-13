@@ -26,3 +26,7 @@ no longer route TC-0012 to the target for that reason (needs the user's workspac
 
 SC-004: case emission, priorities and ranking are untouched by the scenario layer (render-time only). The include-
 guard fix only removes conditions that were include guards.
+
+Benchmarks (`scripts/seeded_regressions.py`, this branch): leveldb dev victims 12/12, corners 12/12, MRR 0.397;
+holdout 10/10, 10/10, 0.348; yaml-cpp 9/9, 9/9, 0.365 — identical to the spec 010 numbers. Full suite: 229 passed,
+2 skipped.
