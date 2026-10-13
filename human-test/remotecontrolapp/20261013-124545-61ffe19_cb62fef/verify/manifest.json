@@ -1,0 +1,83 @@
+{
+ "report": "/home/worker/honda/nad/LGE/tsu-src/apps/remotecontrolapp/.tcadvisor/reports/20261013-124545-61ffe19_cb62fef/report.json",
+ "verdicts": "/home/worker/honda/nad/LGE/tsu-src/apps/remotecontrolapp/.tcadvisor/reports/20261013-124545-61ffe19_cb62fef/verify/verdicts.json",
+ "report_language": "vi",
+ "batches": [
+  {
+   "file": "/home/worker/honda/nad/LGE/tsu-src/apps/remotecontrolapp/.tcadvisor/reports/20261013-124545-61ffe19_cb62fef/verify/batch-01.json",
+   "packets": 8,
+   "cases": 10,
+   "approx_tokens": 7906
+  },
+  {
+   "file": "/home/worker/honda/nad/LGE/tsu-src/apps/remotecontrolapp/.tcadvisor/reports/20261013-124545-61ffe19_cb62fef/verify/batch-02.json",
+   "packets": 8,
+   "cases": 13,
+   "approx_tokens": 7085
+  },
+  {
+   "file": "/home/worker/honda/nad/LGE/tsu-src/apps/remotecontrolapp/.tcadvisor/reports/20261013-124545-61ffe19_cb62fef/verify/batch-03.json",
+   "packets": 8,
+   "cases": 16,
+   "approx_tokens": 8990
+  },
+  {
+   "file": "/home/worker/honda/nad/LGE/tsu-src/apps/remotecontrolapp/.tcadvisor/reports/20261013-124545-61ffe19_cb62fef/verify/batch-04.json",
+   "packets": 8,
+   "cases": 16,
+   "approx_tokens": 6725
+  },
+  {
+   "file": "/home/worker/honda/nad/LGE/tsu-src/apps/remotecontrolapp/.tcadvisor/reports/20261013-124545-61ffe19_cb62fef/verify/batch-05.json",
+   "packets": 8,
+   "cases": 11,
+   "approx_tokens": 5668
+  },
+  {
+   "file": "/home/worker/honda/nad/LGE/tsu-src/apps/remotecontrolapp/.tcadvisor/reports/20261013-124545-61ffe19_cb62fef/verify/batch-06.json",
+   "packets": 8,
+   "cases": 8,
+   "approx_tokens": 7468
+  },
+  {
+   "file": "/home/worker/honda/nad/LGE/tsu-src/apps/remotecontrolapp/.tcadvisor/reports/20261013-124545-61ffe19_cb62fef/verify/batch-07.json",
+   "packets": 8,
+   "cases": 8,
+   "approx_tokens": 7189
+  },
+  {
+   "file": "/home/worker/honda/nad/LGE/tsu-src/apps/remotecontrolapp/.tcadvisor/reports/20261013-124545-61ffe19_cb62fef/verify/batch-08.json",
+   "packets": 8,
+   "cases": 8,
+   "approx_tokens": 7179
+  },
+  {
+   "file": "/home/worker/honda/nad/LGE/tsu-src/apps/remotecontrolapp/.tcadvisor/reports/20261013-124545-61ffe19_cb62fef/verify/batch-09.json",
+   "packets": 8,
+   "cases": 8,
+   "approx_tokens": 7823
+  },
+  {
+   "file": "/home/worker/honda/nad/LGE/tsu-src/apps/remotecontrolapp/.tcadvisor/reports/20261013-124545-61ffe19_cb62fef/verify/batch-10.json",
+   "packets": 8,
+   "cases": 8,
+   "approx_tokens": 6476
+  },
+  {
+   "file": "/home/worker/honda/nad/LGE/tsu-src/apps/remotecontrolapp/.tcadvisor/reports/20261013-124545-61ffe19_cb62fef/verify/batch-11.json",
+   "packets": 8,
+   "cases": 10,
+   "approx_tokens": 7180
+  },
+  {
+   "file": "/home/worker/honda/nad/LGE/tsu-src/apps/remotecontrolapp/.tcadvisor/reports/20261013-124545-61ffe19_cb62fef/verify/batch-12.json",
+   "packets": 4,
+   "cases": 4,
+   "approx_tokens": 3973
+  }
+ ],
+ "notes": [
+  "124 P1/P2/P3 case(s) beyond --max-cases were not packed: TC-0048, TC-0049, TC-0050, TC-0051, TC-0052, TC-0053, TC-0054, TC-0055, TC-0056, TC-0057, TC-0067, TC-0068, TC-0072, TC-0084, TC-0094, TC-0095, TC-0096, TC-0097, TC-0098, TC-0099"
+ ],
+ "approx_tokens_total": 83662
+}

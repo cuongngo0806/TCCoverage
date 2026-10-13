@@ -1,0 +1,346 @@
+{
+ "batch": "batch-02",
+ "report_language": "vi",
+ "changed": [
+  "rca::Feature @src/features/Feature.h:269 [abi_layout,logic,ownership_lifetime]",
+  "rca::Feature::getIsRecvStopCmd @src/features/Feature.h:463 [abi_layout,logic]",
+  "rca::Feature::setIsRecvStopCmd @src/features/Feature.h:478 [abi_layout]",
+  "rca::RemoteEngineStart::processOrderResp @src/features/RemoteEngineStart.cpp:60 [logic]",
+  "rca::RemoteEngineStart::completeFeature @src/features/RemoteEngineStart.cpp:204 [logic]",
+  "rca::RemoteEngineStart::determineResSuspend @src/features/RemoteEngineStart.cpp:1569 [logic]",
+  "rca::RemoteEngineStart @src/features/RemoteEngineStart.h:323 [abi_layout,build_config,logic]",
+  "rca::RemoteEngineStartCancel::processOrderResp @src/features/RemoteEngineStartCancel.cpp:29 [logic]",
+  "rca::RemoteEngineStartCancel::completeFeature @src/features/RemoteEngineStartCancel.cpp:183 [logic]",
+  "rca::RemoteEngineStartCancel::processOrderData @src/features/RemoteEngineStartCancel.cpp:213 [logic]",
+  "rca::RemoteEngineStartCancel::deactiveFeature @src/features/RemoteEngineStartCancel.cpp:640 [logic]"
+ ],
+ "flags": [
+  "build_config_incomplete_macro: change in src/features/RemoteEngineStart.h:323 is guarded by `#ifndef ENGINE_START_FEATURE_H`; `ENGINE_START_FEATURE_H` is undefined in every compile command, so this branch was never parsed (configurations in compile_commands.json: Debug)",
+  "build_config_incomplete_macro: src/features/FeatureFactory.h:7 is guarded by `#ifndef EE_ARCH_GEN3`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorLock.h:19 is guarded by `#ifndef RDL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorLock.h:39 is guarded by `#ifndef RDL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorUnlock.h:19 is guarded by `#ifndef RDU_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorUnlock.h:39 is guarded by `#ifndef RDU_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:323 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:326 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:339 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStartCancel.h:20 is guarded by `#ifndef ENGINE_START_CANCEL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStartCancel.h:40 is guarded by `#ifndef ENGINE_START_CANCEL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteStartInhibition.h:20 is guarded by `#ifndef REMOTE_START_INHIBITION_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteStartInhibition.h:98 is guarded by `#ifndef REMOTE_START_INHIBITION_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapFeature.h:19 is guarded by `#ifndef SHOULDER_TAP_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapFeature.h:28 is guarded by `#ifndef SHOULDER_TAP_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapForGW.h:20 is guarded by `#ifndef SHOULDER_TAP_FOR_GW_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapForGW.h:50 is guarded by `#ifndef SHOULDER_TAP_FOR_GW_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/prioritymanager/FeaturePriorityManager.h:70 is guarded by `#ifndef FEATUREPRIORITYMANAGER_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/tidl-generated/remotecontrolapp.h:31 is guarded by `#ifndef _REMOTE_CONTROL_APPLICATION_H_`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/tidl-generated/remotecontrolexecutor.h:23 is guarded by `#ifndef _REMOTE_CONTROL_EXECUTOR_H_`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept"
+ ],
+ "existing_tests": [],
+ "packets": [
+  {
+   "packet": "K009",
+   "symbol": "rca::Feature::getIsRecvStopCmd",
+   "at": "src/features/Feature.h:463",
+   "links": [],
+   "code": "  460|     bool getIsReqAct() const { return isReqAct; }\n  461|     bool getIsReqDeact() const { return isReqDeact; }\n  462| \n  463|     // Setter methods for derived classes (avoiding conflicts with existing public methods)\n  464|     void setHandler(const sp<sl::Handler>& value) { mHandler = value; }",
+   "cases": [
+    {
+     "id": "TC-0011",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Verify the functional behaviour of `rca::Feature::getIsRecvStopCmd` (removed)",
+     "activation_condition": "Changed directly: control flow / computation changed in `rca::Feature::getIsRecvStopCmd` (src/features/Feature.h:463): `return`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 0,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0013",
+     "priority": "P1",
+     "risk_group": "abi_layout",
+     "sub_reason": "signature_change",
+     "description": "Verify the binary / layout compatibility of `rca::Feature::getIsRecvStopCmd` (removed, signature change)",
+     "activation_condition": "Changed directly: `rca::Feature::getIsRecvStopCmd` (src/features/Feature.h:463) was removed; remaining users must be updated",
+     "corner_cases": [
+      "All call sites pass the new parameters correctly (implicit conversions, default args)",
+      "Overload resolution does not silently pick a different overload",
+      "Function pointers / callbacks / mocks bound to the old signature"
+     ],
+     "hop_distance": 0,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K010",
+   "symbol": "rca::Feature::setIsRecvStopCmd",
+   "at": "src/features/Feature.h:478",
+   "links": [],
+   "code": "  475|     void setIsReqDeact(bool value) { isReqDeact = value; }\n  476| };\n  477| } //namespace rca\n  478| #endif // FEATURE_H",
+   "cases": [
+    {
+     "id": "TC-0014",
+     "priority": "P1",
+     "risk_group": "abi_layout",
+     "sub_reason": "signature_change",
+     "description": "Verify the binary / layout compatibility of `rca::Feature::setIsRecvStopCmd` (removed, signature change)",
+     "activation_condition": "Changed directly: `rca::Feature::setIsRecvStopCmd` (src/features/Feature.h:478) was removed; remaining users must be updated",
+     "corner_cases": [
+      "All call sites pass the new parameters correctly (implicit conversions, default args)",
+      "Overload resolution does not silently pick a different overload",
+      "Function pointers / callbacks / mocks bound to the old signature"
+     ],
+     "hop_distance": 0,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K011",
+   "symbol": "checkEndF",
+   "at": "src/features/RemoteEngineStart.cpp:708",
+   "links": [
+    "call -> rca::RemoteEngineStart::determineResSuspend at src/features/RemoteEngineStart.cpp:718: determineResSuspend();"
+   ],
+   "code": "  705|     }\n  706| }\n  707| \n  708| void RemoteEngineStart::checkEndF()\n  709| {\n  710|     if (RX_C_RES_MAX_SIZE == cntExsSig) {\n  711|         cntExsSig = 0U;\n  712|         checkHamming();\n  713|         checkFarAuthen();\n  714|         checkResAuthen();\n  715|         checkResExtend();\n  716|         checkResResult();\n  717|         checkExtresFrCon();\n  718|         determineResSuspend();\n  719|     }\n  720|     uint32_t sizeOfACSig = RX_C_AC_MAX_SIZE;//fix misra\n  721|     if (sizeOfACSig - RX_AC_SIG_SIZE_NO_USED == cntAcSig) {\n  722|         cntAcSig = 0U;\n  723|         checkAcSetting();\n  724|     }\n  725| }",
+   "cases": [
+    {
+     "id": "TC-0018",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": "removed_guard",
+     "description": "Re-verify the functional behaviour of `checkEndF`, which calls `rca::RemoteEngineStart::determineResSuspend` (direct) \u2014 removed guard",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::determineResSuspend`: condition removed in `rca::RemoteEngineStart::determineResSuspend` (src/features/RemoteEngineStart.cpp:1569): `if (!isRecvStartCmd || isRecvStopCmd) {`; `if (!privacy) {`",
+     "corner_cases": [
+      "Removed condition `!isRecvStartCmd || isRecvStopCmd`: the code it protected now also runs when it is false \u2014 make `isRecvStartCmd || isRecvStopCmd` hold",
+      "Removed condition `!privacy`: the code it protected now also runs when it is false \u2014 make `privacy` true / non-null",
+      "`CommImpl::isPrivacyOn(\u2026)` is no longer called here (`bool privacy = CommImpl::isPrivacyOn(PPP_SERID_RES);`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`LOG_I(\u2026)` is no longer called here (`LOG_I(DLT_STRING(\"Privacy Setting is OFF\"));`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`isRecvStartCmd = false;` is no longer done here: readers of `isRecvStartCmd` must not rely on it being updated on this path",
+      "Exercise every branch whose condition changed (true and false paths)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K012",
+   "symbol": "onFeatureStateChanged",
+   "at": "src/features/RemoteEngineStartCancel.cpp:671",
+   "links": [
+    "call -> rca::RemoteEngineStartCancel::deactiveFeature at src/features/RemoteEngineStartCancel.cpp:678: deactiveFeature();"
+   ],
+   "code": "  668|     }\n  669| }\n  670| \n  671| void RemoteEngineStartCancel::onFeatureStateChanged(const FeatureState &newState)\n  672| {\n  673|     switch (newState) {\n  674|     case FEATURE_ACTIVE:\n  675|         activeFeature();\n  676|         break;\n  677|     case FEATURE_INACTIVE:\n  678|         deactiveFeature();\n  679|         break;\n  680|     case FEATURE_PENDING:\n  681|         LOG_I(DLT_STRING(\"[RESC]Postponse 2nd operation...\"));\n  682|         if (mremotecontrolifmgr != nullptr) {\n  683|             if (mremotecontrolifmgr->getPLockCnt() > 0U) {\n  684|                 mremotecontrolifmgr->setPLockCnt(mremotecontrolifmgr->getPLockCnt() - 1U);\n  685|             }\n  686|         } else {\n  687|             LOG_E(DLT_STRING(\"mremotecontrolifmgr is nullptr\"));\n  688|         }\n  689|         break;\n  690|     case FEATURE_SUSPEND:\n  691|         LOG_I(DLT_STRING(\"Remote-engine is suspending\"));\n  692|         break;\n  693|     default:\n  694|         break;\n  695|     }\n  696| }",
+   "cases": [
+    {
+     "id": "TC-0019",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `onFeatureStateChanged`, which calls `rca::RemoteEngineStartCancel::deactiveFeature` (direct)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStartCancel::deactiveFeature`: control flow / computation changed in `rca::RemoteEngineStartCancel::deactiveFeature` (src/features/RemoteEngineStartCancel.cpp:640): `false`",
+     "corner_cases": [
+      "`isRecvStopCmd = false;` is no longer done here: readers of `isRecvStopCmd` must not rely on it being updated on this path",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K013",
+   "symbol": "rca::Feature::Feature",
+   "at": "src/features/Feature.h:282",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:282: Feature();"
+   ],
+   "code": "  279|     friend class FeatureInfo;\n  280| \n  281| public:\n  282|     Feature();\n  283|     virtual ~Feature();\n  284| \n  285|     /**\n  286|      * @brief setApplication\n  287|      * @param app\n  288|      */\n  289|     void setApplication(const android::sp<Application> &app);\n  290| \n  291|     /**\n  292|      * @brief setApplication\n  293|      * @param priorityMgr\n  294|      */\n  295|     void setPriorityMgr(const android::sp<FeaturePriorityManager> &priorityMgr);\n  296| \n  297|     /**\n  298|      * @brief setIfMgr\n  299|      * @param ifMgr\n  300|      */\n  301|     void setIfMgr(const android::sp<remotecontrolifmgr> &ifMgr);\n  302| \n  303|     /**\n  304|      * @brief init initialize the feature, register handler to ReceiverManager\n  305|      * @param receiverManager ReceiverManager\n  306|      */\n  307|     void init(const std::shared_ptr<MessageBroker>& receiverManager);\n  308| \n  309|     /**\n  310|      * @brief Get the Message Common List object\n  311|      *\n  312|      * @return list<int32_t>\n  313|      */\n  314|     std::list<int32_t> getMessageCommonList() const;\n  315| \n  316|     /**\n  317|      * @brief getEthernetStt\n  318|      */",
+   "cases": [
+    {
+     "id": "TC-0058",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::Feature`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0021",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::Feature`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:282)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K014",
+   "symbol": "rca::Feature::onFeatureStateChanged",
+   "at": "src/features/Feature.h:326",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:326: virtual void onFeatureStateChanged(const FeatureState& newState) = 0;"
+   ],
+   "code": "  323|      * @param name\n  324|      * @param state\n  325|      */\n  326|     virtual void onFeatureStateChanged(const FeatureState& newState) = 0;\n  327| \n  328|     /**\n  329|      * @brief determineIgnition\n  330|      * @return\n  331|      */\n  332|     std::string determineIgnition();\n  333| \n  334|     /**\n  335|      * @brief onFeatureChanged called by RemoteControlApp when this feature status changed\n  336|      * due to priority management\n  337|      */\n  338|     //void onFeatureChanged();\n  339| \n  340|     /**\n  341|      * @brief onHandleMessage handle message in looper thread\n  342|      * @param msg message\n  343|      */\n  344|     void onHandleMessage(const android::sp<sl::Message>& msg);\n  345| \n  346|     bool judgeOnceRDL(const uint32_t (&rxSigRDL)[RECV_C_MAX_SIZE]) const;\n  347|     bool judgeFinalRDL(const uint32_t (&rxSigRDL)[RECV_C_MAX_SIZE]) const;\n  348|     bool judgeOnceUnLock(const uint32_t (&rxSigRDU)[RECV_C_MAX_SIZE]) const;\n  349|     bool judgeFinalUnLock(const uint32_t (&rxSigRDU)[RECV_C_MAX_SIZE]) const;\n  350|     static error_t calculateKey(const uint32_t valX, uint32_t &valfAR);\n  351|     static error_t calXval(uint32_t randomCode, uint32_t& hammingDis, uint32_t& valX);\n  352|     static std::string convert2UTCTime(int64_t &timeStamp);\n  353|     void setBodyData(RemoEngDa_t &remoEngDa,\n  354|                      const uint32_t (&rxSigAC)[RX_C_AC_MAX_SIZE],\n  355|                      const EResultStatusType &mresultStatus,\n  356|                      const EResultReasonType &mresultReason,\n  357|                      const uint32_t mresultCode,\n  358|                      const std::string mrecvCmd,\n  359|                      const uint32_t resCnt = 0U);\n  360|     static std::string enRepRes(const RemoEngDa_t &remoEngDa);\n  361|     sp<sl::Handler> getHandler() const { return mHandler; }",
+   "cases": [
+    {
+     "id": "TC-0059",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::onFeatureStateChanged`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0022",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::onFeatureStateChanged`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:326)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K015",
+   "symbol": "rca::Feature::getHandler",
+   "at": "src/features/Feature.h:361",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:361: sp<sl::Handler> getHandler() const { return mHandler; }"
+   ],
+   "code": "  358|                      const std::string mrecvCmd,\n  359|                      const uint32_t resCnt = 0U);\n  360|     static std::string enRepRes(const RemoEngDa_t &remoEngDa);\n  361|     sp<sl::Handler> getHandler() const { return mHandler; }",
+   "cases": [
+    {
+     "id": "TC-0060",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::getHandler`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0023",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::getHandler`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:361)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K016",
+   "symbol": "rca::Feature::handleIgStateChanged",
+   "at": "src/features/Feature.h:367",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:367: virtual void handleIgStateChanged(const android::sp<sl::Message>& msg) = 0;"
+   ],
+   "code": "  364|      * @brief handleIgStateChanged handle IG state change event\n  365|      * sub-classess need to implement this function with specific requirement of the feature\n  366|      */\n  367|     virtual void handleIgStateChanged(const android::sp<sl::Message>& msg) = 0;\n  368| \n  369|     /**\n  370|      * @brief handleAccStateChanged handle ACC state change event\n  371|      * sub-classess need to implement this function with specific requirement of the feature\n  372|      */\n  373|     virtual void handleAccStateChanged(const android::sp<sl::Message>& msg) = 0;\n  374| \n  375|     /**\n  376|      * @brief handlePowerStateChanged handle power state change event\n  377|      * sub-classess need to implement this function with specific requirement of the feature\n  378|      */\n  379|     virtual void handlePowerStateChanged() = 0;\n  380| \n  381|     /**\n  382|      * @brief handlePowerModeChanged\n  383|      */\n  384|     virtual void handlePowerModeChanged(const android::sp<sl::Message>& msg) = 0;\n  385| \n  386|     /**\n  387|      * @brief handleFeatureStatusChanged handle feature status change event\n  388|      * sub-classess need to implement this function with specific requirement of the feature\n  389|      */\n  390|     virtual void handleFeatureStatusChanged() = 0;\n  391| \n  392|     /**\n  393|      * @brief handleMessage handle specific message of the feature\n  394|      * sub-classess need to implement this function with specific requirement of the feature\n  395|      */\n  396|     virtual void handleMessage(const android::sp<sl::Message>& msg) = 0;\n  397| \n  398|     /**\n  399|      * @brief getMessageList get list of message id (defined in MessageDefs.h) that this feature\n  400|      * handle. Sub-classes need to implement this function\n  401|      * @return\n  402|      */\n  403|     virtual std::list<int32_t> getMessageList() const = 0;",
+   "cases": [
+    {
+     "id": "TC-0061",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::handleIgStateChanged`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0024",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::handleIgStateChanged`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:367)"
+     ]
+    }
+   ]
+  }
+ ]
+}

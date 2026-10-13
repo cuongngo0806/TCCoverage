@@ -1,0 +1,410 @@
+{
+ "batch": "batch-03",
+ "report_language": "vi",
+ "changed": [
+  "rca::Feature @src/features/Feature.h:269 [abi_layout,logic,ownership_lifetime]",
+  "rca::Feature::getIsRecvStopCmd @src/features/Feature.h:463 [abi_layout,logic]",
+  "rca::Feature::setIsRecvStopCmd @src/features/Feature.h:478 [abi_layout]",
+  "rca::RemoteEngineStart::processOrderResp @src/features/RemoteEngineStart.cpp:60 [logic]",
+  "rca::RemoteEngineStart::completeFeature @src/features/RemoteEngineStart.cpp:204 [logic]",
+  "rca::RemoteEngineStart::determineResSuspend @src/features/RemoteEngineStart.cpp:1569 [logic]",
+  "rca::RemoteEngineStart @src/features/RemoteEngineStart.h:323 [abi_layout,build_config,logic]",
+  "rca::RemoteEngineStartCancel::processOrderResp @src/features/RemoteEngineStartCancel.cpp:29 [logic]",
+  "rca::RemoteEngineStartCancel::completeFeature @src/features/RemoteEngineStartCancel.cpp:183 [logic]",
+  "rca::RemoteEngineStartCancel::processOrderData @src/features/RemoteEngineStartCancel.cpp:213 [logic]",
+  "rca::RemoteEngineStartCancel::deactiveFeature @src/features/RemoteEngineStartCancel.cpp:640 [logic]"
+ ],
+ "flags": [
+  "build_config_incomplete_macro: change in src/features/RemoteEngineStart.h:323 is guarded by `#ifndef ENGINE_START_FEATURE_H`; `ENGINE_START_FEATURE_H` is undefined in every compile command, so this branch was never parsed (configurations in compile_commands.json: Debug)",
+  "build_config_incomplete_macro: src/features/FeatureFactory.h:7 is guarded by `#ifndef EE_ARCH_GEN3`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorLock.h:19 is guarded by `#ifndef RDL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorLock.h:39 is guarded by `#ifndef RDL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorUnlock.h:19 is guarded by `#ifndef RDU_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorUnlock.h:39 is guarded by `#ifndef RDU_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:323 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:326 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:339 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStartCancel.h:20 is guarded by `#ifndef ENGINE_START_CANCEL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStartCancel.h:40 is guarded by `#ifndef ENGINE_START_CANCEL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteStartInhibition.h:20 is guarded by `#ifndef REMOTE_START_INHIBITION_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteStartInhibition.h:98 is guarded by `#ifndef REMOTE_START_INHIBITION_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapFeature.h:19 is guarded by `#ifndef SHOULDER_TAP_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapFeature.h:28 is guarded by `#ifndef SHOULDER_TAP_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapForGW.h:20 is guarded by `#ifndef SHOULDER_TAP_FOR_GW_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapForGW.h:50 is guarded by `#ifndef SHOULDER_TAP_FOR_GW_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/prioritymanager/FeaturePriorityManager.h:70 is guarded by `#ifndef FEATUREPRIORITYMANAGER_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/tidl-generated/remotecontrolapp.h:31 is guarded by `#ifndef _REMOTE_CONTROL_APPLICATION_H_`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/tidl-generated/remotecontrolexecutor.h:23 is guarded by `#ifndef _REMOTE_CONTROL_EXECUTOR_H_`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept"
+ ],
+ "existing_tests": [],
+ "packets": [
+  {
+   "packet": "K017",
+   "symbol": "rca::Feature::handleAccStateChanged",
+   "at": "src/features/Feature.h:373",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:373: virtual void handleAccStateChanged(const android::sp<sl::Message>& msg) = 0;"
+   ],
+   "code": "  370|      * @brief handleAccStateChanged handle ACC state change event\n  371|      * sub-classess need to implement this function with specific requirement of the feature\n  372|      */\n  373|     virtual void handleAccStateChanged(const android::sp<sl::Message>& msg) = 0;\n  374| \n  375|     /**\n  376|      * @brief handlePowerStateChanged handle power state change event\n  377|      * sub-classess need to implement this function with specific requirement of the feature\n  378|      */\n  379|     virtual void handlePowerStateChanged() = 0;\n  380| \n  381|     /**\n  382|      * @brief handlePowerModeChanged\n  383|      */\n  384|     virtual void handlePowerModeChanged(const android::sp<sl::Message>& msg) = 0;\n  385| \n  386|     /**\n  387|      * @brief handleFeatureStatusChanged handle feature status change event\n  388|      * sub-classess need to implement this function with specific requirement of the feature\n  389|      */\n  390|     virtual void handleFeatureStatusChanged() = 0;\n  391| \n  392|     /**\n  393|      * @brief handleMessage handle specific message of the feature\n  394|      * sub-classess need to implement this function with specific requirement of the feature\n  395|      */\n  396|     virtual void handleMessage(const android::sp<sl::Message>& msg) = 0;\n  397| \n  398|     /**\n  399|      * @brief getMessageList get list of message id (defined in MessageDefs.h) that this feature\n  400|      * handle. Sub-classes need to implement this function\n  401|      * @return\n  402|      */\n  403|     virtual std::list<int32_t> getMessageList() const = 0;\n  404| \n  405|     /**\n  406|      * @brief completeFeature\n  407|      */\n  408|     virtual void completeFeature() = 0;\n  409| ",
+   "cases": [
+    {
+     "id": "TC-0062",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::handleAccStateChanged`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0025",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::handleAccStateChanged`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:373)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K018",
+   "symbol": "rca::Feature::handlePowerStateChanged",
+   "at": "src/features/Feature.h:379",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:379: virtual void handlePowerStateChanged() = 0;"
+   ],
+   "code": "  376|      * @brief handlePowerStateChanged handle power state change event\n  377|      * sub-classess need to implement this function with specific requirement of the feature\n  378|      */\n  379|     virtual void handlePowerStateChanged() = 0;\n  380| \n  381|     /**\n  382|      * @brief handlePowerModeChanged\n  383|      */\n  384|     virtual void handlePowerModeChanged(const android::sp<sl::Message>& msg) = 0;\n  385| \n  386|     /**\n  387|      * @brief handleFeatureStatusChanged handle feature status change event\n  388|      * sub-classess need to implement this function with specific requirement of the feature\n  389|      */\n  390|     virtual void handleFeatureStatusChanged() = 0;\n  391| \n  392|     /**\n  393|      * @brief handleMessage handle specific message of the feature\n  394|      * sub-classess need to implement this function with specific requirement of the feature\n  395|      */\n  396|     virtual void handleMessage(const android::sp<sl::Message>& msg) = 0;\n  397| \n  398|     /**\n  399|      * @brief getMessageList get list of message id (defined in MessageDefs.h) that this feature\n  400|      * handle. Sub-classes need to implement this function\n  401|      * @return\n  402|      */\n  403|     virtual std::list<int32_t> getMessageList() const = 0;\n  404| \n  405|     /**\n  406|      * @brief completeFeature\n  407|      */\n  408|     virtual void completeFeature() = 0;\n  409| \n  410|     void replyToGtc(const EOrderType &orderType,\n  411|                        const uint64_t &morderId,\n  412|                        const EResultStatusType &mresultStatus,\n  413|                        const EResultReasonType &mresultReason,\n  414|                        const size_t &meventStartTimeLen,const std::string meventStartTime,\n  415|                        const size_t &meventEndTimeLen,const std::string meventEndTime,",
+   "cases": [
+    {
+     "id": "TC-0063",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::handlePowerStateChanged`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0026",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::handlePowerStateChanged`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:379)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K019",
+   "symbol": "rca::Feature::handlePowerModeChanged",
+   "at": "src/features/Feature.h:384",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:384: virtual void handlePowerModeChanged(const android::sp<sl::Message>& msg) = 0;"
+   ],
+   "code": "  381|     /**\n  382|      * @brief handlePowerModeChanged\n  383|      */\n  384|     virtual void handlePowerModeChanged(const android::sp<sl::Message>& msg) = 0;\n  385| \n  386|     /**\n  387|      * @brief handleFeatureStatusChanged handle feature status change event\n  388|      * sub-classess need to implement this function with specific requirement of the feature\n  389|      */\n  390|     virtual void handleFeatureStatusChanged() = 0;\n  391| \n  392|     /**\n  393|      * @brief handleMessage handle specific message of the feature\n  394|      * sub-classess need to implement this function with specific requirement of the feature\n  395|      */\n  396|     virtual void handleMessage(const android::sp<sl::Message>& msg) = 0;\n  397| \n  398|     /**\n  399|      * @brief getMessageList get list of message id (defined in MessageDefs.h) that this feature\n  400|      * handle. Sub-classes need to implement this function\n  401|      * @return\n  402|      */\n  403|     virtual std::list<int32_t> getMessageList() const = 0;\n  404| \n  405|     /**\n  406|      * @brief completeFeature\n  407|      */\n  408|     virtual void completeFeature() = 0;\n  409| \n  410|     void replyToGtc(const EOrderType &orderType,\n  411|                        const uint64_t &morderId,\n  412|                        const EResultStatusType &mresultStatus,\n  413|                        const EResultReasonType &mresultReason,\n  414|                        const size_t &meventStartTimeLen,const std::string meventStartTime,\n  415|                        const size_t &meventEndTimeLen,const std::string meventEndTime,\n  416|                        const EContentType &mcontentType,\n  417|                        const size_t &mreqReplyBodyLen,const std::string mreqReplyBody,\n  418|                        const uint64_t &mreqNum);\n  419|     static void sendToGtc(const ESendType &sendType,\n  420|                       const uint64_t &morderId,",
+   "cases": [
+    {
+     "id": "TC-0064",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::handlePowerModeChanged`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0027",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::handlePowerModeChanged`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:384)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K020",
+   "symbol": "rca::Feature::handleFeatureStatusChanged",
+   "at": "src/features/Feature.h:390",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:390: virtual void handleFeatureStatusChanged() = 0;"
+   ],
+   "code": "  387|      * @brief handleFeatureStatusChanged handle feature status change event\n  388|      * sub-classess need to implement this function with specific requirement of the feature\n  389|      */\n  390|     virtual void handleFeatureStatusChanged() = 0;\n  391| \n  392|     /**\n  393|      * @brief handleMessage handle specific message of the feature\n  394|      * sub-classess need to implement this function with specific requirement of the feature\n  395|      */\n  396|     virtual void handleMessage(const android::sp<sl::Message>& msg) = 0;\n  397| \n  398|     /**\n  399|      * @brief getMessageList get list of message id (defined in MessageDefs.h) that this feature\n  400|      * handle. Sub-classes need to implement this function\n  401|      * @return\n  402|      */\n  403|     virtual std::list<int32_t> getMessageList() const = 0;\n  404| \n  405|     /**\n  406|      * @brief completeFeature\n  407|      */\n  408|     virtual void completeFeature() = 0;\n  409| \n  410|     void replyToGtc(const EOrderType &orderType,\n  411|                        const uint64_t &morderId,\n  412|                        const EResultStatusType &mresultStatus,\n  413|                        const EResultReasonType &mresultReason,\n  414|                        const size_t &meventStartTimeLen,const std::string meventStartTime,\n  415|                        const size_t &meventEndTimeLen,const std::string meventEndTime,\n  416|                        const EContentType &mcontentType,\n  417|                        const size_t &mreqReplyBodyLen,const std::string mreqReplyBody,\n  418|                        const uint64_t &mreqNum);\n  419|     static void sendToGtc(const ESendType &sendType,\n  420|                       const uint64_t &morderId,\n  421|                       const EResultStatusType &mresultStatus,\n  422|                       const EResultReasonType &mresultReason,\n  423|                       const size_t &meventTimeLen,const std::string meventTime,\n  424|                       const EContentType &mcontentType,\n  425|                       const size_t &mreqSendBodyLen,const std::string mreqSendBody,\n  426|                       const uint64_t &mreqNum);",
+   "cases": [
+    {
+     "id": "TC-0065",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::handleFeatureStatusChanged`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0028",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::handleFeatureStatusChanged`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:390)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K021",
+   "symbol": "rca::Feature::handleMessage",
+   "at": "src/features/Feature.h:396",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:396: virtual void handleMessage(const android::sp<sl::Message>& msg) = 0;"
+   ],
+   "code": "  393|      * @brief handleMessage handle specific message of the feature\n  394|      * sub-classess need to implement this function with specific requirement of the feature\n  395|      */\n  396|     virtual void handleMessage(const android::sp<sl::Message>& msg) = 0;\n  397| \n  398|     /**\n  399|      * @brief getMessageList get list of message id (defined in MessageDefs.h) that this feature\n  400|      * handle. Sub-classes need to implement this function\n  401|      * @return\n  402|      */\n  403|     virtual std::list<int32_t> getMessageList() const = 0;\n  404| \n  405|     /**\n  406|      * @brief completeFeature\n  407|      */\n  408|     virtual void completeFeature() = 0;\n  409| \n  410|     void replyToGtc(const EOrderType &orderType,\n  411|                        const uint64_t &morderId,\n  412|                        const EResultStatusType &mresultStatus,\n  413|                        const EResultReasonType &mresultReason,\n  414|                        const size_t &meventStartTimeLen,const std::string meventStartTime,\n  415|                        const size_t &meventEndTimeLen,const std::string meventEndTime,\n  416|                        const EContentType &mcontentType,\n  417|                        const size_t &mreqReplyBodyLen,const std::string mreqReplyBody,\n  418|                        const uint64_t &mreqNum);\n  419|     static void sendToGtc(const ESendType &sendType,\n  420|                       const uint64_t &morderId,\n  421|                       const EResultStatusType &mresultStatus,\n  422|                       const EResultReasonType &mresultReason,\n  423|                       const size_t &meventTimeLen,const std::string meventTime,\n  424|                       const EContentType &mcontentType,\n  425|                       const size_t &mreqSendBodyLen,const std::string mreqSendBody,\n  426|                       const uint64_t &mreqNum);\n  427|     /**\n  428|      * @brief sendToIcb This function send message to SOME/IP Mgr\n  429|      * @param kTx Provider enum\n  430|      * @param payload The payload of SOME/IP message\n  431|      * @return\n  432|      */",
+   "cases": [
+    {
+     "id": "TC-0066",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::handleMessage`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0029",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::handleMessage`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:396)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K022",
+   "symbol": "rca::Feature::getRemoteControlIfMgr",
+   "at": "src/features/Feature.h:451",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:451: sp<remotecontrolifmgr> getRemoteControlIfMgr() const { return mremotecontrolifmgr; }"
+   ],
+   "code": "  448| \n  449| protected:\n  450|     // Getter methods for derived classes (avoiding conflicts with existing public methods)\n  451|     sp<remotecontrolifmgr> getRemoteControlIfMgr() const { return mremotecontrolifmgr; }",
+   "cases": [
+    {
+     "id": "TC-0069",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::getRemoteControlIfMgr`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0032",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::getRemoteControlIfMgr`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:451)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K023",
+   "symbol": "rca::Feature::getAppManager",
+   "at": "src/features/Feature.h:452",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:452: sp<IApplicationManagerService> getAppManager() const { return mAppManager; }"
+   ],
+   "code": "  449| protected:\n  450|     // Getter methods for derived classes (avoiding conflicts with existing public methods)\n  451|     sp<remotecontrolifmgr> getRemoteControlIfMgr() const { return mremotecontrolifmgr; }\n  452|     sp<IApplicationManagerService> getAppManager() const { return mAppManager; }",
+   "cases": [
+    {
+     "id": "TC-0070",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::getAppManager`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0033",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::getAppManager`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:452)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K024",
+   "symbol": "rca::Feature::getVehicleService",
+   "at": "src/features/Feature.h:453",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:453: sp<IVehicleManagerService> getVehicleService() const { return mVehicleService; }"
+   ],
+   "code": "  450|     // Getter methods for derived classes (avoiding conflicts with existing public methods)\n  451|     sp<remotecontrolifmgr> getRemoteControlIfMgr() const { return mremotecontrolifmgr; }\n  452|     sp<IApplicationManagerService> getAppManager() const { return mAppManager; }\n  453|     sp<IVehicleManagerService> getVehicleService() const { return mVehicleService; }",
+   "cases": [
+    {
+     "id": "TC-0071",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::getVehicleService`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0034",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::getVehicleService`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:453)"
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,261 @@
+{
+ "batch": "batch-08",
+ "report_language": "vi",
+ "changed": [
+  "rca::Feature @src/features/Feature.h:269 [abi_layout,logic,ownership_lifetime]",
+  "rca::Feature::getIsRecvStopCmd @src/features/Feature.h:463 [abi_layout,logic]",
+  "rca::Feature::setIsRecvStopCmd @src/features/Feature.h:478 [abi_layout]",
+  "rca::RemoteEngineStart::processOrderResp @src/features/RemoteEngineStart.cpp:60 [logic]",
+  "rca::RemoteEngineStart::completeFeature @src/features/RemoteEngineStart.cpp:204 [logic]",
+  "rca::RemoteEngineStart::determineResSuspend @src/features/RemoteEngineStart.cpp:1569 [logic]",
+  "rca::RemoteEngineStart @src/features/RemoteEngineStart.h:323 [abi_layout,build_config,logic]",
+  "rca::RemoteEngineStartCancel::processOrderResp @src/features/RemoteEngineStartCancel.cpp:29 [logic]",
+  "rca::RemoteEngineStartCancel::completeFeature @src/features/RemoteEngineStartCancel.cpp:183 [logic]",
+  "rca::RemoteEngineStartCancel::processOrderData @src/features/RemoteEngineStartCancel.cpp:213 [logic]",
+  "rca::RemoteEngineStartCancel::deactiveFeature @src/features/RemoteEngineStartCancel.cpp:640 [logic]"
+ ],
+ "flags": [
+  "build_config_incomplete_macro: change in src/features/RemoteEngineStart.h:323 is guarded by `#ifndef ENGINE_START_FEATURE_H`; `ENGINE_START_FEATURE_H` is undefined in every compile command, so this branch was never parsed (configurations in compile_commands.json: Debug)",
+  "build_config_incomplete_macro: src/features/FeatureFactory.h:7 is guarded by `#ifndef EE_ARCH_GEN3`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorLock.h:19 is guarded by `#ifndef RDL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorLock.h:39 is guarded by `#ifndef RDL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorUnlock.h:19 is guarded by `#ifndef RDU_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorUnlock.h:39 is guarded by `#ifndef RDU_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:323 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:326 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:339 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStartCancel.h:20 is guarded by `#ifndef ENGINE_START_CANCEL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStartCancel.h:40 is guarded by `#ifndef ENGINE_START_CANCEL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteStartInhibition.h:20 is guarded by `#ifndef REMOTE_START_INHIBITION_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteStartInhibition.h:98 is guarded by `#ifndef REMOTE_START_INHIBITION_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapFeature.h:19 is guarded by `#ifndef SHOULDER_TAP_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapFeature.h:28 is guarded by `#ifndef SHOULDER_TAP_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapForGW.h:20 is guarded by `#ifndef SHOULDER_TAP_FOR_GW_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapForGW.h:50 is guarded by `#ifndef SHOULDER_TAP_FOR_GW_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/prioritymanager/FeaturePriorityManager.h:70 is guarded by `#ifndef FEATUREPRIORITYMANAGER_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/tidl-generated/remotecontrolapp.h:31 is guarded by `#ifndef _REMOTE_CONTROL_APPLICATION_H_`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/tidl-generated/remotecontrolexecutor.h:23 is guarded by `#ifndef _REMOTE_CONTROL_EXECUTOR_H_`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept"
+ ],
+ "existing_tests": [],
+ "packets": [
+  {
+   "packet": "K057",
+   "symbol": "reportResult",
+   "at": "src/features/RemoteEngineStartCancel.cpp:472",
+   "links": [
+    "call -> processReplyReq at src/features/RemoteEngineStartCancel.cpp:507: processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W003, rxSigRES[RX_C_RESCAUSE]);",
+    "call -> processReplyReq at src/features/RemoteEngineStartCancel.cpp:507: processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W003, rxSigRES[RX_C_RESCAUSE]);"
+   ],
+   "code": "  469|     }\n  470| }\n  471| \n  472| void RemoteEngineStartCancel::reportResult(error_t r, bool offLed)\n  473| {\n  474|     if (E_OK == r) {\n  475|         // LCOV_EXCL_START\n  476|         if(!AppProperty::getInstance().setInt(MEMORY_RES_DURING, 0)){\n  477|             LOG_E(DLT_STRING(\"Failed to set MEMORY_RES_DURING\"));\n  478|         }\n  479|         // LCOV_EXCL_STOP\n  480| \n  481|         /** Stop operating LED state */\n  482|         if (offLed) {\n  483|             HMILedPatternInfo ledInfo;\n  484|             ledInfo.ledPri = eLED_RES;//used\n  485|             ledInfo.onTime = 0U;//used\n  486|             ledInfo.led = e_LED_Type::HMI_LED_G;\n  487|             ledInfo.ledPatt = e_LED_Pattern::LED_BLINK;\n  488|             ledInfo.ledRep = e_Rep_Type::REP_NONE;\n  489|             ledInfo.bStart = 0U;\n  490|             ledInfo.offTime = 0U;\n  491|             ledInfo.repTime = 0U;\n  492|             ledInfo.onFirst = 0U;\n  493|             // LCOV_EXCL_START\n  494|             if (HMIManager::instance() != nullptr) {\n  495|                 if (E_OK == HMIManager::instance()->setLedPattern(ledInfo)) {\n  496|                     LOG_I(DLT_STRING(\"LED Blink Pattern:\"), DLT_UINT16(ledInfo.onTime));\n  497|                 } else {\n  498|                     LOG_E(DLT_STRING(\"Cannot set LED pattern\"));\n  499|                 }\n  500|             } else {\n  501|                 LOG_E(DLT_STRING(\"HMIManager instance is null\"));\n  502|             }\n  503|             // LCOV_EXCL_STOP\n  504|         }\n  505|         processReplyReq(RESULT_STATUS_SUCCESS, RESULT_REASON_DEFAULT, rxSigRES[RX_C_RESCAUSE]);\n  506|     } else {\n  507|         processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W003, rxSigRES[RX_C_RESCAUSE]);\n  508|     }",
+   "cases": [
+    {
+     "id": "TC-0183",
+     "priority": "P3",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `reportResult`, which calls `processReplyReq` (indirect, 2 hops)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStartCancel::completeFeature`, `rca::RemoteEngineStartCancel::processOrderData`: control flow / computation changed in `rca::RemoteEngineStartCancel::completeFeature` (src/features/RemoteEngineStartCancel.cpp:183): `false`",
+     "corner_cases": [
+      "`isRecvStopCmd = false;` is no longer done here: readers of `isRecvStopCmd` must not rely on it being updated on this path",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 2,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K058",
+   "symbol": "activeFeature",
+   "at": "src/features/RemoteEngineStartCancel.cpp:619",
+   "links": [
+    "call -> processReplyReq at src/features/RemoteEngineStartCancel.cpp:630: processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W001, rxSigRES[RX_C_RESCAUSE]);",
+    "call -> processReplyReq at src/features/RemoteEngineStartCancel.cpp:630: processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W001, rxSigRES[RX_C_RESCAUSE]);"
+   ],
+   "code": "  616|     }\n  617| }\n  618| \n  619| void RemoteEngineStartCancel::activeFeature()\n  620| {\n  621|     if (isReqAct) {\n  622|         isReqAct = false;\n  623|         orderData = orderDataTemp;\n  624|         orderDataTemp = nullptr;\n  625|         // Check condition to start\n  626|         if (conToStart()) {\n  627|             transfEngineStopCmd();\n  628|         } else {\n  629|             LOG_I(DLT_STRING(\"Not met condition to start C_RESSTA2=\"), DLT_UINT32(rxSigRES[RX_C_RESSTA2]));\n  630|             processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W001, rxSigRES[RX_C_RESCAUSE]);\n  631|         }\n  632|     } else if (isReqDeact) {\n  633|         isReqDeact = false;\n  634|         LOG_E(DLT_STRING(\"Fail to deactivate RESC feature\"));\n  635|     } else {\n  636|         LOG_E(DLT_STRING(\"Fail to activate RESC feature\"));\n  637|     }\n  638| }",
+   "cases": [
+    {
+     "id": "TC-0184",
+     "priority": "P3",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `activeFeature`, which calls `processReplyReq` (indirect, 2 hops)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStartCancel::completeFeature`, `rca::RemoteEngineStartCancel::processOrderData`: control flow / computation changed in `rca::RemoteEngineStartCancel::completeFeature` (src/features/RemoteEngineStartCancel.cpp:183): `false`",
+     "corner_cases": [
+      "`isRecvStopCmd = false;` is no longer done here: readers of `isRecvStopCmd` must not rely on it being updated on this path",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 2,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K059",
+   "symbol": "deactiveFeature",
+   "at": "src/features/RemoteEngineStartCancel.cpp:640",
+   "links": [
+    "call -> processReplyReq at src/features/RemoteEngineStartCancel.cpp:656: processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W003);",
+    "call -> processReplyReq at src/features/RemoteEngineStartCancel.cpp:656: processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W003);"
+   ],
+   "code": "  637|     }\n  638| }\n  639| \n  640| void RemoteEngineStartCancel::deactiveFeature()\n  641| {\n  642|     if (isReqAct) {\n  643|         isReqAct = false;\n  644|         LOG_E(DLT_STRING(\"Fail to activate RESC feature\"));\n  645|         processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W001, rxSigRES[RX_C_RESCAUSE], orderDataTemp);\n  646|     } else if (isReqDeact) {\n  647|         isReqDeact = false;\n  648|     } else {\n  649|         if(mApplication != nullptr) {\n  650|             if(mApplication->getFeatureStatus(\"OTA_activation\") == FeatureStatus::ON) {\n  651|                 LOG_I(DLT_STRING(\"OTA activation is in progress, ignore RESC\"));\n  652|                 processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W004);\n  653|                 // Wait for OTA activation to complete\n  654|             } else {\n  655|                 LOG_I(DLT_STRING(\"Process to ignore RESC feature\"));\n  656|                 processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W003);\n  657|             }\n  658|         } else {\n  659|             LOG_E(DLT_STRING(\"Application is null in deactiveFeature\"));\n  660|         }\n  661|     }\n  662| }",
+   "cases": [
+    {
+     "id": "TC-0185",
+     "priority": "P3",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `deactiveFeature`, which calls `processReplyReq` (indirect, 2 hops)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStartCancel::completeFeature`, `rca::RemoteEngineStartCancel::processOrderData`: control flow / computation changed in `rca::RemoteEngineStartCancel::completeFeature` (src/features/RemoteEngineStartCancel.cpp:183): `false`",
+     "corner_cases": [
+      "`isRecvStopCmd = false;` is no longer done here: readers of `isRecvStopCmd` must not rely on it being updated on this path",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 2,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K060",
+   "symbol": "processOrderResp",
+   "at": "src/features/RemoteEngineStart.cpp:60",
+   "links": [
+    "call -> processReplyReq at src/features/RemoteEngineStart.cpp:88: processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W003, rxSigRES[RX_C_RESCAUSE]);"
+   ],
+   "code": "   57|     (void)std::fill_n(rxSigAC, RX_C_AC_MAX_SIZE, INVALID_SIG_VALUE);\n   58| }\n   59| \n   60| void RemoteEngineStart::processOrderResp(const android::sp<sl::Message> &msg)\n   61| {\n   62|     if (msg != nullptr) {\n   63|         android::sp<OrderData> data = nullptr;\n   64|         msg->getObject(data);\n   65|         if (data != nullptr) {\n   66|             try {\n   67|                 std::string errorMsg;\n   68|                 Json::Value root;\n   69|                 Json::CharReaderBuilder cBuilder;\n   70|                 std::unique_ptr<Json::CharReader> cReader(cBuilder.newCharReader());\n   71|                 // LCOV_EXCL_START\n   72|                 if (cReader != nullptr) {\n   73|                     bool decodeJson = cReader->parse(reinterpret_cast<const char*>(data->getOrderBody().data()),\n   74|                                                     reinterpret_cast<const char*>(data->getOrderBody().data()) + data->getOrderBody().size(),\n   75|                                                     &root,\n   76|                                                     &errorMsg);\n   77|                     if(decodeJson){\n   78|                         // throw exception if failed to parse JSON or failed to get required fields\n   79|                         recvCmdTemp = JsonCheck::getValidatedEnum(\n   80|                                         root,\n   81|                                         \"command\",\n   82|                                         std::vector<std::string>{CMD_RES_STOP, CMD_RES_START, CMD_RES_SETTING});\n   83|                         if (recvCmdTemp == CMD_RES_STOP) {\n   84|                             isRecvStopCmd = true;\n   85|                             if (resTimerImpl.getResLockTimer() != nullptr){\n   86|                                 if(resTimerImpl.getResLockTimer()->getRemainingTimeMs() > 0U) {\n   87|                                     stopTimerImpl(TIMER_REMOTE_ENGINE_RDL);\n   88|                                     processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W003, rxSigRES[RX_C_RESCAUSE]);\n   89|                                 }\n   90|                             }\n   91|                         } else if (recvCmdTemp == CMD_RES_SETTING || recvCmdTemp == CMD_RES_START) {\n   92|                             LOG_I(DLT_STRING(\"orderType=\"), DLT_STRING(data->getOrderType().getStringEnum().c_str()),\n   93|                                 DLT_STRING(\"orderId=\"), DLT_UINT64(data->getOrderId()),\n   94|                                 DLT_STRING(\"startTimeLen=\"), DLT_UINT32(data->getStartTime().size()),\n   95|                                 DLT_STRING(\"startTime=\"), DLT_STRING(CommImpl::bufferToString(data->getStartTime()).c_str()),\n   96|                                 DLT_STRING(\"bodyLen=\"), DLT_UINT32(data->getOrderBody().size()),",
+   "cases": [
+    {
+     "id": "TC-0187",
+     "priority": "P3",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `processOrderResp`, which calls `processReplyReq` (indirect, 2 hops)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::completeFeature`: control flow / computation changed in `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`",
+     "corner_cases": [
+      "`isRecvStartCmd = false;` is no longer done here: readers of `isRecvStartCmd` must not rely on it being updated on this path",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 2,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K061",
+   "symbol": "processOrderData",
+   "at": "src/features/RemoteEngineStart.cpp:330",
+   "links": [
+    "call -> processReplyReq at src/features/RemoteEngineStart.cpp:339: processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W002, rxSigRES[RX_C_RESCAUSE], recvCmdTemp, data);"
+   ],
+   "code": "  327|     }\n  328| }\n  329| \n  330| void RemoteEngineStart::processOrderData(const android::sp<OrderData> &data)\n  331| {\n  332|     // Check PPP\n  333|     bool privacy = CommImpl::isPrivacyOn(PPP_SERID_RES);\n  334|     if (privacy) {\n  335|         // Check Priority matrix start/setting command\n  336|         checkPriorityMatrix(data);\n  337|     } else {\n  338|         LOG_I(DLT_STRING(\"Privacy Setting is OFF\"));\n  339|         processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W002, rxSigRES[RX_C_RESCAUSE], recvCmdTemp, data);\n  340|         end2ndOper();\n  341|     }\n  342| }",
+   "cases": [
+    {
+     "id": "TC-0188",
+     "priority": "P3",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `processOrderData`, which calls `processReplyReq` (indirect, 2 hops)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::completeFeature`: control flow / computation changed in `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`",
+     "corner_cases": [
+      "`isRecvStartCmd = false;` is no longer done here: readers of `isRecvStartCmd` must not rely on it being updated on this path",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 2,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K062",
+   "symbol": "checkPriorityMatrix",
+   "at": "src/features/RemoteEngineStart.cpp:343",
+   "links": [
+    "call -> processReplyReq at src/features/RemoteEngineStart.cpp:373: processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W001, rxSigRES[RX_C_RESCAUSE], CMD_RES_SETTING, data);"
+   ],
+   "code": "  340|         end2ndOper();\n  341|     }\n  342| }\n  343| void RemoteEngineStart::checkPriorityMatrix(const android::sp<OrderData> data)\n  344| {\n  345|     if (mremotecontrolifmgr != nullptr) {\n  346|         if (mremotecontrolifmgr->getPowerLock() != nullptr) {\n  347|             // Request Power Lock\n  348|             int32_t rr = mremotecontrolifmgr->getPowerLock()->acquire();\n  349|             mremotecontrolifmgr->setPLockCnt(mremotecontrolifmgr->getPLockCnt() + 1U);\n  350|             LOG_I(DLT_STRING(\"Request Power Lock, result=\"), DLT_INT(rr),\n  351|                 DLT_STRING(\"PLockCnt=\"), DLT_UINT32(mremotecontrolifmgr->getPLockCnt()));\n  352|         } else {\n  353|             LOG_E(DLT_STRING(\"Power lock is null\"));\n  354|         }\n  355|     } else {\n  356|         LOG_E(DLT_STRING(\"Remote control interface manager is null\"));\n  357|     }\n  358| \n  359|     // Request Active Feature\n  360|     LOG_I(DLT_STRING(\"Check priority for RES start/setting request\"));\n  361|     if (mPriorityMgr != nullptr) {\n  362|         isReqAct = true;\n  363|         recvCmd = recvCmdTemp;\n  364|         orderDataTemp = data;\n  365|         bool result = mPriorityMgr->requestActiveFeature(RES_FEATURE_NAME, true);\n  366|         if (!result) {\n  367|             isReqAct = false;\n  368|             orderDataTemp = nullptr;\n  369|             recvCmdTemp = CMD_INVALID;\n  370|             if (recvCmd == CMD_RES_START) {\n  371|                 processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W001, rxSigRES[RX_C_RESCAUSE], CMD_RES_START, data);\n  372|             } else if (recvCmd == CMD_RES_SETTING) {\n  373|                 processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W001, rxSigRES[RX_C_RESCAUSE], CMD_RES_SETTING, data);\n  374|             } else {\n  375|                 LOG_E(DLT_STRING(\"Received invalid command: \"), DLT_STRING(recvCmd.c_str()));\n  376|             }\n  377|         } else {\n  378|             LOG_I(DLT_STRING(\"Request Active Feature for RES success, recvCmd=\"), DLT_STRING(recvCmd.c_str()));\n  379|         }",
+   "cases": [
+    {
+     "id": "TC-0189",
+     "priority": "P3",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `checkPriorityMatrix`, which calls `processReplyReq` (indirect, 2 hops)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::completeFeature`: control flow / computation changed in `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`",
+     "corner_cases": [
+      "`isRecvStartCmd = false;` is no longer done here: readers of `isRecvStartCmd` must not rely on it being updated on this path",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 2,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K063",
+   "symbol": "processSettingCmd",
+   "at": "src/features/RemoteEngineStart.cpp:385",
+   "links": [
+    "call -> processReplyReq at src/features/RemoteEngineStart.cpp:401: processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W001, rxSigRES[RX_C_RESCAUSE], CMD_RES_SETTING);"
+   ],
+   "code": "  382|     }\n  383| }\n  384| \n  385| void RemoteEngineStart::processSettingCmd()\n  386| {\n  387|     //Check condition\n  388|     if (rxSigRES[RX_C_RESSTA2] == C_RESSTA2_RES_IG_RUN || rxSigRES[RX_C_RESSTA2] == C_RESSTA2_RES_IG_RUN_WAIT) {\n  389|         LOG_I(DLT_STRING(\"Process A/C setting\"));\n  390|         setInternalState(RES_SETTING);\n  391|         if (E_OK == decodeOrderBody()) {\n  392|             transfChangeTempCmd();\n  393|         } else {\n  394|             LOG_E(DLT_STRING(\"Fail to decode order data body\"));\n  395|             processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W001, rxSigRES[RX_C_RESCAUSE], CMD_RES_SETTING);\n  396|         }\n  397|     } else {\n  398|         LOG_E(DLT_STRING(\"Not meet condition to A/C setting, C_RESSTA2=\"), DLT_UINT32(rxSigRES[RX_C_RESSTA2]),\n  399|               DLT_STRING(\"igState=\"), DLT_INT32(mIGState),\n  400|               DLT_STRING(\"accState=\"), DLT_INT32(mACCState));\n  401|         processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W001, rxSigRES[RX_C_RESCAUSE], CMD_RES_SETTING);\n  402|     }\n  403| }",
+   "cases": [
+    {
+     "id": "TC-0190",
+     "priority": "P3",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `processSettingCmd`, which calls `processReplyReq` (indirect, 2 hops)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::completeFeature`: control flow / computation changed in `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`",
+     "corner_cases": [
+      "`isRecvStartCmd = false;` is no longer done here: readers of `isRecvStartCmd` must not rely on it being updated on this path",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 2,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K064",
+   "symbol": "checkResType",
+   "at": "src/features/RemoteEngineStart.cpp:727",
+   "links": [
+    "call -> processReplyReq at src/features/RemoteEngineStart.cpp:755: processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W001, rxSigRES[RX_C_RESCAUSE]);"
+   ],
+   "code": "  724|     }\n  725| }\n  726| // LCOV_EXCL_START\n  727| void RemoteEngineStart::checkResType()\n  728| {\n  729|     setInternalState(RES_PROCESS);\n  730|     if (E_OK == decodeOrderBody()) {\n  731|         if (rxSigRES[RX_C_RESSTA2] == C_RESSTA2_RES_IG_RUN || rxSigRES[RX_C_RESSTA2] == C_RESSTA2_RES_IG_RUN_WAIT) {\n  732|             if (mIGState == MCU_VALUE_STATUS::MCU_STATUS_ON && mACCState == MCU_VALUE_STATUS::MCU_STATUS_OFF) {\n  733|                 LOG_I(DLT_STRING(\"Process RES extend request\"));\n  734|                 isResExtend = true;\n  735|                 transfEngineExtendCmd();\n  736|             } else {\n  737|                 LOG_E(DLT_STRING(\"Not meet condition to execute RES extend, C_RESSTA2=\"), DLT_UINT32(rxSigRES[RX_C_RESSTA2]),\n  738|                     DLT_STRING(\"igState=\"), DLT_INT32(mIGState),\n  739|                     DLT_STRING(\"accState=\"), DLT_INT32(mACCState));\n  740|                 processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W001, rxSigRES[RX_C_RESCAUSE], CMD_RES_START);\n  741|             }\n  742|         } else {\n  743|             if (mIGState == MCU_VALUE_STATUS::MCU_STATUS_OFF && mACCState == MCU_VALUE_STATUS::MCU_STATUS_OFF) {\n  744|                 LOG_I(DLT_STRING(\"Process RES start request\"));\n  745|                 checkDrLockStt();\n  746|             } else {\n  747|                 LOG_E(DLT_STRING(\"Not meet condition to execute RES start, C_RESSTA2=\"), DLT_UINT32(rxSigRES[RX_C_RESSTA2]),\n  748|                     DLT_STRING(\"igState=\"), DLT_INT32(mIGState),\n  749|                     DLT_STRING(\"accState=\"), DLT_INT32(mACCState));\n  750|                 processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W001, rxSigRES[RX_C_RESCAUSE], CMD_RES_START);\n  751|             }\n  752|         }\n  753|     } else {\n  754|         LOG_E(DLT_STRING(\"Fail to decode order data body\"));\n  755|         processReplyReq(RESULT_STATUS_FAILURE, RESULT_REASON_W001, rxSigRES[RX_C_RESCAUSE]);\n  756|     }\n  757| }",
+   "cases": [
+    {
+     "id": "TC-0192",
+     "priority": "P3",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `checkResType`, which calls `processReplyReq` (indirect, 2 hops)",
+     "activation_condition": "Reachable from changed `rca::RemoteEngineStart::completeFeature`: control flow / computation changed in `rca::RemoteEngineStart::completeFeature` (src/features/RemoteEngineStart.cpp:204): `false`",
+     "corner_cases": [
+      "`isRecvStartCmd = false;` is no longer done here: readers of `isRecvStartCmd` must not rely on it being updated on this path",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 2,
+     "verify_by": "review"
+    }
+   ]
+  }
+ ]
+}

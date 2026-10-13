@@ -1,0 +1,320 @@
+{
+ "batch": "batch-05",
+ "report_language": "vi",
+ "changed": [
+  "rca::Feature @src/features/Feature.h:269 [abi_layout,logic,ownership_lifetime]",
+  "rca::Feature::getIsRecvStopCmd @src/features/Feature.h:463 [abi_layout,logic]",
+  "rca::Feature::setIsRecvStopCmd @src/features/Feature.h:478 [abi_layout]",
+  "rca::RemoteEngineStart::processOrderResp @src/features/RemoteEngineStart.cpp:60 [logic]",
+  "rca::RemoteEngineStart::completeFeature @src/features/RemoteEngineStart.cpp:204 [logic]",
+  "rca::RemoteEngineStart::determineResSuspend @src/features/RemoteEngineStart.cpp:1569 [logic]",
+  "rca::RemoteEngineStart @src/features/RemoteEngineStart.h:323 [abi_layout,build_config,logic]",
+  "rca::RemoteEngineStartCancel::processOrderResp @src/features/RemoteEngineStartCancel.cpp:29 [logic]",
+  "rca::RemoteEngineStartCancel::completeFeature @src/features/RemoteEngineStartCancel.cpp:183 [logic]",
+  "rca::RemoteEngineStartCancel::processOrderData @src/features/RemoteEngineStartCancel.cpp:213 [logic]",
+  "rca::RemoteEngineStartCancel::deactiveFeature @src/features/RemoteEngineStartCancel.cpp:640 [logic]"
+ ],
+ "flags": [
+  "build_config_incomplete_macro: change in src/features/RemoteEngineStart.h:323 is guarded by `#ifndef ENGINE_START_FEATURE_H`; `ENGINE_START_FEATURE_H` is undefined in every compile command, so this branch was never parsed (configurations in compile_commands.json: Debug)",
+  "build_config_incomplete_macro: src/features/FeatureFactory.h:7 is guarded by `#ifndef EE_ARCH_GEN3`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorLock.h:19 is guarded by `#ifndef RDL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorLock.h:39 is guarded by `#ifndef RDL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorUnlock.h:19 is guarded by `#ifndef RDU_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteDoorUnlock.h:39 is guarded by `#ifndef RDU_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:323 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:326 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStart.h:339 is guarded by `#ifndef ENGINE_START_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStartCancel.h:20 is guarded by `#ifndef ENGINE_START_CANCEL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteEngineStartCancel.h:40 is guarded by `#ifndef ENGINE_START_CANCEL_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteStartInhibition.h:20 is guarded by `#ifndef REMOTE_START_INHIBITION_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/RemoteStartInhibition.h:98 is guarded by `#ifndef REMOTE_START_INHIBITION_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapFeature.h:19 is guarded by `#ifndef SHOULDER_TAP_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapFeature.h:28 is guarded by `#ifndef SHOULDER_TAP_FEATURE_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapForGW.h:20 is guarded by `#ifndef SHOULDER_TAP_FOR_GW_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/features/ShoulderTapForGW.h:50 is guarded by `#ifndef SHOULDER_TAP_FOR_GW_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/prioritymanager/FeaturePriorityManager.h:70 is guarded by `#ifndef FEATUREPRIORITYMANAGER_H`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/tidl-generated/remotecontrolapp.h:31 is guarded by `#ifndef _REMOTE_CONTROL_APPLICATION_H_`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept",
+  "build_config_incomplete_macro: src/tidl-generated/remotecontrolexecutor.h:23 is guarded by `#ifndef _REMOTE_CONTROL_EXECUTOR_H_`, which cannot be evaluated for variant(s) default (macro values unknown); the case is kept"
+ ],
+ "existing_tests": [],
+ "packets": [
+  {
+   "packet": "K033",
+   "symbol": "rca::Feature::setRemoteControlIfMgr",
+   "at": "src/features/Feature.h:465",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:465: void setRemoteControlIfMgr(const sp<remotecontrolifmgr>& value) { mremotecontrolifmgr = value; }"
+   ],
+   "code": "  462| \n  463|     // Setter methods for derived classes (avoiding conflicts with existing public methods)\n  464|     void setHandler(const sp<sl::Handler>& value) { mHandler = value; }\n  465|     void setRemoteControlIfMgr(const sp<remotecontrolifmgr>& value) { mremotecontrolifmgr = value; }",
+   "cases": [
+    {
+     "id": "TC-0081",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::setRemoteControlIfMgr`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0044",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::setRemoteControlIfMgr`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:465)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K034",
+   "symbol": "rca::Feature::setAppManager",
+   "at": "src/features/Feature.h:466",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:466: void setAppManager(const sp<IApplicationManagerService>& value) { mAppManager = value; }"
+   ],
+   "code": "  463|     // Setter methods for derived classes (avoiding conflicts with existing public methods)\n  464|     void setHandler(const sp<sl::Handler>& value) { mHandler = value; }\n  465|     void setRemoteControlIfMgr(const sp<remotecontrolifmgr>& value) { mremotecontrolifmgr = value; }\n  466|     void setAppManager(const sp<IApplicationManagerService>& value) { mAppManager = value; }",
+   "cases": [
+    {
+     "id": "TC-0082",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::setAppManager`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0045",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::setAppManager`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:466)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K035",
+   "symbol": "rca::Feature::setVehicleService",
+   "at": "src/features/Feature.h:467",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:467: void setVehicleService(const sp<IVehicleManagerService>& value) { mVehicleService = value; }"
+   ],
+   "code": "  464|     void setHandler(const sp<sl::Handler>& value) { mHandler = value; }\n  465|     void setRemoteControlIfMgr(const sp<remotecontrolifmgr>& value) { mremotecontrolifmgr = value; }\n  466|     void setAppManager(const sp<IApplicationManagerService>& value) { mAppManager = value; }\n  467|     void setVehicleService(const sp<IVehicleManagerService>& value) { mVehicleService = value; }",
+   "cases": [
+    {
+     "id": "TC-0083",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::setVehicleService`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    },
+    {
+     "id": "TC-0046",
+     "priority": "P1",
+     "risk_group": "ownership_lifetime",
+     "sub_reason": "raw_pointer",
+     "description": "Re-verify the object ownership and lifetime of `rca::Feature::setVehicleService`, which is a member of `rca::Feature` (direct) \u2014 raw pointer",
+     "activation_condition": "Reachable from changed `rca::Feature`: pointer ownership changed in `rca::Feature` (src/features/Feature.h:269): `pointer parameter/return`",
+     "corner_cases": [
+      "Null pointer input and allocation failure",
+      "No double delete / leak on every exit path (including early return and exceptions)",
+      "Object still alive when accessed asynchronously (callbacks, timers, other threads)"
+     ],
+     "hop_distance": 1,
+     "verify_by": "target",
+     "target_reasons": [
+      "memory lifetime: use-after-free / leaks / dangling references appear at run time (ownership_lifetime/raw_pointer at src/features/Feature.h:467)"
+     ]
+    }
+   ]
+  },
+  {
+   "packet": "K036",
+   "symbol": "rca::Feature::setACCState",
+   "at": "src/features/Feature.h:469",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:469: void setACCState(int32_t value) { mACCState = value; }"
+   ],
+   "code": "  466|     void setAppManager(const sp<IApplicationManagerService>& value) { mAppManager = value; }\n  467|     void setVehicleService(const sp<IVehicleManagerService>& value) { mVehicleService = value; }\n  468|     void setTimerHandler(TimerTimeoutHandler* value) { mTimerHandler = value; }\n  469|     void setACCState(int32_t value) { mACCState = value; }",
+   "cases": [
+    {
+     "id": "TC-0085",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::setACCState`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K037",
+   "symbol": "rca::Feature::setIGState",
+   "at": "src/features/Feature.h:470",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:470: void setIGState(int32_t value) { mIGState = value; }"
+   ],
+   "code": "  467|     void setVehicleService(const sp<IVehicleManagerService>& value) { mVehicleService = value; }\n  468|     void setTimerHandler(TimerTimeoutHandler* value) { mTimerHandler = value; }\n  469|     void setACCState(int32_t value) { mACCState = value; }\n  470|     void setIGState(int32_t value) { mIGState = value; }",
+   "cases": [
+    {
+     "id": "TC-0086",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::setIGState`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K038",
+   "symbol": "rca::Feature::setPowerState",
+   "at": "src/features/Feature.h:471",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:471: void setPowerState(int32_t value) { mPowerState = value; }"
+   ],
+   "code": "  468|     void setTimerHandler(TimerTimeoutHandler* value) { mTimerHandler = value; }\n  469|     void setACCState(int32_t value) { mACCState = value; }\n  470|     void setIGState(int32_t value) { mIGState = value; }\n  471|     void setPowerState(int32_t value) { mPowerState = value; }",
+   "cases": [
+    {
+     "id": "TC-0087",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::setPowerState`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K039",
+   "symbol": "rca::Feature::setEthernetStt",
+   "at": "src/features/Feature.h:472",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:472: void setEthernetStt(uint8_t value) { mEthernetStt = value; }"
+   ],
+   "code": "  469|     void setACCState(int32_t value) { mACCState = value; }\n  470|     void setIGState(int32_t value) { mIGState = value; }\n  471|     void setPowerState(int32_t value) { mPowerState = value; }\n  472|     void setEthernetStt(uint8_t value) { mEthernetStt = value; }",
+   "cases": [
+    {
+     "id": "TC-0088",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::setEthernetStt`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    }
+   ]
+  },
+  {
+   "packet": "K040",
+   "symbol": "rca::Feature::setPowerMode",
+   "at": "src/features/Feature.h:473",
+   "links": [
+    "contains -> rca::Feature at src/features/Feature.h:473: void setPowerMode(int32_t value) { mPowerMode = value; }"
+   ],
+   "code": "  470|     void setIGState(int32_t value) { mIGState = value; }\n  471|     void setPowerState(int32_t value) { mPowerState = value; }\n  472|     void setEthernetStt(uint8_t value) { mEthernetStt = value; }\n  473|     void setPowerMode(int32_t value) { mPowerMode = value; }",
+   "cases": [
+    {
+     "id": "TC-0089",
+     "priority": "P2",
+     "risk_group": "logic",
+     "sub_reason": null,
+     "description": "Re-verify the functional behaviour of `rca::Feature::setPowerMode`, which is a member of `rca::Feature` (direct)",
+     "activation_condition": "Reachable from changed `rca::Feature`: control flow / computation changed in `rca::Feature` (src/features/Feature.h:269): `false`",
+     "corner_cases": [
+      "`getIsRecvStopCmd(\u2026)` is no longer called here (`bool getIsRecvStopCmd() const { return isRecvStopCmd; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "`setIsRecvStopCmd(\u2026)` is no longer called here (`void setIsRecvStopCmd(bool value) { isRecvStopCmd = value; }`): whatever depended on its effect (state, counters, notifications, cleanup) must still be correct",
+      "Exercise every branch whose condition changed (true and false paths)",
+      "Boundary values around changed comparisons and loop limits (min, max, off-by-one)",
+      "Error / early-return paths and default switch case"
+     ],
+     "hop_distance": 1,
+     "verify_by": "review"
+    }
+   ]
+  }
+ ]
+}
